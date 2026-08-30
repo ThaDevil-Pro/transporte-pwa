@@ -96,14 +96,67 @@
         <p id="modal-student-id" class="modal-id-text"></p>
       </div>
     </div>
-    <!-- PASO D: VISTA OTROS ROLES -->
-    <div id="view-dash-other" class="card hidden">
-      <h2 id="dash-title">BIENVENIDO</h2>
-      <p id="dash-desc" style="margin-bottom: 20px; color: #888;"></p>
-      <button id="btn-logout-other" class="btn btn-logout">Cerrar Sesión</button>
+<!-- PASO D: DASHBOARD CHOFER -->
+    <div id="view-dash-other" class="card dashboard-card hidden">
+      <!-- Encabezado con saludo -->
+      <div class="dash-header">
+        <p class="greeting">SESIÓN ACTIVA</p>
+        <h2 id="driver-name">¡Hola, Chofer!</h2>
+        <span id="driver-license" class="control-badge">Licencia: -</span>
+      </div>
+
+      <!-- Tarjeta Conteo de Pasajeros -->
+      <div class="balance-card">
+        <span class="balance-label">PASAJEROS A BORDO</span>
+        <div class="balance-amount">
+          <span id="passengers-count">0</span>
+        </div>
+        <span class="balance-status">Capacidad activa en la unidad</span>
+      </div>
+
+      <!-- Acción para Escanear QR -->
+      <div style="margin-bottom: 20px;">
+        <button id="btn-open-scanner" class="btn btn-qr">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+            <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+            <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+            <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+          </svg>
+          ESCANER QR
+        </button>
+      </div>
+
+      <!-- Sección de Lista de Estudiantes -->
+      <div class="students-list-container">
+        <div class="list-header">
+          <h3>LISTA DE ABORDAJE</h3>
+          <button id="btn-clear-list" class="btn-clear">Vaciar lista</button>
+        </div>
+
+        <ul id="students-ul" class="students-list">
+          <!-- Se puebla dinámicamente -->
+        </ul>
+      </div>
+
+      <button id="btn-logout-other" class="btn btn-logout" style="margin-top: 24px;">Cerrar Sesión</button>
     </div>
 
-  </div>
+    <!-- MODAL ESCÁNER CÁMARA QR -->
+    <div id="scanner-modal" class="modal-overlay hidden">
+      <div class="modal-content scanner-modal-content">
+        <button id="btn-close-scanner" class="btn-close-modal">✕</button>
+        <h3>ESCANEAR CÓDIGO ALUMNO</h3>
+        <p class="modal-subtitle">Apunta la cámara al código QR</p>
+        
+        <!-- Visor del video de la cámara -->
+        <div id="reader-container" class="reader-box">
+          <div id="reader"></div>
+        </div>
+
+        <p id="scan-feedback" class="scan-status-text">Buscando cámara...</p>
+      </div>
+    </div>
 
   <script type="module" src="/src/main.js"></script>
 </body>

@@ -324,3 +324,118 @@ input:focus {
   font-weight: 600;
   letter-spacing: 1px;
 }
+/* --- ESTILOS PANEL CHOFER Y LISTA --- */
+.students-list-container {
+  background: #0a0a0a;
+  border: 1px solid #222;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: left;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.list-header h3 {
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  color: #888;
+  margin: 0;
+}
+
+.btn-clear {
+  background: transparent;
+  border: 1px solid #333;
+  color: #888;
+  font-size: 0.7rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-clear:hover {
+  background: #222;
+  color: #fff;
+}
+
+.students-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.student-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #141414;
+}
+
+.student-item:last-child {
+  border-bottom: none;
+}
+
+.student-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.student-item-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.student-item-id {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.btn-remove-student {
+  background: transparent;
+  border: none;
+  color: #555;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.btn-remove-student:hover {
+  color: #ff4444;
+}
+
+/* --- ESTILOS DEL ESCÁNER DE CÁMARA --- */
+.scanner-modal-content {
+  max-width: 360px;
+}
+
+.reader-box {
+  width: 100%;
+  background: #111;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #333;
+  margin-bottom: 12px;
+}
+
+#reader video {
+  width: 100% !important;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.scan-status-text {
+  font-size: 0.8rem;
+  color: #888;
+  margin: 0;
+}
