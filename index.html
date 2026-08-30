@@ -1,96 +1,67 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transporte App - Alumno</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 20px; text-align: center; }
-    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 350px; margin: 0 auto; }
-    h2 { color: #333; margin-bottom: 5px; }
-    p { color: #666; font-size: 14px; }
-    canvas { margin: 15px 0; border: 2px solid #eee; padding: 10px; border-radius: 8px; }
-    .status { display: inline-block; padding: 6px 12px; border-radius: 20px; background: #e0f2fe; color: #0369a1; font-weight: bold; font-size: 12px; }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transporte PWA</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <div class="card">
-    <h2>Mi Pase de Transporte</h2>
-    <p id="alumno-nombre">Cargando datos...</p>
-    <div class="status">Estado: Activo</div>
-    
-    <div>
-      <canvas id="qr-canvas"></canvas>
-    </div>
-
-    <p style="font-size: 11px; color: #999;">Muestra este código QR al chofer al subir al autobús.</p>
-  </div>
-
-  <script type="module" src="/src/main.js"></script>
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transporte App - Alumno</title>
-  <style>
-    /* Pantalla de animación Splash */
-    #splash-screen {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: #000;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-      transition: opacity 0.5s ease;
-    }
-
-    #splash-video {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
-  object-fit: contain; /* En lugar de cover */
-}
-
-    /* Estilos base de la app */
-    body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 20px; text-align: center; }
-    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 350px; margin: 0 auto; }
-    h2 { color: #333; margin-bottom: 5px; }
-    p { color: #666; font-size: 14px; }
-    canvas { margin: 15px 0; border: 2px solid #eee; padding: 10px; border-radius: 8px; }
-    .status { display: inline-block; padding: 6px 12px; border-radius: 20px; background: #e0f2fe; color: #0369a1; font-weight: bold; font-size: 12px; }
-  </style>
-</head>
-<body>
-
-  <!-- Animación de entrada -->
+  <!-- Splash Screen / Intro Video -->
   <div id="splash-screen">
-    <video id="splash-video" autoplay muted playsinline>
-      <source src="/intro.mp4" type="video/mp4" />
+    <video id="splash-video" autoplay loop muted playsinline webkit-playsinline preload="auto">
+      <source src="intro.mp4" type="video/mp4">
     </video>
   </div>
 
-  <!-- Contenido principal -->
-  <div class="card">
-    <h2>Mi Pase de Transporte</h2>
-    <p id="alumno-nombre">Cargando datos...</p>
-    <div class="status">Estado: Activo</div>
+  <!-- Pantalla Principal de Login (Fondo Negro / Estilo Minimalista Blanco) -->
+  <div class="login-container">
     
-    <div>
-      <canvas id="qr-canvas"></canvas>
+    <!-- 1. Selección de Rol -->
+    <div id="role-selector" class="login-box">
+      <h2>SELECCIONA TU ROL</h2>
+      <div class="roles-grid">
+        <button class="btn-role" data-role="Estudiante">Estudiante</button>
+        <button class="btn-role" data-role="Chofer">Chofer</button>
+        <button class="btn-role" data-role="Admin">Admin</button>
+      </div>
     </div>
 
-    <p style="font-size: 11px; color: #999;">Muestra este código QR al chofer al subir al autobús.</p>
+    <!-- 2. Formulario de Acceso (Oculto al inicio) -->
+    <div id="login-form-box" class="login-box hidden">
+      <button id="btn-back" class="btn-back">← Volver</button>
+
+      <h2 id="login-title">INICIAR SESIÓN</h2>
+
+      <form id="form-login">
+        <div class="field">
+          <label for="control-number">Número de Control / Matrícula</label>
+          <input type="text" id="control-number" placeholder="Ej. 23010099" requiredautocomplete="off">
+        </div>
+
+        <div class="field">
+          <label for="password">Contraseña</label>
+          <input type="password" id="password" placeholder="••••••••" required>
+        </div>
+
+        <div id="login-error" class="error-msg hidden"></div>
+
+        <button type="submit" class="btn-submit">Ingresar</button>
+      </form>
+    </div>
+
+    <!-- 3. Vista del Alumno despues de Login (Oculto al inicio) -->
+    <div id="student-dashboard" class="login-box hidden">
+      <h2 id="alumno-nombre">Cargando...</h2>
+      <div class="qr-container">
+        <canvas id="qr-canvas"></canvas>
+      </div>
+      <button id="btn-logout" class="btn-submit" style="margin-top: 20px;">Cerrar Sesión</button>
+    </div>
+
   </div>
 
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/main.js"></script>
 </body>
 </html>
