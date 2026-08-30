@@ -18,16 +18,15 @@
   <!-- 2. Contenedor Principal -->
   <div class="main-container">
 
-    <!-- PASO A: SELECCIÓN DE ROL -->
+<!-- PASO A: SELECCIÓN DE ROL -->
     <div id="view-roles" class="card">
-      <h2>SELECCIONA TU ROL</h2>
+      <h2 id="text-decode">SELECCIONA TU ROL</h2>
       <div class="button-group">
         <button class="btn" data-role="Estudiante">Estudiante</button>
         <button class="btn" data-role="Chofer">Chofer</button>
         <button class="btn" data-role="Admin">Admin</button>
       </div>
     </div>
-
     <!-- PASO B: FORMULARIO DE LOGIN -->
     <div id="view-login" class="card hidden">
       <button id="btn-back" class="btn-back">← Volver</button>
@@ -36,7 +35,7 @@
       <form id="login-form">
         <div id="group-control" class="input-group">
           <label id="label-control">Número de Control / Matrícula</label>
-          <input type="text" id="input-control" placeholder="Ingresa tu número" autocomplete="off">
+          <input type="text" id="input-control" placeholder="Ingresa tu número" autocomplete="off" required>
         </div>
 
         <div id="group-password" class="input-group">
@@ -50,16 +49,14 @@
       </form>
     </div>
 
-<!-- PASO C: DASHBOARD ESTUDIANTE -->
+    <!-- PASO C: DASHBOARD ESTUDIANTE -->
     <div id="view-student" class="card dashboard-card hidden">
-      <!-- Encabezado con saludo -->
       <div class="dash-header">
         <p class="greeting">BIENVENIDO</p>
         <h2 id="student-name">Cargando...</h2>
         <span id="student-control" class="control-badge">23010099</span>
       </div>
 
-      <!-- Tarjeta de Saldo (Estilo Trading) -->
       <div class="balance-card">
         <span class="balance-label">SALDO PENDIENTE</span>
         <div class="balance-amount">
@@ -68,7 +65,6 @@
         <span class="balance-status">Al corriente</span>
       </div>
 
-      <!-- Acción para ver Código QR -->
       <div class="qr-trigger-box">
         <button id="btn-show-qr" class="btn btn-qr">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -96,16 +92,15 @@
         <p id="modal-student-id" class="modal-id-text"></p>
       </div>
     </div>
-<!-- PASO D: DASHBOARD CHOFER -->
-    <div id="view-dash-other" class="card dashboard-card hidden">
-      <!-- Encabezado con saludo -->
+
+    <!-- PASO D: DASHBOARD CHOFER -->
+    <div id="view-dash-driver" class="card dashboard-card hidden">
       <div class="dash-header">
         <p class="greeting">SESIÓN ACTIVA</p>
         <h2 id="driver-name">¡Hola, Chofer!</h2>
         <span id="driver-license" class="control-badge">Licencia: -</span>
       </div>
 
-      <!-- Tarjeta Conteo de Pasajeros -->
       <div class="balance-card">
         <span class="balance-label">PASAJEROS A BORDO</span>
         <div class="balance-amount">
@@ -114,7 +109,6 @@
         <span class="balance-status">Capacidad activa en la unidad</span>
       </div>
 
-      <!-- Acción para Escanear QR -->
       <div style="margin-bottom: 20px;">
         <button id="btn-open-scanner" class="btn btn-qr">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -127,19 +121,15 @@
         </button>
       </div>
 
-      <!-- Sección de Lista de Estudiantes -->
       <div class="students-list-container">
         <div class="list-header">
           <h3>LISTA DE ABORDAJE</h3>
           <button id="btn-clear-list" class="btn-clear">Vaciar lista</button>
         </div>
-
-        <ul id="students-ul" class="students-list">
-          <!-- Se puebla dinámicamente -->
-        </ul>
+        <ul id="students-ul" class="students-list"></ul>
       </div>
 
-      <button id="btn-logout-other" class="btn btn-logout" style="margin-top: 24px;">Cerrar Sesión</button>
+      <button id="btn-logout-driver" class="btn btn-logout" style="margin-top: 24px;">Cerrar Sesión</button>
     </div>
 
     <!-- MODAL ESCÁNER CÁMARA QR -->
@@ -149,7 +139,6 @@
         <h3>ESCANEAR CÓDIGO ALUMNO</h3>
         <p class="modal-subtitle">Apunta la cámara al código QR</p>
         
-        <!-- Visor del video de la cámara -->
         <div id="reader-container" class="reader-box">
           <div id="reader"></div>
         </div>
@@ -157,6 +146,104 @@
         <p id="scan-feedback" class="scan-status-text">Buscando cámara...</p>
       </div>
     </div>
+
+    <!-- PASO E: PANEL ADMIN -->
+    <div id="view-dash-admin" class="card dashboard-card hidden">
+      <div class="dash-header">
+        <p class="greeting">PANEL DE CONTROL</p>
+        <h2>Administración</h2>
+      </div>
+
+      <!-- Menú Tabulador Admin -->
+      <div class="admin-tabs">
+        <button class="admin-tab active" data-tab="tab-register">Registrar</button>
+        <button class="admin-tab" data-tab="tab-users">Usuarios</button>
+        <button class="admin-tab" data-tab="tab-balance">Saldos</button>
+      </div>
+
+      <!-- SECCIÓN 1: REGISTRAR USUARIOS -->
+      <div id="tab-register" class="tab-content">
+        <form id="form-create-user">
+          <!-- SELECCIONADOR PERSONALIZADO MODERNO -->
+          <div class="input-group">
+            <label>TIPO DE USUARIO</label>
+            <div class="custom-dropdown" id="roleDropdown">
+              <div class="selected-option" id="selectedRole">
+                <span>Estudiante</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              
+              <div class="options-list hidden" id="optionsList">
+                <div class="option active" data-value="Estudiante">Estudiante</div>
+                <div class="option" data-value="Chofer">Chofer</div>
+                <div class="option" data-value="Admin">Administrador</div>
+              </div>
+
+              <!-- Preserva el valor del formulario -->
+              <input type="hidden" id="admin-new-role" value="Estudiante">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="admin-new-name">NOMBRE COMPLETO / USUARIO</label>
+            <input type="text" id="admin-new-name" placeholder="Ej. Juan Pérez" required>
+          </div>
+
+          <div class="input-group" id="group-admin-identifier">
+            <label id="label-admin-identifier" for="admin-new-identifier">MATRÍCULA / NÚM. CONTROL</label>
+            <input type="text" id="admin-new-identifier" placeholder="Ej. 23010099" required>
+          </div>
+
+          <div class="input-group">
+            <label for="admin-new-password">CONTRASEÑA</label>
+            <input type="password" id="admin-new-password" placeholder="••••••••" required>
+          </div>
+
+          <div class="input-group" id="group-admin-initial-balance">
+            <label for="admin-new-balance">SALDO INICIAL ($)</label>
+            <input type="number" id="admin-new-balance" step="0.01" value="0.00">
+          </div>
+
+          <button type="submit" class="btn btn-qr">GUARDAR USUARIO</button>
+          <p id="admin-register-msg" class="scan-status-text" style="margin-top: 10px;"></p>
+        </form>
+      </div>
+
+      <!-- SECCIÓN 2: VER LISTA DE USUARIOS -->
+      <div id="tab-users" class="tab-content hidden">
+        <div class="search-box">
+          <input type="text" id="search-user-input" placeholder="Buscar por nombre o matrícula..." list="users-autocomplete-list">
+          <datalist id="users-autocomplete-list"></datalist>
+        </div>
+
+        <div class="filter-chips">
+          <button class="chip active" data-filter="Todos">Todos</button>
+          <button class="chip" data-filter="Estudiante">Alumnos</button>
+          <button class="chip" data-filter="Chofer">Choferes</button>
+          <button class="chip" data-filter="Admin">Admins</button>
+        </div>
+
+        <div class="students-list-container">
+          <ul id="admin-users-ul" class="students-list" style="max-height: 280px;"></ul>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 3: SALDO DE ESTUDIANTES -->
+      <div id="tab-balance" class="tab-content hidden">
+        <div class="students-list-container">
+          <div class="list-header">
+            <h3>SALDOS DE ALUMNOS</h3>
+          </div>
+          <ul id="admin-balances-ul" class="students-list" style="max-height: 320px;"></ul>
+        </div>
+      </div>
+
+      <button id="btn-logout-admin" class="btn btn-logout" style="margin-top: 24px;">Cerrar Sesión</button>
+    </div>
+
+  </div>
 
   <script type="module" src="/src/main.js"></script>
 </body>
