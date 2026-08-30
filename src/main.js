@@ -32,12 +32,18 @@ async function cargarDatosAlumno() {
 }
 
 cargarDatosAlumno()
-// Ocultar el Splash Screen cuando termine el video .mp4
+
+// Manejo del Splash Screen y forzado de autoplay en Modo Ahorro
 const splash = document.getElementById('splash-screen')
 const video = document.getElementById('splash-video')
 
 if (video && splash) {
   let cerrado = false
+
+  // Atributos obligatorios para iOS
+  video.muted = true
+  video.setAttribute('playsinline', '')
+  video.setAttribute('webkit-playsinline', '')
 
   function cerrarSplash() {
     if (cerrado) return
@@ -51,17 +57,39 @@ if (video && splash) {
 
   // Monitorear el tiempo del video mientras se reproduce
   video.addEventListener('timeupdate', () => {
-    // Cambia 1.5 por los segundos exactos donde quieres cortar
     if (video.currentTime >= 2.0) { 
-      cerrarSplash()
+      cerrado = true
+      splash.style.opacity = '0'
+      setTimeout(() => {
+        splash.style.display = 'none'
+        video.pause()
+      }, 500)
     }
   })
 
   // Por si el video finaliza antes de tiempo
   video.addEventListener('ended', cerrarSplash)
 
-  // Respaldo por si el navegador bloquea el autoplay
-  video.play().catch(() => {
-    cerrarSplash()
-  })
+  // Intentar reproduccion automatica y forzar al toque si hay Ahorro de Batería
+  const reproducirVideo = () => {
+    const playPromise = video.play()
+
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        // Si el ahorro de energía lo frena, arranca al primer toque/scroll en el iPhone
+        const forcePlay = () => {
+          video.play()
+          window.removeEventListener('touchstart', forcePlay)
+          window.removeEventListener('click', forcePlay)
+          window.removeEventListener('scroll', forcePlay)
+        }
+
+        window.addEventListener('touchstart', forcePlay, { passive: true })
+        window.addEventListener('click', forcePlay, { passive: true })
+        window.addEventListener('scroll', forcePlay, { passive: true })
+      })
+    }
+  }
+
+  reproducirVideo()
 }
