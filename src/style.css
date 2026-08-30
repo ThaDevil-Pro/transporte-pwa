@@ -34,6 +34,7 @@ body {
   justify-content: center;
   align-items: center;
   transition: opacity 0.5s ease;
+  pointer-events: auto;
 }
 
 #splash-video {
@@ -65,6 +66,17 @@ h2 {
   margin-bottom: 24px;
   text-transform: uppercase;
   color: #ffffff;
+}
+
+/* --- TEXTO CON EFECTO DECODIFICADOR --- */
+#text-decode {
+  font-family: 'Courier New', Courier, monospace;
+  letter-spacing: 2px;
+  color: #ffffff;
+  display: block;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto;
 }
 
 .button-group {
@@ -161,6 +173,7 @@ input:focus {
   background: #333333;
   color: #ffffff;
 }
+
 /* --- DASHBOARD MODERNO ESTUDIANTE --- */
 .dashboard-card {
   text-align: left;
@@ -324,6 +337,7 @@ input:focus {
   font-weight: 600;
   letter-spacing: 1px;
 }
+
 /* --- ESTILOS PANEL CHOFER Y LISTA --- */
 .students-list-container {
   background: #0a0a0a;
@@ -439,6 +453,7 @@ input:focus {
   color: #888;
   margin: 0;
 }
+
 /* --- ESTILOS NAVEGACIÓN TABULADOR ADMIN --- */
 .admin-tabs {
   display: flex;
@@ -532,6 +547,7 @@ input:focus {
   font-weight: 700;
   color: #fff;
 }
+
 /* Estilo estilizado para inputs y listas desplegables (select) */
 select, input {
   width: 100%;
@@ -571,6 +587,7 @@ select option {
   color: #ffffff;
   padding: 10px;
 }
+
 .custom-dropdown {
   position: relative;
   width: 100%;
@@ -587,7 +604,7 @@ select option {
   background-color: #18181b;
   color: #ffffff;
   border: 1px solid #3f3f46;
-  border-radius: 12px; /* Esquinas redondeadas */
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -606,7 +623,7 @@ select option {
   right: 0;
   background-color: #18181b;
   border: 1px solid #3f3f46;
-  border-radius: 12px; /* Esquinas redondeadas del contenedor flotante */
+  border-radius: 12px;
   overflow: hidden;
   z-index: 50;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
@@ -624,15 +641,9 @@ select option {
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-/* Hover y estado activo: Gris claro con texto oscuro en lugar de azul */
 .option:hover,
 .option.active {
-  background-color: #d4d4d8; /* Gris claro */
-  color: #09090b;             /* Texto oscuro */
+  background-color: #d4d4d8;
+  color: #09090b;
   font-weight: 500;
-}
-#text-decode {
-  font-family: 'Courier New', Courier, monospace;
-  letter-spacing: 2px;
-  color: #ffffff;
 }

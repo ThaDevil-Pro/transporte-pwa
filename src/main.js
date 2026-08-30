@@ -31,43 +31,52 @@ let html5QrcodeScanner = null
 let allUsersCache = []
 let currentFilter = 'Todos'
 
-// --- EFECTO DECODIFICADOR (HACKER TEXT) ---
-function decodeTextEffect(element, originalText, speed = 30) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?'
+// --- FUNCIÓN DEL EFECTO DECODIFICADOR (OPTIMIZADA CON ANIMATION FRAME) ---
+function triggerDecodeEffect(elementId) {
+  const element = document.getElementById(elementId)
+  if (!element) return
+
+  // Cancelar animaciones previas en ejecución para evitar duplicados
+  if (element.dataset.animationFrame) {
+    cancelAnimationFrame(Number(element.dataset.animationFrame))
+  }
+
+  const originalText = 'SELECCIONA TU ROL'
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+'
   let iteration = 0
-  
-  if (element.dataset.intervalId) {
-    clearInterval(Number(element.dataset.intervalId))
-  }
+  let lastTime = 0
+  const speedMs = 25 // Velocidad del cambio en milisegundos
 
-  const interval = setInterval(() => {
-    element.innerText = originalText
-      .split('')
-      .map((letter, index) => {
-        if (letter === ' ') return ' '
-        if (index < iteration) return originalText[index]
-        return chars[Math.floor(Math.random() * chars.length)]
-      })
-      .join('')
+  function animate(currentTime) {
+    if (!lastTime) lastTime = currentTime
+    const delta = currentTime - lastTime
 
-    if (iteration >= originalText.length) {
-      clearInterval(interval)
+    if (delta > speedMs) {
+      element.innerText = originalText
+        .split('')
+        .map((letter, index) => {
+          if (letter === ' ') return ' '
+          if (index < iteration) return originalText[index]
+          return chars[Math.floor(Math.random() * chars.length)]
+        })
+        .join('')
+
+      iteration += 1 / 3
+      lastTime = currentTime
     }
-    iteration += 1 / 3
-  }, speed)
 
-  element.dataset.intervalId = String(interval)
-}
-
-// Inicializar efecto decodificador al cargar
-document.addEventListener('DOMContentLoaded', () => {
-  const title = document.querySelector('#view-roles h2')
-  if (title) {
-    const originalText = title.innerText
-    decodeTextEffect(title, originalText)
-    title.addEventListener('mouseenter', () => decodeTextEffect(title, originalText))
+    if (iteration < originalText.length) {
+      const frameId = requestAnimationFrame(animate)
+      element.dataset.animationFrame = frameId.toString()
+    } else {
+      element.innerText = originalText
+      delete element.dataset.animationFrame
+    }
   }
-})
+
+  const initialFrame = requestAnimationFrame(animate)
+  element.dataset.animationFrame = initialFrame.toString()
+}
 
 // --- 1. SELECCIÓN DE ROL ---
 document.querySelectorAll('.btn[data-role]').forEach(btn => {
@@ -95,11 +104,13 @@ document.querySelectorAll('.btn[data-role]').forEach(btn => {
   })
 })
 
+// Disparar al presionar el botón "← Volver"
 const btnBack = document.getElementById('btn-back')
 if (btnBack) {
   btnBack.addEventListener('click', () => {
     viewLogin.classList.add('hidden')
     viewRoles.classList.remove('hidden')
+    triggerDecodeEffect('text-decode') // Animación al regresar del login
   })
 }
 
@@ -296,7 +307,6 @@ adminTabs.forEach(tab => {
   })
 })
 
-// Ajustar campos según tipo de usuario en el menú desplegable personalizado
 if (adminNewRole) {
   adminNewRole.addEventListener('change', (e) => {
     const role = e.target.value
@@ -349,7 +359,6 @@ if (dropdown && selectedRole && optionsList) {
   })
 }
 
-// Registrar Usuario en Supabase
 if (formCreateUser) {
   formCreateUser.addEventListener('submit', async (e) => {
     e.preventDefault()
@@ -384,7 +393,6 @@ if (formCreateUser) {
   })
 }
 
-// Cargar todos los usuarios
 async function loadAdminData() {
   const [{ data: alumnos }, { data: choferes }, { data: admins }] = await Promise.all([
     supabase.from('alumnos').select('*'),
@@ -415,7 +423,6 @@ function updateAutocompleteList() {
   })
 }
 
-// Renderizar Lista de Usuarios
 function renderUsersList() {
   const ul = document.getElementById('admin-users-ul')
   if (!ul) return
@@ -449,7 +456,6 @@ function renderUsersList() {
     ul.appendChild(li)
   })
 
-  // Eliminar Usuario
   document.querySelectorAll('.btn-action.delete').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       if (!confirm('¿Deseas eliminar este usuario?')) return
@@ -461,7 +467,6 @@ function renderUsersList() {
     })
   })
 
-  // Editar Usuario
   document.querySelectorAll('.btn-action.edit').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const role = e.target.dataset.role
@@ -482,7 +487,6 @@ function renderUsersList() {
   })
 }
 
-// Renderizar Saldos de Estudiantes
 function renderBalancesList(alumnos) {
   const ul = document.getElementById('admin-balances-ul')
   if (!ul) return
@@ -523,7 +527,6 @@ function renderBalancesList(alumnos) {
   })
 }
 
-// Búsqueda y Filtros
 if (searchUserInput) searchUserInput.addEventListener('input', renderUsersList)
 
 filterChips.forEach(chip => {
@@ -554,32 +557,50 @@ function resetApp() {
   if (viewRoles) viewRoles.classList.remove('hidden')
   passengers = []
   loginForm.reset()
+  
+  triggerDecodeEffect('text-decode') // Animación al cerrar sesión
 }
 
-// --- 6. VIDEO INTRO ---
+// --- 6. VIDEO INTRO Y ANIMACIÓN AUTOMÁTICA ---
 const splash = document.getElementById('splash-screen')
 const video = document.getElementById('splash-video')
 
-if (video && splash) {
-  let cerrado = false
-  const cerrarSplash = () => {
-    if (cerrado) return
-    cerrado = true
+const DURACION_VIDEO_MS = 2500 
+
+if (splash) {
+  if (video) {
+    video.play().catch(() => {
+      const forcePlay = () => {
+        video.play()
+        window.removeEventListener('touchstart', forcePlay)
+        window.removeEventListener('click', forcePlay)
+      }
+      window.addEventListener('touchstart', forcePlay, { passive: true })
+      window.addEventListener('click', forcePlay, { passive: true })
+    })
+  }
+
+  // Esperar el tiempo fijado del video
+  setTimeout(() => {
+    splash.style.pointerEvents = 'none'
     splash.style.opacity = '0'
+    
     setTimeout(() => {
       splash.style.display = 'none'
-      video.pause()
+      if (video) video.pause()
+      
+      // Sincronizar el renderizado del DOM para iniciar animación
+      requestAnimationFrame(() => {
+        triggerDecodeEffect('text-decode')
+      })
+
     }, 500)
-  }
-  video.addEventListener('timeupdate', () => { if (video.currentTime >= 2.0) cerrarSplash() })
-  video.addEventListener('ended', cerrarSplash)
-  video.play().catch(() => {
-    const forcePlay = () => {
-      video.play()
-      window.removeEventListener('touchstart', forcePlay)
-      window.removeEventListener('click', forcePlay)
-    }
-    window.addEventListener('touchstart', forcePlay, { passive: true })
-    window.addEventListener('click', forcePlay, { passive: true })
+  }, DURACION_VIDEO_MS)
+
+} else {
+  document.addEventListener('DOMContentLoaded', () => {
+    requestAnimationFrame(() => {
+      triggerDecodeEffect('text-decode')
+    })
   })
 }
