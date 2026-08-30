@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Administrador - Alumnos</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    h1 { color: #333; }
+    form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    input, select, button { padding: 10px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
+    input { flex: 1; min-width: 150px; }
+    button { background: #2563eb; color: white; border: none; cursor: pointer; font-weight: bold; }
+    button:hover { background: #1d4ed8; }
+    .btn-danger { background: #dc2626; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-edit { background: #f59e0b; }
+    .btn-edit:hover { background: #d97706; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background: #f8fafc; color: #475569; }
+    .badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+    .badge-activo { background: #dcfce7; color: #15803d; }
+    .badge-inactivo { background: #fee2e2; color: #b91c1c; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Administración de Alumnos</h1>
+
+    <form id="alumno-form">
+      <input type="hidden" id="alumno-id" />
+      <input type="text" id="nombre" placeholder="Nombre completo" required />
+      <input type="text" id="matricula" placeholder="Matrícula" required />
+      <select id="estado">
+        <option value="Activo">Activo</option>
+        <option value="Inactivo">Inactivo</option>
+      </select>
+      <button type="submit" id="btn-guardar">Registrar Alumno</button>
+      <button type="button" id="btn-cancelar" style="display:none; background:#6b7280;">Cancelar</button>
+    </form>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Matrícula</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-alumnos">
+        <tr><td colspan="4">Cargando alumnos...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script type="module" src="/src/admin.js"></script>
+</body>
+</html>
