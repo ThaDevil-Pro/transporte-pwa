@@ -4,18 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Transporte PWA</title>
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
 
-  <!-- 1 y 2. VIDEO DE INTRO (Pantalla completa) -->
+  <!-- 1. Video Intro -->
   <div id="splash-screen">
     <video id="splash-video" autoplay loop muted playsinline webkit-playsinline preload="auto">
       <source src="intro.mp4" type="video/mp4">
     </video>
   </div>
 
-  <!-- CONTENEDOR PRINCIPAL (Fondo Negro) -->
+  <!-- 2. Contenedor Principal -->
   <div class="main-container">
 
     <!-- PASO A: SELECCIÓN DE ROL -->
@@ -28,19 +28,17 @@
       </div>
     </div>
 
-    <!-- PASO B: FORMULARIO DE LOGIN (Detección dinámica según rol) -->
+    <!-- PASO B: FORMULARIO DE LOGIN -->
     <div id="view-login" class="card hidden">
       <button id="btn-back" class="btn-back">← Volver</button>
       <h2 id="login-title">LOGIN</h2>
 
       <form id="login-form">
-        <!-- Campo Número de Control (Estudiante y Chofer) -->
         <div id="group-control" class="input-group">
           <label id="label-control">Número de Control / Matrícula</label>
           <input type="text" id="input-control" placeholder="Ingresa tu número" autocomplete="off">
         </div>
 
-        <!-- Campo Contraseña (Todos) -->
         <div id="group-password" class="input-group">
           <label>Contraseña</label>
           <input type="password" id="input-password" placeholder="••••••••" required>
@@ -52,22 +50,56 @@
       </form>
     </div>
 
-    <!-- PASO C: PANEL DEL ESTUDIANTE (Muestra nombre y QR) -->
-    <div id="view-student" class="card hidden">
-      <h2 id="student-name">Cargando...</h2>
-      <p class="student-subtitle">Tu Código QR de Acceso</p>
-      
-      <div class="qr-box">
-        <canvas id="qr-canvas"></canvas>
+<!-- PASO C: DASHBOARD ESTUDIANTE -->
+    <div id="view-student" class="card dashboard-card hidden">
+      <!-- Encabezado con saludo -->
+      <div class="dash-header">
+        <p class="greeting">BIENVENIDO</p>
+        <h2 id="student-name">Cargando...</h2>
+        <span id="student-control" class="control-badge">23010099</span>
+      </div>
+
+      <!-- Tarjeta de Saldo (Estilo Trading) -->
+      <div class="balance-card">
+        <span class="balance-label">SALDO PENDIENTE</span>
+        <div class="balance-amount">
+          <span class="currency">$</span><span id="student-balance">0.00</span>
+        </div>
+        <span class="balance-status">Al corriente</span>
+      </div>
+
+      <!-- Acción para ver Código QR -->
+      <div class="qr-trigger-box">
+        <button id="btn-show-qr" class="btn btn-qr">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          MOSTRAR CÓDIGO QR
+        </button>
       </div>
 
       <button id="btn-logout-student" class="btn btn-logout">Cerrar Sesión</button>
     </div>
 
-    <!-- PASO D: VISTA TEMPORAL DE CHOFER / ADMIN -->
+    <!-- MODAL POPUP PARA EL QR EN GRANDE -->
+    <div id="qr-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <button id="btn-close-qr" class="btn-close-modal">✕</button>
+        <h3>TU CÓDIGO DE ACCESO</h3>
+        <p class="modal-subtitle">Muestra este QR al abordar el transporte</p>
+        <div class="qr-box-modal">
+          <canvas id="qr-canvas"></canvas>
+        </div>
+        <p id="modal-student-id" class="modal-id-text"></p>
+      </div>
+    </div>
+    <!-- PASO D: VISTA OTROS ROLES -->
     <div id="view-dash-other" class="card hidden">
       <h2 id="dash-title">BIENVENIDO</h2>
-      <p id="dash-desc" style="margin-bottom: 20px; color: #ccc;"></p>
+      <p id="dash-desc" style="margin-bottom: 20px; color: #888;"></p>
       <button id="btn-logout-other" class="btn btn-logout">Cerrar Sesión</button>
     </div>
 

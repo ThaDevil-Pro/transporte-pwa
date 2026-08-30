@@ -69,18 +69,21 @@ loginForm.addEventListener('submit', async (e) => {
       return
     }
 
-    // Mostrar Panel Estudiante + Generar QR
+    // Mostrar Panel Estudiante
     viewLogin.classList.add('hidden')
     viewStudent.classList.remove('hidden')
-    document.getElementById('student-name').textContent = alumno.nombre
     
-    const canvas = document.getElementById('qr-canvas')
-    QRCode.toCanvas(canvas, alumno.matricula, { width: 200, margin: 1 })
+    // Cargar Datos del Alumno en el Dashboard
+    document.getElementById('student-name').textContent = alumno.nombre
+    document.getElementById('student-control').textContent = alumno.matricula
+    
+    const saldo = alumno.saldo !== undefined && alumno.saldo !== null ? Number(alumno.saldo).toFixed(2) : '0.00'
+    document.getElementById('student-balance').textContent = saldo
+    document.getElementById('modal-student-id').textContent = `ID: ${alumno.matricula}`
   }
 
   // CASO B: CHOFER
   else if (currentRole === 'Chofer') {
-    // Validación temporal para Chofer (puedes conectar Supabase después)
     if (password === '123456' && control !== '') {
       viewLogin.classList.add('hidden')
       viewDashOther.classList.remove('hidden')
@@ -109,11 +112,54 @@ function showError(msg) {
   errorMessage.classList.remove('hidden')
 }
 
+// --- 3. LOGICA DEL MODAL Y DIBUJO DEL QR ---
+const qrModal = document.getElementById('qr-modal')
+const btnShowQr = document.getElementById('btn-show-qr')
+const btnCloseQr = document.getElementById('btn-close-qr')
+
+if (btnShowQr) {
+  btnShowQr.addEventListener('click', () => {
+    // 1. Mostrar el modal primero para dar dimensiones al canvas
+    qrModal.classList.remove('hidden')
+
+    // 2. Obtener matrícula del dashboard
+    const matricula = document.getElementById('student-control').textContent
+
+    // 3. Dibujar QR
+    const canvas = document.getElementById('qr-canvas')
+    QRCode.toCanvas(canvas, matricula, { 
+      width: 200, 
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#ffffff'
+      }
+    }, (err) => {
+      if (err) console.error('Error generando QR:', err)
+    })
+  })
+}
+
+if (btnCloseQr) {
+  btnCloseQr.addEventListener('click', () => {
+    qrModal.classList.add('hidden')
+  })
+}
+
+if (qrModal) {
+  qrModal.addEventListener('click', (e) => {
+    if (e.target === qrModal) {
+      qrModal.classList.add('hidden')
+    }
+  })
+}
+
 // Botones Cerrar Sesión
 document.getElementById('btn-logout-student').addEventListener('click', resetApp)
 document.getElementById('btn-logout-other').addEventListener('click', resetApp)
 
 function resetApp() {
+  if (qrModal) qrModal.classList.add('hidden')
   viewStudent.classList.add('hidden')
   viewDashOther.classList.add('hidden')
   viewLogin.classList.add('hidden')
@@ -121,7 +167,7 @@ function resetApp() {
   loginForm.reset()
 }
 
-// --- 3. VIDEO INTRO ---
+// --- 4. VIDEO INTRO ---
 const splash = document.getElementById('splash-screen')
 const video = document.getElementById('splash-video')
 

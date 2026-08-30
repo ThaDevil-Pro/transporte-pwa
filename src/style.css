@@ -1,72 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
-  background-color: #000000;
-  color: #ffffff;
+  background-color: #000000 !important;
+  color: #ffffff !important;
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* 1. Video de Intro */
+/* Ocultar elementos */
+.hidden {
+  display: none !important;
+}
+
+/* Video Intro */
 #splash-screen {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100vh;
-  /* Respaldo para navegadores móviles con barra de navegación dinámicas */
-  height: 100dvh; 
+  height: 100dvh;
   background-color: #000000;
   z-index: 9999;
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: hidden;
   transition: opacity 0.5s ease;
 }
 
 #splash-video {
   width: 100%;
   height: 100%;
-  /* Contain asegura que el video se muestre completo sin recortes. 
-     Si prefieres que llene toda la pantalla sin barras negras a los lados aunque corte un poco las orillas, cambia 'contain' por 'cover'. */
-  object-fit: contain;
-  object-position: center;
+  object-fit: cover;
 }
 
-/* 2 y 3. Estructura de Interfaz en Fondo Negro */
+/* UI Login Minimalista */
 .main-container {
   width: 100%;
-  max-width: 380px;
+  max-width: 360px;
   padding: 20px;
 }
 
 .card {
   background: #000000;
-  border: 1.5px solid #ffffff;
-  border-radius: 12px;
-  padding: 30px 20px;
+  border: 1px solid #333333;
+  border-radius: 16px;
+  padding: 32px 24px;
   text-align: center;
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.03);
 }
 
 h2 {
-  font-size: 1.1rem;
+  font-size: 1rem;
+  font-weight: 700;
   letter-spacing: 2px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   text-transform: uppercase;
+  color: #ffffff;
 }
 
 .button-group {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
 }
 
 .btn {
@@ -74,8 +78,8 @@ h2 {
   color: #ffffff;
   border: 1px solid #ffffff;
   padding: 14px;
-  font-size: 1rem;
-  border-radius: 8px;
+  font-size: 0.95rem;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
   width: 100%;
@@ -89,66 +93,234 @@ h2 {
 
 .btn-back {
   background: transparent;
-  color: #aaaaaa;
+  color: #777777;
   border: none;
   font-size: 0.85rem;
   cursor: pointer;
   float: left;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
+  font-weight: 600;
 }
 
 .input-group {
   display: flex;
   flex-direction: column;
   text-align: left;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 label {
-  font-size: 0.8rem;
-  margin-bottom: 6px;
-  color: #cccccc;
+  font-size: 0.75rem;
+  margin-bottom: 8px;
+  color: #888888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 input {
   background: #000000;
-  border: 1px solid #ffffff;
+  border: 1px solid #333333;
   color: #ffffff;
-  padding: 12px;
-  border-radius: 6px;
-  font-size: 1rem;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 0.95rem;
   outline: none;
+  transition: border-color 0.2s ease;
 }
 
 input:focus {
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
-}
-
-.hidden {
-  display: none !important;
+  border-color: #ffffff;
 }
 
 .error-text {
-  color: #ff5555;
-  font-size: 0.85rem;
-  margin-bottom: 15px;
+  color: #ff4d4d;
+  font-size: 0.8rem;
+  margin-bottom: 16px;
 }
 
 .student-subtitle {
-  font-size: 0.85rem;
-  color: #aaa;
-  margin-bottom: 15px;
+  font-size: 0.8rem;
+  color: #666666;
+  margin-bottom: 20px;
 }
 
 .qr-box {
   background: #ffffff;
-  padding: 15px;
-  border-radius: 8px;
+  padding: 16px;
+  border-radius: 12px;
   display: inline-block;
 }
 
 .btn-logout {
-  margin-top: 25px;
-  border-color: #888888;
+  margin-top: 24px;
+  border-color: #333333;
   color: #888888;
+}
+
+.btn-logout:active {
+  background: #333333;
+  color: #ffffff;
+}
+/* --- DASHBOARD MODERNO ESTUDIANTE --- */
+.dashboard-card {
+  text-align: left;
+  padding: 28px 20px;
+}
+
+.dash-header {
+  margin-bottom: 24px;
+}
+
+.greeting {
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: #777;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.dash-header h2 {
+  font-size: 1.3rem;
+  margin-bottom: 8px;
+  text-transform: none;
+  letter-spacing: -0.5px;
+  text-align: left;
+}
+
+.control-badge {
+  display: inline-block;
+  background: #111;
+  border: 1px solid #333;
+  color: #aaa;
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+/* Tarjeta Estilo Trading */
+.balance-card {
+  background: linear-gradient(145deg, #111111, #050505);
+  border: 1px solid #222;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.balance-label {
+  font-size: 0.65rem;
+  letter-spacing: 1.5px;
+  color: #888;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.balance-amount {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -1px;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.balance-amount .currency {
+  font-size: 1.4rem;
+  color: #666;
+}
+
+.balance-status {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.7rem;
+  color: #888;
+  font-weight: 500;
+}
+
+/* Botón Mostrar QR */
+.btn-qr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #ffffff;
+  color: #000000;
+  border: none;
+  font-weight: 700;
+}
+
+.btn-qr:active {
+  background: #ccc;
+  color: #000000;
+}
+
+/* MODAL DE QR EN GRANDE */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100dvh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.modal-content {
+  background: #000;
+  border: 1px solid #333;
+  border-radius: 20px;
+  padding: 30px 20px;
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+}
+
+.btn-close-modal {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.modal-content h3 {
+  font-size: 0.9rem;
+  letter-spacing: 1.5px;
+  margin-bottom: 6px;
+}
+
+.modal-subtitle {
+  font-size: 0.75rem;
+  color: #777;
+  margin-bottom: 20px;
+}
+
+.qr-box-modal {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 16px;
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+.modal-id-text {
+  font-size: 0.85rem;
+  color: #aaa;
+  font-weight: 600;
+  letter-spacing: 1px;
 }
