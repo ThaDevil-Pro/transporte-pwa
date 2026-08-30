@@ -1,95 +1,134 @@
 import QRCode from 'qrcode'
 import { supabase } from './supabase.js'
 
-// Variables de interfaz
-let selectedRole = ''
-const roleSelector = document.getElementById('role-selector')
-const loginFormBox = document.getElementById('login-form-box')
-const loginTitle = document.getElementById('login-title')
-const formLogin = document.getElementById('form-login')
-const studentDashboard = document.getElementById('student-dashboard')
-const loginError = document.getElementById('login-error')
+// Referencias del DOM
+const viewRoles = document.getElementById('view-roles')
+const viewLogin = document.getElementById('view-login')
+const viewStudent = document.getElementById('view-student')
+const viewDashOther = document.getElementById('view-dash-other')
 
-// Botones de Rol
-document.querySelectorAll('.btn-role').forEach(button => {
-  button.addEventListener('click', (e) => {
-    selectedRole = e.target.dataset.role
-    loginTitle.textContent = `LOGIN - ${selectedRole.toUpperCase()}`
-    roleSelector.classList.add('hidden')
-    loginFormBox.classList.remove('hidden')
+const loginTitle = document.getElementById('login-title')
+const loginForm = document.getElementById('login-form')
+const groupControl = document.getElementById('group-control')
+const labelControl = document.getElementById('label-control')
+const inputControl = document.getElementById('input-control')
+const inputPassword = document.getElementById('input-password')
+const errorMessage = document.getElementById('error-message')
+
+let currentRole = ''
+
+// --- 1. SELECCIÓN DE ROL ---
+document.querySelectorAll('.btn[data-role]').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    currentRole = e.target.dataset.role
+    loginTitle.textContent = `LOGIN ${currentRole.toUpperCase()}`
+    errorMessage.classList.add('hidden')
+    loginForm.reset()
+
+    if (currentRole === 'Admin') {
+      // Admin: Solo pide contraseña (esconde campo de número de control)
+      groupControl.classList.add('hidden')
+      inputControl.removeAttribute('required')
+    } else {
+      // Estudiante o Chofer: Piden ambos campos
+      groupControl.classList.remove('hidden')
+      inputControl.setAttribute('required', 'true')
+      labelControl.textContent = currentRole === 'Estudiante' ? 'Número de Control / Matrícula' : 'Número de Licencia / Control'
+    }
+
+    viewRoles.classList.add('hidden')
+    viewLogin.classList.remove('hidden')
   })
 })
 
 // Botón Volver
 document.getElementById('btn-back').addEventListener('click', () => {
-  loginFormBox.classList.add('hidden')
-  roleSelector.classList.remove('hidden')
-  loginError.classList.add('hidden')
+  viewLogin.classList.add('hidden')
+  viewRoles.classList.remove('hidden')
 })
 
-// Procesar Formulario de Login
-formLogin.addEventListener('submit', async (e) => {
+// --- 2. LOGICA DE LOGIN ---
+loginForm.addEventListener('submit', async (e) => {
   e.preventDefault()
-  loginError.classList.add('hidden')
-  
-  const matricula = document.getElementById('control-number').value.trim()
-  const password = document.getElementById('password').value.trim()
+  errorMessage.classList.add('hidden')
 
-  if (selectedRole === 'Estudiante') {
-    // Validar alumno en Supabase
+  const control = inputControl.value.trim()
+  const password = inputPassword.value.trim()
+
+  // CASO A: ESTUDIANTE
+  if (currentRole === 'Estudiante') {
     const { data: alumno, error } = await supabase
       .from('alumnos')
       .select('*')
-      .eq('matricula', matricula)
+      .eq('matricula', control)
       .eq('password', password)
       .single()
 
     if (error || !alumno) {
-      loginError.textContent = 'Número de control o contraseña incorrectos'
-      loginError.classList.remove('hidden')
+      showError('Número de control o contraseña incorrectos')
       return
     }
 
-    // Login Exitoso para Estudiante
-    loginFormBox.classList.add('hidden')
-    studentDashboard.classList.remove('hidden')
-    mostrarAlumno(alumno)
+    // Mostrar Panel Estudiante + Generar QR
+    viewLogin.classList.add('hidden')
+    viewStudent.classList.remove('hidden')
+    document.getElementById('student-name').textContent = alumno.nombre
+    
+    const canvas = document.getElementById('qr-canvas')
+    QRCode.toCanvas(canvas, alumno.matricula, { width: 200, margin: 1 })
+  }
 
-  } else {
-    // Para Chofer y Admin (Simulación básica por ahora)
-    alert(`Bienvenido ${selectedRole}: ${matricula}`)
+  // CASO B: CHOFER
+  else if (currentRole === 'Chofer') {
+    // Validación temporal para Chofer (puedes conectar Supabase después)
+    if (password === '123456' && control !== '') {
+      viewLogin.classList.add('hidden')
+      viewDashOther.classList.remove('hidden')
+      document.getElementById('dash-title').textContent = 'PANEL CHOFER'
+      document.getElementById('dash-desc').textContent = `Chofer ID: ${control}`
+    } else {
+      showError('Datos de Chofer incorrectos (Prueba clave: 123456)')
+    }
+  }
+
+  // CASO C: ADMIN
+  else if (currentRole === 'Admin') {
+    if (password === '2005') {
+      viewLogin.classList.add('hidden')
+      viewDashOther.classList.remove('hidden')
+      document.getElementById('dash-title').textContent = 'PANEL ADMIN'
+      document.getElementById('dash-desc').textContent = 'Acceso concedido como Administrador'
+    } else {
+      showError('Contraseña de Admin incorrecta')
+    }
   }
 })
 
-// Mostrar nombre y generar QR del estudiante
-function mostrarAlumno(alumno) {
-  document.getElementById('alumno-nombre').textContent = alumno.nombre
-  const canvas = document.getElementById('qr-canvas')
-
-  QRCode.toCanvas(canvas, alumno.matricula, { width: 200, margin: 1 }, (err) => {
-    if (err) console.error(err)
-  })
+function showError(msg) {
+  errorMessage.textContent = msg
+  errorMessage.classList.remove('hidden')
 }
 
-// Cerrar sesión
-document.getElementById('btn-logout').addEventListener('click', () => {
-  studentDashboard.classList.add('hidden')
-  roleSelector.classList.remove('hidden')
-  formLogin.reset()
-})
+// Botones Cerrar Sesión
+document.getElementById('btn-logout-student').addEventListener('click', resetApp)
+document.getElementById('btn-logout-other').addEventListener('click', resetApp)
 
-// --- LÓGICA DEL VIDEO INTRO ---
+function resetApp() {
+  viewStudent.classList.add('hidden')
+  viewDashOther.classList.add('hidden')
+  viewLogin.classList.add('hidden')
+  viewRoles.classList.remove('hidden')
+  loginForm.reset()
+}
+
+// --- 3. VIDEO INTRO ---
 const splash = document.getElementById('splash-screen')
 const video = document.getElementById('splash-video')
 
 if (video && splash) {
   let cerrado = false
 
-  video.muted = true
-  video.setAttribute('playsinline', '')
-  video.setAttribute('webkit-playsinline', '')
-
-  function cerrarSplash() {
+  const cerrarSplash = () => {
     if (cerrado) return
     cerrado = true
     splash.style.opacity = '0'
@@ -100,29 +139,18 @@ if (video && splash) {
   }
 
   video.addEventListener('timeupdate', () => {
-    if (video.currentTime >= 2.0) { 
-      cerrarSplash()
-    }
+    if (video.currentTime >= 2.0) cerrarSplash()
   })
 
   video.addEventListener('ended', cerrarSplash)
 
-  const reproducirVideo = () => {
-    const playPromise = video.play()
-    if (playPromise !== undefined) {
-      playPromise.catch(() => {
-        const forcePlay = () => {
-          video.play()
-          window.removeEventListener('touchstart', forcePlay)
-          window.removeEventListener('click', forcePlay)
-          window.removeEventListener('scroll', forcePlay)
-        }
-        window.addEventListener('touchstart', forcePlay, { passive: true })
-        window.addEventListener('click', forcePlay, { passive: true })
-        window.addEventListener('scroll', forcePlay, { passive: true })
-      })
+  video.play().catch(() => {
+    const forcePlay = () => {
+      video.play()
+      window.removeEventListener('touchstart', forcePlay)
+      window.removeEventListener('click', forcePlay)
     }
-  }
-
-  reproducirVideo()
+    window.addEventListener('touchstart', forcePlay, { passive: true })
+    window.addEventListener('click', forcePlay, { passive: true })
+  })
 }

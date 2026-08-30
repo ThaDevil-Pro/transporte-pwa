@@ -14,56 +14,62 @@ body {
   align-items: center;
 }
 
-/* Splash Video */
+/* 1. Video de Intro */
 #splash-screen {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
+  width: 100%;
   height: 100vh;
+  /* Respaldo para navegadores móviles con barra de navegación dinámicas */
+  height: 100dvh; 
   background-color: #000000;
   z-index: 9999;
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
   transition: opacity 0.5s ease;
 }
 
 #splash-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* Contain asegura que el video se muestre completo sin recortes. 
+     Si prefieres que llene toda la pantalla sin barras negras a los lados aunque corte un poco las orillas, cambia 'contain' por 'cover'. */
+  object-fit: contain;
+  object-position: center;
 }
 
-/* Contenedor Login */
-.login-container {
+/* 2 y 3. Estructura de Interfaz en Fondo Negro */
+.main-container {
   width: 100%;
   max-width: 380px;
   padding: 20px;
 }
 
-.login-box {
+.card {
   background: #000000;
-  border: 1px solid #ffffff;
+  border: 1.5px solid #ffffff;
   border-radius: 12px;
   padding: 30px 20px;
   text-align: center;
 }
 
 h2 {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   letter-spacing: 2px;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
   text-transform: uppercase;
 }
 
-.roles-grid {
+.button-group {
   display: flex;
   flex-direction: column;
   gap: 15px;
 }
 
-.btn-role, .btn-submit {
+.btn {
   background: #000000;
   color: #ffffff;
   border: 1px solid #ffffff;
@@ -72,18 +78,18 @@ h2 {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.2s ease;
   width: 100%;
+  transition: all 0.2s ease;
 }
 
-.btn-role:active, .btn-submit:active {
+.btn:active {
   background: #ffffff;
   color: #000000;
 }
 
 .btn-back {
   background: transparent;
-  color: #888888;
+  color: #aaaaaa;
   border: none;
   font-size: 0.85rem;
   cursor: pointer;
@@ -91,7 +97,7 @@ h2 {
   margin-bottom: 15px;
 }
 
-.field {
+.input-group {
   display: flex;
   flex-direction: column;
   text-align: left;
@@ -115,24 +121,34 @@ input {
 }
 
 input:focus {
-  border-color: #ffffff;
-  box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
 }
 
 .hidden {
   display: none !important;
 }
 
-.error-msg {
+.error-text {
   color: #ff5555;
   font-size: 0.85rem;
   margin-bottom: 15px;
 }
 
-.qr-container {
+.student-subtitle {
+  font-size: 0.85rem;
+  color: #aaa;
+  margin-bottom: 15px;
+}
+
+.qr-box {
   background: #ffffff;
   padding: 15px;
   border-radius: 8px;
   display: inline-block;
-  margin-top: 10px;
+}
+
+.btn-logout {
+  margin-top: 25px;
+  border-color: #888888;
+  color: #888888;
 }
