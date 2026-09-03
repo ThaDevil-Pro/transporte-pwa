@@ -26,6 +26,7 @@ const driverName = document.getElementById('driver-name')
 const driverLicense = document.getElementById('driver-license')
 const passengersCount = document.getElementById('passengers-count')
 const studentsUl = document.getElementById('students-ul')
+const btnIniciarViaje = document.getElementById('btn-iniciar-viaje')
 
 // Referencias Módulo Horarios (Matriz Semanal)
 const tbodyAlumnos = document.getElementById('tbody-horarios-alumnos')
@@ -34,17 +35,16 @@ const btnAddScheduleRow = document.getElementById('btn-add-schedule-row')
 
 // Variables Globales
 let currentRole = ''
-// Carga la lista previa guardada o inicia un arreglo vacío
-let passengers = JSON.parse(localStorage.getItem('chofer_passengers')) || []
+let passengers = []
 let html5QrcodeScanner = null
 let allUsersCache = []
 let currentFilter = 'Todos'
+
 // --- FUNCIÓN DEL EFECTO DECODIFICADOR (OPTIMIZADA CON ANIMATION FRAME) ---
 function triggerDecodeEffect(elementId) {
   const element = document.getElementById(elementId)
   if (!element) return
 
-  // Cancelar animaciones previas en ejecución para evitar duplicados
   if (element.dataset.animationFrame) {
     cancelAnimationFrame(Number(element.dataset.animationFrame))
   }
@@ -53,7 +53,7 @@ function triggerDecodeEffect(elementId) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+'
   let iteration = 0
   let lastTime = 0
-  const speedMs = 25 // Velocidad del cambio en milisegundos
+  const speedMs = 25
 
   function animate(currentTime) {
     if (!lastTime) lastTime = currentTime
@@ -112,13 +112,12 @@ document.querySelectorAll('.btn[data-role]').forEach(btn => {
   })
 })
 
-// Disparar al presionar el botón "← Volver"
 const btnBack = document.getElementById('btn-back')
 if (btnBack) {
   btnBack.addEventListener('click', () => {
     viewLogin.classList.add('hidden')
     viewRoles.classList.remove('hidden')
-    triggerDecodeEffect('text-decode') // Animación al regresar del login
+    triggerDecodeEffect('text-decode')
   })
 }
 
@@ -130,7 +129,6 @@ loginForm.addEventListener('submit', async (e) => {
   const control = inputControl.value.trim()
   const password = inputPassword.value.trim()
 
-  // CASO ESTUDIANTE
   if (currentRole === 'Estudiante') {
     const { data: alumno, error } = await supabase
       .from('alumnos')
@@ -152,8 +150,6 @@ loginForm.addEventListener('submit', async (e) => {
     document.getElementById('student-balance').textContent = saldo
     document.getElementById('modal-student-id').textContent = `ID: ${alumno.matricula}`
   }
-
-  // CASO CHOFER
   else if (currentRole === 'Chofer') {
     const { data: chofer, error } = await supabase
       .from('choferes')
@@ -171,10 +167,8 @@ loginForm.addEventListener('submit', async (e) => {
     viewDashDriver.classList.remove('hidden')
     driverName.textContent = `¡Hola, ${chofer.nombre}!`
     driverLicense.textContent = `Licencia: ${chofer.licencia}`
-    updatePassengersUI()
+    fetchPassengers()
   }
-
-  // CASO ADMIN
   else if (currentRole === 'Admin') {
     const { data: admin, error } = await supabase
       .from('admins')
@@ -215,7 +209,7 @@ if (btnShowQr) {
 if (btnCloseQr) btnCloseQr.addEventListener('click', () => qrModal.classList.add('hidden'))
 if (qrModal) qrModal.addEventListener('click', (e) => { if (e.target === qrModal) qrModal.classList.add('hidden') })
 
-// --- CHOFER & ESCÁNER QR ---
+// --- 4. CHOFER & ESCÁNER QR ---
 const scannerModal = document.getElementById('scanner-modal')
 const btnOpenScanner = document.getElementById('btn-open-scanner')
 const btnCloseScanner = document.getElementById('btn-close-scanner')
@@ -224,7 +218,7 @@ const scanFeedback = document.getElementById('scan-feedback')
 
 let isProcessingScan = false
 
-// 1. Cargar pasajeros desde Supabase
+// Cargar pasajeros desde Supabase
 async function fetchPassengers() {
   const { data, error } = await supabase
     .from('abordajes')
@@ -238,7 +232,7 @@ async function fetchPassengers() {
   }
 }
 
-// 2. Renderizar la lista
+// Renderizar lista de pasajeros
 function renderPassengersUI() {
   if (!passengersCount || !studentsUl) return
 
@@ -264,7 +258,7 @@ function renderPassengersUI() {
   })
 }
 
-// 3. Eliminar un alumno individual en Supabase
+// Eliminar un alumno individual de abordajes
 if (studentsUl) {
   studentsUl.addEventListener('click', async (e) => {
     if (e.target.classList.contains('btn-remove-student')) {
@@ -275,12 +269,12 @@ if (studentsUl) {
   })
 }
 
-// 4. Vaciar la tabla completa en Supabase (Limpia BD y UI al 100%)
+// Vaciar la lista sin cobro
 if (btnClearList) {
   btnClearList.addEventListener('click', async () => {
     if (passengers.length === 0) return
 
-    if (confirm('¿Deseas vaciar la lista de abordaje?')) {
+    if (confirm('¿Deseas vaciar la lista de abordaje sin realizar cobros?')) {
       const { error } = await supabase
         .from('abordajes')
         .delete()
@@ -292,13 +286,59 @@ if (btnClearList) {
       } else {
         passengers = []
         renderPassengersUI()
-        await fetchPassengers()
       }
     }
   })
 }
 
-// 5. Control del Escáner QR
+// Botón: Iniciar Viaje y Cobrar $30 por Alumno registrado
+if (btnIniciarViaje) {
+  btnIniciarViaje.addEventListener('click', async () => {
+    if (passengers.length === 0) {
+      alert('⚠️ No hay estudiantes en la lista de abordaje para iniciar el viaje.')
+      return
+    }
+
+    const confirmacion = confirm(`¿Deseas iniciar el viaje y abonar $30 a los ${passengers.length} estudiantes registrados?`)
+    if (!confirmacion) return
+
+    btnIniciarViaje.disabled = true
+    btnIniciarViaje.textContent = '⏳ Procesando cobros...'
+
+    try {
+      for (const student of passengers) {
+        const { data: alumnoData } = await supabase
+          .from('alumnos')
+          .select('saldo')
+          .eq('matricula', student.matricula)
+          .maybeSingle()
+
+        const saldoActual = alumnoData?.saldo || 0
+        const nuevoSaldo = Number(saldoActual) + 30
+
+        await supabase
+          .from('alumnos')
+          .update({ saldo: nuevoSaldo })
+          .eq('matricula', student.matricula)
+      }
+
+      await supabase.from('abordajes').delete().gt('id', -1)
+      passengers = []
+      renderPassengersUI()
+
+      alert(`✅ ¡Viaje iniciado! Se abonaron $30 de saldo a los ${passengers.length || 'alumnos'} abordados.`)
+
+    } catch (err) {
+      console.error('Error al procesar el viaje:', err)
+      alert('❌ Ocurrió un error al procesar el cobro de los alumnos.')
+    } finally {
+      btnIniciarViaje.disabled = false
+      btnIniciarViaje.textContent = '🚀 INICIAR VIAJE Y COBRAR ($30 C/U)'
+    }
+  })
+}
+
+// Control del Escáner QR
 if (btnOpenScanner) {
   btnOpenScanner.addEventListener('click', async () => {
     isProcessingScan = false
@@ -319,7 +359,7 @@ async function stopScanner() {
 }
 if (btnCloseScanner) btnCloseScanner.addEventListener('click', stopScanner)
 
-// 6. Procesamiento del escaneo
+// Procesamiento del escaneo
 async function onScanSuccess(decodedText) {
   if (isProcessingScan) return
   isProcessingScan = true
@@ -372,8 +412,8 @@ async function onScanSuccess(decodedText) {
   setTimeout(stopScanner, 800)
 }
 
-// Cargar registros al iniciar
 fetchPassengers()
+
 // --- 5. LÓGICA DASHBOARD ADMINISTRADOR ---
 const adminTabs = document.querySelectorAll('.admin-tab')
 const tabContents = document.querySelectorAll('.tab-content')
@@ -384,7 +424,6 @@ const formCreateUser = document.getElementById('form-create-user')
 const searchUserInput = document.getElementById('search-user-input')
 const filterChips = document.querySelectorAll('.chip')
 
-// Navegación por pestañas
 adminTabs.forEach(tab => {
   tab.addEventListener('click', () => {
     adminTabs.forEach(t => t.classList.remove('active'))
@@ -411,7 +450,6 @@ if (adminNewRole) {
   })
 }
 
-// DROPDOWN PERSONALIZADO
 const dropdown = document.getElementById('roleDropdown')
 const selectedRole = document.getElementById('selectedRole')
 const optionsList = document.getElementById('optionsList')
@@ -646,7 +684,7 @@ function resetApp() {
   passengers = []
   loginForm.reset()
   
-  triggerDecodeEffect('text-decode') // Animación al cerrar sesión
+  triggerDecodeEffect('text-decode')
 }
 
 // --- 6. VIDEO INTRO Y ANIMACIÓN AUTOMÁTICA ---
@@ -668,7 +706,6 @@ if (splash) {
     })
   }
 
-  // Esperar el tiempo fijado del video
   setTimeout(() => {
     splash.style.pointerEvents = 'none'
     splash.style.opacity = '0'
@@ -677,7 +714,6 @@ if (splash) {
       splash.style.display = 'none'
       if (video) video.pause()
       
-      // Sincronizar el renderizado del DOM para iniciar animación
       requestAnimationFrame(() => {
         triggerDecodeEffect('text-decode')
       })
@@ -692,8 +728,8 @@ if (splash) {
     })
   })
 }
-// --- MÓDULO DE HORARIOS EN TIEMPO REAL ---
-// --- MÓDULO MATRIZ DE HORARIOS SEMANALES (VERSIÓN ESTABLE) ---
+
+// --- 7. MÓDULO MATRIZ DE HORARIOS SEMANALES (VERSIÓN ESTABLE) ---
 
 let isEditingSchedule = false
 
@@ -711,7 +747,6 @@ async function fetchScheduleMatrix() {
 
 // Renderizar tabla tanto para Alumnos como para Chofer
 function renderScheduleUI(rows) {
-  // Si el chofer está interactuando con un input, pausamos el refresco para no quitarle el foco
   if (isEditingSchedule) return
 
   if (tbodyAlumnos) tbodyAlumnos.innerHTML = ''
@@ -740,7 +775,7 @@ function renderScheduleUI(rows) {
       tbodyAlumnos.appendChild(trAlumno)
     }
 
-    // 2. Renderizar fila vista Chofer (Editable y Estable)
+    // 2. Renderizar fila vista Chofer (Editable)
     if (tbodyChofer) {
       const trChofer = document.createElement('tr')
       trChofer.dataset.id = row.id
@@ -759,7 +794,6 @@ function renderScheduleUI(rows) {
         trChofer.appendChild(td)
       })
 
-      // Columna Acción: Eliminar Fila
       const tdAction = document.createElement('td')
       tdAction.innerHTML = `<button class="btn-remove-student btn-delete-row" data-id="${row.id}">✕</button>`
       trChofer.appendChild(tdAction)
@@ -786,16 +820,46 @@ if (btnAddScheduleRow) {
   })
 }
 
-// Eventos interactivos ultra-estables en la tabla del chofer
+// Eventos interactivos en la tabla del chofer
 if (tbodyChofer) {
-  // Detectar cuándo el usuario entra a editar (desactiva actualizaciones en vivo momentáneamente)
+  // Detectar foco y autoseleccionar hora vecina si está vacía
   tbodyChofer.addEventListener('focusin', (e) => {
     if (e.target.classList.contains('schedule-time-input')) {
       isEditingSchedule = true
+
+      if (!e.target.value) {
+        const tr = e.target.closest('tr')
+        const allInputs = Array.from(tr.querySelectorAll('.schedule-time-input'))
+        const currentIndex = allInputs.indexOf(e.target)
+
+        let neighbourTime = ''
+
+        // Buscar primero a la izquierda
+        for (let i = currentIndex - 1; i >= 0; i--) {
+          if (allInputs[i].value) {
+            neighbourTime = allInputs[i].value
+            break
+          }
+        }
+
+        // Si no encontró a la izquierda, buscar a la derecha
+        if (!neighbourTime) {
+          for (let i = currentIndex + 1; i < allInputs.length; i++) {
+            if (allInputs[i].value) {
+              neighbourTime = allInputs[i].value
+              break
+            }
+          }
+        }
+
+        if (neighbourTime) {
+          e.target.value = neighbourTime
+        }
+      }
     }
   })
 
-  // Guardar datos ÚNICAMENTE cuando el usuario termine y salga del input (blur)
+  // Guardar datos al salir del input (blur)
   tbodyChofer.addEventListener('focusout', async (e) => {
     if (e.target.classList.contains('schedule-time-input')) {
       const tr = e.target.closest('tr')
@@ -813,14 +877,12 @@ if (tbodyChofer) {
         .update({ [dia]: updatedDayData })
         .eq('id', rowId)
 
-      // Rehabilitar actualizaciones en vivo tras guardar
       isEditingSchedule = false
     }
   })
 
-  // Alternar botón IDA / REGRESO o Eliminar Fila
+  // Alternar IDA / REGRESO o Eliminar Fila
   tbodyChofer.addEventListener('click', async (e) => {
-    // Alternar IDA / REGRESO
     if (e.target.classList.contains('btn-type-toggle')) {
       const tr = e.target.closest('tr')
       const rowId = tr.dataset.id
@@ -833,7 +895,6 @@ if (tbodyChofer) {
 
       const updatedDayData = { hora: horaActual, tipo: nuevoTipo }
 
-      // Actualizar interfaz visual inmediatamente
       e.target.dataset.tipo = nuevoTipo
       e.target.textContent = nuevoTipo
       e.target.className = `btn-type-toggle ${nuevoTipo.toLowerCase()}`
@@ -844,7 +905,6 @@ if (tbodyChofer) {
         .eq('id', rowId)
     }
 
-    // Eliminar Fila
     if (e.target.classList.contains('btn-delete-row')) {
       const rowId = e.target.dataset.id
       await supabase.from('horarios_matriz').delete().eq('id', rowId)
@@ -853,7 +913,7 @@ if (tbodyChofer) {
   })
 }
 
-// Suscripción Realtime (Sincroniza alumnos y chofer suavemente)
+// Suscripción Realtime (Matriz de horarios)
 supabase
   .channel('horarios-matriz-changes')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'horarios_matriz' }, () => {
