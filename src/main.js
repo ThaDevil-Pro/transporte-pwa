@@ -253,9 +253,12 @@ if (btnClearList) {
     }
   })
 }
+// Candado para evitar que lea varios fotogramas del mismo QR
+let isProcessingScan = false
 
 if (btnOpenScanner) {
   btnOpenScanner.addEventListener('click', async () => {
+    isProcessingScan = false
     scannerModal.classList.remove('hidden')
     scanFeedback.textContent = 'Iniciando cámara...'
     if (!html5QrcodeScanner) html5QrcodeScanner = new Html5Qrcode("reader")
@@ -267,24 +270,31 @@ if (btnOpenScanner) {
 }
 
 async function stopScanner() {
+  isProcessingScan = false
   if (html5QrcodeScanner && html5QrcodeScanner.isScanning) await html5QrcodeScanner.stop()
   if (scannerModal) scannerModal.classList.add('hidden')
 }
 if (btnCloseScanner) btnCloseScanner.addEventListener('click', stopScanner)
 
 async function onScanSuccess(decodedText) {
+  // Ignora si ya hay una lectura procesándose
+  if (isProcessingScan) return
+  isProcessingScan = true
+
   const scannedId = String(decodedText).trim()
 
   // 1. Validar límite máximo de 40 pasajeros
   if (passengers.length >= 40) {
     scanFeedback.textContent = '❌ Límite alcanzado (Máximo 40 pasajeros)'
+    setTimeout(() => { isProcessingScan = false }, 2000)
     return
   }
 
-  // 2. Evitar registros duplicados convirtiendo a texto
+  // 2. Evitar registros duplicados
   const alreadyExists = passengers.some(p => String(p.matricula).trim() === scannedId)
   if (alreadyExists) {
     scanFeedback.textContent = `⚠️ El alumno (${scannedId}) ya está a bordo`
+    setTimeout(() => { isProcessingScan = false }, 2000)
     return
   }
 
@@ -298,13 +308,14 @@ async function onScanSuccess(decodedText) {
 
   if (!alumno) {
     scanFeedback.textContent = `❌ Matrícula ${scannedId} inválida`
+    setTimeout(() => { isProcessingScan = false }, 2000)
     return
   }
 
   passengers.unshift({ nombre: alumno.nombre, matricula: alumno.matricula })
   updatePassengersUI()
   scanFeedback.textContent = `✅ ¡${alumno.nombre} listo!`
-  setTimeout(stopScanner, 1000)
+  setTimeout(stopScanner, 800)
 }
 // --- 5. LÓGICA DASHBOARD ADMINISTRADOR ---
 const adminTabs = document.querySelectorAll('.admin-tab')
