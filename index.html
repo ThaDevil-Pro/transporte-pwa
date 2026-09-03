@@ -49,162 +49,219 @@
         <button type="submit" class="btn">Ingresar</button>
       </form>
     </div>
+<!-- PASO C: DASHBOARD ESTUDIANTE -->
+<div id="view-student" class="card dashboard-card hidden">
+  <div class="dash-header">
+    <p class="greeting">BIENVENIDO</p>
+    <h2 id="student-name">Cargando...</h2>
+    <span id="student-control" class="control-badge">23010099</span>
+  </div>
 
-    <!-- PASO C: DASHBOARD ESTUDIANTE -->
-    <div id="view-student" class="card dashboard-card hidden">
-      <div class="dash-header">
-        <p class="greeting">BIENVENIDO</p>
-        <h2 id="student-name">Cargando...</h2>
-        <span id="student-control" class="control-badge">23010099</span>
-      </div>
+  <!-- CAJITA INDICADOR (PASO 3) -->
+  <div id="indicador-viaje-box" class="indicador-box esperando">
+    <span class="indicador-label">ESTADO DEL VIAJE</span>
+    <span id="indicador-status" class="indicador-status-text">Esperando...</span>
+  </div>
 
-      <div class="balance-card">
-        <span class="balance-label">SALDO PENDIENTE</span>
-        <div class="balance-amount">
-          <span class="currency">$</span><span id="student-balance">0.00</span>
-        </div>
-        <span class="balance-status">Al corriente</span>
-      </div>
-
-      <div class="qr-trigger-box">
-        <button id="btn-show-qr" class="btn btn-qr">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7"></rect>
-            <rect x="14" y="3" width="7" height="7"></rect>
-            <rect x="14" y="14" width="7" height="7"></rect>
-            <rect x="3" y="14" width="7" height="7"></rect>
-          </svg>
-          MOSTRAR CÓDIGO QR
-        </button>
-      </div>
-
-<!-- MÓDULO NUEVO: TABLA DE HORARIOS SEMANALES PARA EL ALUMNO -->
-      <div class="students-list-container" style="margin-top: 20px;">
-        <div class="list-header">
-          <h3>📅 HORARIOS DE SALIDA</h3>
-        </div>
-        <div style="overflow-x: auto;">
-          <table class="schedule-table">
-            <thead>
-              <tr>
-                <th>LUNES</th>
-                <th>MARTES</th>
-                <th>MIÉRCOLES</th>
-                <th>JUEVES</th>
-                <th>VIERNES</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-horarios-alumnos">
-              <!-- Se llena dinámicamente -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <button id="btn-logout-student" class="btn btn-logout" style="margin-top: 24px;">Cerrar Sesión</button>
+  <div class="balance-card">
+    <span class="balance-label">SALDO PENDIENTE</span>
+    <div class="balance-amount">
+      <span class="currency">$</span><span id="student-balance">0.00</span>
     </div>
+    <span class="balance-status">Al corriente</span>
+  </div>
 
-    <!-- MODAL POPUP PARA EL QR EN GRANDE -->
-    <div id="qr-modal" class="modal-overlay hidden">
-      <div class="modal-content">
-        <button id="btn-close-qr" class="btn-close-modal">✕</button>
-        <h3>TU CÓDIGO DE ACCESO</h3>
-        <p class="modal-subtitle">Muestra este QR al abordar el transporte</p>
-        <div class="qr-box-modal">
-          <canvas id="qr-canvas"></canvas>
-        </div>
-        <p id="modal-student-id" class="modal-id-text"></p>
-      </div>
+  <div class="qr-trigger-box">
+    <button id="btn-show-qr" class="btn btn-qr">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+      </svg>
+      MOSTRAR CÓDIGO QR
+    </button>
+  </div>
+
+  <!-- HISTORIAL DE VIAJE (PASO 4) -->
+  <div class="students-list-container" style="margin-top: 20px;">
+    <div class="list-header">
+      <h3>HISTORIAL DE VIAJES COBRADOS</h3>
     </div>
+    <div style="overflow-x: auto;">
+      <table class="schedule-table">
+        <thead>
+          <tr>
+            <th>FECHA</th>
+            <th>HORA</th>
+            <th>MONTO</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-historial-alumno">
+          <tr>
+            <td colspan="3" style="text-align: center; color: #888;">Cargando historial...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
+  <!-- MÓDULO: TABLA DE HORARIOS SEMANALES PARA EL ALUMNO -->
+  <div class="students-list-container" style="margin-top: 20px;">
+    <div class="list-header">
+      <h3>HORARIOS DE SALIDA</h3>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="schedule-table">
+        <thead>
+          <tr>
+            <th>LUNES</th>
+            <th>MARTES</th>
+            <th>MIÉRCOLES</th>
+            <th>JUEVES</th>
+            <th>VIERNES</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-horarios-alumnos">
+          <!-- Se llena dinámicamente -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <button id="btn-logout-student" class="btn btn-logout" style="margin-top: 24px;">Cerrar Sesión</button>
+</div>
+
+<!-- MODAL POPUP PARA EL QR EN GRANDE -->
+<div id="qr-modal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <button id="btn-close-qr" class="btn-close-modal">✕</button>
+    <h3>TU CÓDIGO DE ACCESO</h3>
+    <p class="modal-subtitle">Muestra este QR al abordar el transporte</p>
+    <div class="qr-box-modal">
+      <canvas id="qr-canvas"></canvas>
+    </div>
+    <p id="modal-student-id" class="modal-id-text"></p>
+  </div>
+</div>
 <!-- PASO D: DASHBOARD CHOFER -->
-      <div id="view-dash-driver" class="card dashboard-card hidden">
-        <div class="dash-header">
-          <p class="greeting">SESIÓN ACTIVA</p>
-          <h2 id="driver-name">¡Hola, Chofer!</h2>
-          <span id="driver-license" class="control-badge">Licencia: -</span>
-        </div>
+<div id="view-dash-driver" class="card dashboard-card hidden">
+  <div class="dash-header">
+    <p class="greeting">SESIÓN ACTIVA</p>
+    <h2 id="driver-name">¡Hola, Chofer!</h2>
+    <span id="driver-license" class="control-badge">Licencia: -</span>
+  </div>
 
-        <div class="balance-card">
-          <span class="balance-label">PASAJEROS A BORDO</span>
-          <div class="balance-amount">
-            <span id="passengers-count">0</span>
-          </div>
-          <span class="balance-status">Capacidad activa en la unidad</span>
-        </div>
+  <div class="balance-card">
+    <span class="balance-label">PASAJEROS A BORDO</span>
+    <div class="balance-amount">
+      <span id="passengers-count">0</span>
+    </div>
+    <span class="balance-status">Capacidad activa en la unidad</span>
+  </div>
 
-        <div style="margin-bottom: 20px;">
-          <button id="btn-open-scanner" class="btn btn-qr">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
-              <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
-              <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
-              <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
-            </svg>
-            ESCANER QR
-          </button>
-        </div>
+  <div style="margin-bottom: 20px;">
+    <button id="btn-open-scanner" class="btn btn-qr">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+        <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+        <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+        <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+      </svg>
+      ESCANER QR
+    </button>
+  </div>
 
-        <div class="students-list-container">
-          <div class="list-header">
-            <h3>LISTA DE ABORDAJE</h3>
-            <button id="btn-clear-list" class="btn-clear">Vaciar lista</button>
-          </div>
-          <ul id="students-ul" class="students-list"></ul>
+  <div class="students-list-container">
+    <div class="list-header">
+      <h3>LISTA DE ABORDAJE</h3>
+      <button id="btn-clear-list" class="btn-clear">Vaciar lista</button>
+    </div>
+    <ul id="students-ul" class="students-list"></ul>
 
-          <!-- BOTÓN CORTE: INICIAR VIAJE Y SUMAR $30 A TODOS LOS ALUMNOS REGISTRADOS -->
-          <button id="btn-iniciar-viaje" class="btn btn-qr" style="margin-top: 15px; background-color: #2e7d32; width: 100%; padding: 12px; font-weight: bold;">
-            🚀 INICIAR VIAJE Y COBRAR ($30 C/U)
-          </button>
-        </div>
+    <!-- BOTÓN CORTE Y FINALIZAR VIAJE -->
+    <button id="btn-iniciar-viaje" class="btn btn-qr" style="margin-top: 15px; width: 100%; padding: 12px; font-weight: bold;">
+      HACER CORTE ($30 C/U)
+    </button>
+  </div>
 
-        <!-- MÓDULO NUEVO: TABLA Y GESTIÓN DE HORARIOS SEMANALES PARA EL CHOFER -->
-        <div class="students-list-container" style="margin-top: 20px;">
-          <div class="list-header">
-            <h3>⚙️ GESTIONAR HORARIOS SEMANALES</h3>
-          </div>
+  <!-- MÓDULO: TABLA Y GESTIÓN DE HORARIOS SEMANALES PARA EL CHOFER -->
+  <div class="students-list-container" style="margin-top: 20px;">
+    <div class="list-header">
+      <h3>⚙️ GESTIONAR HORARIOS SEMANALES</h3>
+    </div>
 
-          <div style="overflow-x: auto;">
-            <table class="schedule-table">
-              <thead>
-                <tr>
-                  <th>LUNES</th>
-                  <th>MARTES</th>
-                  <th>MIÉRCOLES</th>
-                  <th>JUEVES</th>
-                  <th>VIERNES</th>
-                  <th>ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody id="tbody-horarios-chofer">
-                <!-- Se llena dinámicamente -->
-              </tbody>
-            </table>
-          </div>
+    <div style="overflow-x: auto;">
+      <table class="schedule-table">
+        <thead>
+          <tr>
+            <th>LUNES</th>
+            <th>MARTES</th>
+            <th>MIÉRCOLES</th>
+            <th>JUEVES</th>
+            <th>VIERNES</th>
+            <th>ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-horarios-chofer">
+          <!-- Se llena dinámicamente -->
+        </tbody>
+      </table>
+    </div>
 
-          <!-- Botón para agregar una nueva fila a la tabla -->
-          <button id="btn-add-schedule-row" class="btn btn-qr" style="margin-top: 12px; padding: 10px;">
-            ➕ AGREGAR FILA DE HORARIO
-          </button>
-        </div>
+    <button id="btn-add-schedule-row" class="btn btn-qr" style="margin-top: 12px; padding: 10px;">
+      ➕ AGREGAR FILA DE HORARIO
+    </button>
+  </div>
 
-        <button id="btn-logout-driver" class="btn btn-logout" style="margin-top: 24px;">Cerrar Sesión</button>
-      </div>
+  <button id="btn-logout-driver" class="btn btn-logout" style="margin-top: 24px;">Cerrar Sesión</button>
+</div>
 
-      <!-- MODAL ESCÁNER CÁMARA QR -->
-      <div id="scanner-modal" class="modal-overlay hidden">
-        <div class="modal-content scanner-modal-content">
-          <button id="btn-close-scanner" class="btn-close-modal">✕</button>
-          <h3>ESCANEAR CÓDIGO ALUMNO</h3>
-          <p class="modal-subtitle">Apunta la cámara al código QR</p>
-          
-          <div id="reader-container" class="reader-box">
-            <div id="reader"></div>
-          </div>
+<!-- MODAL ESCÁNER CÁMARA QR -->
+<div id="scanner-modal" class="modal-overlay hidden">
+  <div class="modal-content scanner-modal-content">
+    <button id="btn-close-scanner" class="btn-close-modal">✕</button>
+    <h3>ESCANEAR CÓDIGO ALUMNO</h3>
+    <p class="modal-subtitle">Apunta la cámara al código QR</p>
+    
+    <div id="reader-container" class="reader-box">
+      <div id="reader"></div>
+    </div>
 
-          <p id="scan-feedback" class="scan-status-text">Buscando cámara...</p>
-        </div>
-      </div>
+    <p id="scan-feedback" class="scan-status-text">Buscando cámara...</p>
+  </div>
+</div>
+
+<!-- MODAL COMPROBANTE DE CORTE (PASO 5) -->
+<div id="modal-comprobante" class="modal-overlay hidden">
+  <div class="comprobante-content">
+    <div class="comprobante-header">
+      <h2>COMPROBANTE DE CORTE DE VIAJE</h2>
+      <p id="comprobante-fecha-hora">FECHA Y HORA: --/--/---- --:--</p>
+      <p id="comprobante-total">TOTAL ALUMNOS: 0 | TOTAL COBRADO: $0.00</p>
+    </div>
+
+    <div class="comprobante-body">
+      <table class="comprobante-tabla">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>MATRÍCULA</th>
+            <th>NOMBRE COMPLETO</th>
+            <th>MONTO</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-comprobante">
+          <!-- Se llena dinámicamente -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="comprobante-footer">
+      <button id="btn-cerrar-comprobante" class="btn-comprobante-close">CERRAR Y VACIAR LISTA</button>
+    </div>
+  </div>
+</div>
     <!-- PASO E: PANEL ADMIN -->
     <div id="view-dash-admin" class="card dashboard-card hidden">
       <div class="dash-header">

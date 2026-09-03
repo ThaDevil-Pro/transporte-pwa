@@ -36,9 +36,11 @@ const btnAddScheduleRow = document.getElementById('btn-add-schedule-row')
 // Variables Globales
 let currentRole = ''
 let passengers = []
+let copyPassengers = [] // Copia temporal para el comprobante (Paso 5)
 let html5QrcodeScanner = null
 let allUsersCache = []
 let currentFilter = 'Todos'
+let currentStudentMatricula = null
 
 // --- FUNCIÓN DEL EFECTO DECODIFICADOR (OPTIMIZADA CON ANIMATION FRAME) ---
 function triggerDecodeEffect(elementId) {
@@ -142,6 +144,7 @@ loginForm.addEventListener('submit', async (e) => {
       return
     }
 
+    currentStudentMatricula = alumno.matricula
     viewLogin.classList.add('hidden')
     viewStudent.classList.remove('hidden')
     document.getElementById('student-name').textContent = alumno.nombre
@@ -149,6 +152,10 @@ loginForm.addEventListener('submit', async (e) => {
     const saldo = alumno.saldo !== undefined && alumno.saldo !== null ? Number(alumno.saldo).toFixed(2) : '0.00'
     document.getElementById('student-balance').textContent = saldo
     document.getElementById('modal-student-id').textContent = `ID: ${alumno.matricula}`
+
+    // Cargar Indicador de Viaje (Paso 3) y Historial (Paso 4)
+    consultarEstadoViaje()
+    cargarHistorialAlumno(alumno.matricula)
   }
   else if (currentRole === 'Chofer') {
     const { data: chofer, error } = await supabase
@@ -193,7 +200,7 @@ function showError(msg) {
   errorMessage.classList.remove('hidden')
 }
 
-// --- 3. MODAL QR ESTUDIANTE ---
+// --- 3. MODAL QR ESTUDIANTE Y FUNCIONES ALUMNO (PASOS 3 Y 4) ---
 const qrModal = document.getElementById('qr-modal')
 const btnShowQr = document.getElementById('btn-show-qr')
 const btnCloseQr = document.getElementById('btn-close-qr')
@@ -208,6 +215,63 @@ if (btnShowQr) {
 }
 if (btnCloseQr) btnCloseQr.addEventListener('click', () => qrModal.classList.add('hidden'))
 if (qrModal) qrModal.addEventListener('click', (e) => { if (e.target === qrModal) qrModal.classList.add('hidden') })
+
+// PASO 3: Consultar estado del viaje para el indicador del alumno
+async function consultarEstadoViaje() {
+  const { data } = await supabase
+    .from('estado_viaje')
+    .select('estado')
+    .eq('id', 1)
+    .maybeSingle()
+
+  actualizarUIIndicador(data?.estado || 'ESPERANDO')
+}
+
+function actualizarUIIndicador(estado) {
+  const statusElem = document.getElementById('indicador-status')
+  const boxElem = document.getElementById('indicador-viaje-box')
+
+  if (!statusElem || !boxElem) return
+
+  if (estado === 'EN_CAMINO') {
+    statusElem.textContent = 'En camino...'
+    boxElem.classList.add('en-camino')
+  } else {
+    statusElem.textContent = 'Esperando...'
+    boxElem.classList.remove('en-camino')
+  }
+}
+
+// PASO 4: Cargar historial de viajes del alumno
+async function cargarHistorialAlumno(matricula) {
+  const tbody = document.getElementById('tbody-historial-alumno')
+  if (!tbody) return
+
+  const { data: viajes, error } = await supabase
+    .from('historial_viajes')
+    .select('*')
+    .eq('matricula', matricula)
+    .order('fecha_hora', { ascending: false })
+
+  if (error || !viajes || viajes.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #888;">No hay viajes registrados.</td></tr>'
+    return
+  }
+
+  tbody.innerHTML = viajes.map(viaje => {
+    const f = new Date(viaje.fecha_hora)
+    const fecha = f.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const hora = f.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true })
+
+    return `
+      <tr>
+        <td>${fecha}</td>
+        <td>${hora}</td>
+        <td>$${viaje.monto}.00</td>
+      </tr>
+    `
+  }).join('')
+}
 
 // --- 4. CHOFER & ESCÁNER QR ---
 const scannerModal = document.getElementById('scanner-modal')
@@ -291,49 +355,137 @@ if (btnClearList) {
   })
 }
 
-// Botón: Iniciar Viaje y Cobrar $30 por Alumno registrado
+// --- LÓGICA DE CORTE, CORRIDA Y COMPROBANTE (PASOS 1, 2, 3, 4 Y 5) ---
+let isTripActive = false
+
 if (btnIniciarViaje) {
   btnIniciarViaje.addEventListener('click', async () => {
     if (passengers.length === 0) {
-      alert('⚠️ No hay estudiantes en la lista de abordaje para iniciar el viaje.')
+      alert('No hay estudiantes en la lista de abordaje.')
       return
     }
 
-    const confirmacion = confirm(`¿Deseas iniciar el viaje y abonar $30 a los ${passengers.length} estudiantes registrados?`)
-    if (!confirmacion) return
+    // ESTADO 1: Hacer Corte y Cobrar $30 (Sin borrar lista)
+    if (!isTripActive) {
+      const confirmacion = confirm(`¿Deseas realizar el corte y cobrar $30 a los ${passengers.length} estudiantes registrados?`)
+      if (!confirmacion) return
 
-    btnIniciarViaje.disabled = true
-    btnIniciarViaje.textContent = '⏳ Procesando cobros...'
+      btnIniciarViaje.disabled = true
+      btnIniciarViaje.textContent = 'Procesando cobros...'
 
-    try {
-      for (const student of passengers) {
-        const { data: alumnoData } = await supabase
-          .from('alumnos')
-          .select('saldo')
-          .eq('matricula', student.matricula)
-          .maybeSingle()
+      try {
+        const fechaHoraActual = new Date().toISOString()
 
-        const saldoActual = alumnoData?.saldo || 0
-        const nuevoSaldo = Number(saldoActual) + 30
+        for (const student of passengers) {
+          // 1. Obtener saldo y sumar $30
+          const { data: alumnoData } = await supabase
+            .from('alumnos')
+            .select('saldo')
+            .eq('matricula', student.matricula)
+            .maybeSingle()
 
+          const saldoActual = alumnoData?.saldo || 0
+          const nuevoSaldo = Number(saldoActual) + 30
+
+          await supabase
+            .from('alumnos')
+            .update({ saldo: nuevoSaldo })
+            .eq('matricula', student.matricula)
+
+          // 2. PASO 4: Registrar en el Historial con fecha y hora
+          await supabase
+            .from('historial_viajes')
+            .insert([
+              {
+                matricula: student.matricula,
+                monto: 30,
+                fecha_hora: fechaHoraActual
+              }
+            ])
+        }
+
+        // 3. PASO 3: Actualizar el estado del viaje a "EN_CAMINO"
         await supabase
-          .from('alumnos')
-          .update({ saldo: nuevoSaldo })
-          .eq('matricula', student.matricula)
+          .from('estado_viaje')
+          .update({ estado: 'EN_CAMINO' })
+          .eq('id', 1)
+
+        alert(`Cobro realizado exitosamente a los ${passengers.length} alumnos.`)
+
+        isTripActive = true
+        btnIniciarViaje.textContent = 'FINALIZAR VIAJE'
+
+      } catch (err) {
+        console.error('Error al procesar el viaje:', err)
+        alert('Ocurrió un error al procesar el cobro de los alumnos.')
+      } finally {
+        btnIniciarViaje.disabled = false
+      }
+    } 
+    // ESTADO 2: PASO 5 - Finalizar Viaje y Generar Comprobante Desplegado
+    else {
+      const confirmacion = confirm('¿Deseas finalizar el viaje y generar el comprobante?')
+      if (!confirmacion) return
+
+      // Guardamos una copia de los pasajeros antes de vaciar
+      copyPassengers = [...passengers]
+
+      // Llenar datos en el comprobante desplegado
+      const ahora = new Date()
+      const fechaHoraTexto = ahora.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true })
+      
+      const compFechaElem = document.getElementById('comprobante-fecha-hora')
+      const compTotalElem = document.getElementById('comprobante-total')
+      
+      if (compFechaElem) compFechaElem.textContent = `FECHA Y HORA: ${fechaHoraTexto}`
+      if (compTotalElem) compTotalElem.textContent = `TOTAL ALUMNOS: ${copyPassengers.length} | TOTAL COBRADO: $${copyPassengers.length * 30}.00`
+
+      const tbodyComp = document.getElementById('tbody-comprobante')
+      if (tbodyComp) {
+        tbodyComp.innerHTML = copyPassengers.map((student, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${student.matricula}</td>
+            <td>${student.nombre || student.nombre_completo || 'ALUMNO'}</td>
+            <td>$30.00</td>
+          </tr>
+        `).join('')
       }
 
+      // Mostrar Modal Comprobante
+      const modalComp = document.getElementById('modal-comprobante')
+      if (modalComp) modalComp.classList.remove('hidden')
+    }
+  })
+}
+
+// Botón para cerrar comprobante y vaciar lista definitivamente (Paso 5)
+const btnCerrarComprobante = document.getElementById('btn-cerrar-comprobante')
+if (btnCerrarComprobante) {
+  btnCerrarComprobante.addEventListener('click', async () => {
+    try {
+      // Vaciar en Supabase y localmente
       await supabase.from('abordajes').delete().gt('id', -1)
       passengers = []
       renderPassengersUI()
 
-      alert(`✅ ¡Viaje iniciado! Se abonaron $30 de saldo a los ${passengers.length || 'alumnos'} abordados.`)
+      // PASO 3: Regresar estado a "ESPERANDO"
+      await supabase
+        .from('estado_viaje')
+        .update({ estado: 'ESPERANDO' })
+        .eq('id', 1)
+
+      isTripActive = false
+      btnIniciarViaje.textContent = 'HACER CORTE ($30 C/U)'
+
+      // Ocultar modal comprobante
+      const modalComp = document.getElementById('modal-comprobante')
+      if (modalComp) modalComp.classList.add('hidden')
+      alert('Viaje finalizado y lista vaciada correctamente.')
 
     } catch (err) {
-      console.error('Error al procesar el viaje:', err)
-      alert('❌ Ocurrió un error al procesar el cobro de los alumnos.')
-    } finally {
-      btnIniciarViaje.disabled = false
-      btnIniciarViaje.textContent = '🚀 INICIAR VIAJE Y COBRAR ($30 C/U)'
+      console.error('Error al limpiar lista:', err)
+      alert('Error al vaciar la lista de abordaje.')
     }
   })
 }
@@ -682,6 +834,7 @@ function resetApp() {
   if (viewLogin) viewLogin.classList.add('hidden')
   if (viewRoles) viewRoles.classList.remove('hidden')
   passengers = []
+  currentStudentMatricula = null
   loginForm.reset()
   
   triggerDecodeEffect('text-decode')
@@ -729,7 +882,7 @@ if (splash) {
   })
 }
 
-// --- 7. MÓDULO MATRIZ DE HORARIOS SEMANALES (VERSIÓN ESTABLE) ---
+// --- 7. MÓDULO MATRIZ DE HORARIOS SEMANALES ---
 
 let isEditingSchedule = false
 
@@ -913,15 +1066,24 @@ if (tbodyChofer) {
   })
 }
 
-// Suscripción Realtime (Matriz de horarios)
+// Suscripción en tiempo real al estado del viaje (para el alumno)
 supabase
-  .channel('horarios-matriz-changes')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'horarios_matriz' }, () => {
-    if (!isEditingSchedule) {
-      fetchScheduleMatrix()
+  .channel('estado_viaje_channel')
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'estado_viaje' }, (payload) => {
+    if (payload.new && payload.new.estado) {
+      actualizarUIIndicador(payload.new.estado)
     }
   })
   .subscribe()
 
-// Inicializar la matriz
+// Suscripción en tiempo real al historial de viajes
+supabase
+  .channel('historial_viajes_channel')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'historial_viajes' }, (payload) => {
+    if (currentStudentMatricula && payload.new && payload.new.matricula === currentStudentMatricula) {
+      cargarHistorialAlumno(currentStudentMatricula)
+    }
+  })
+  .subscribe()
+
 fetchScheduleMatrix()
