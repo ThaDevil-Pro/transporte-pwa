@@ -272,6 +272,7 @@ async function fetchPassengers() {
     renderPassengersUI()
   }
 }
+
 // 2. Renderizar la lista de pasajeros y actualizar contador
 function renderPassengersUI() {
   if (!passengersCount || !studentsUl) return
@@ -296,23 +297,30 @@ function renderPassengersUI() {
     `
     studentsUl.appendChild(li)
   })
+}
 
-  // Eliminar un alumno individual en Supabase
-  document.querySelectorAll('.btn-remove-student').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
+// Delegación de eventos global para eliminar un solo alumno (Evita duplicar listeners)
+if (studentsUl) {
+  studentsUl.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('btn-remove-student')) {
       const id = e.target.dataset.id
       const { error } = await supabase.from('abordajes').delete().eq('id', id)
-      if (!error) fetchPassengers()
-    })
+      if (!error) await fetchPassengers()
+    }
   })
 }
 
-// 3. Vaciar la tabla completa en Supabase
+// 3. Vaciar la tabla completa en Supabase (Eliminación total garantizada)
 if (btnClearList) {
   btnClearList.addEventListener('click', async () => {
     if (passengers.length > 0 && confirm('¿Deseas vaciar la lista de abordaje?')) {
-      const { error } = await supabase.from('abordajes').delete().gt('id', 0)
-      if (!error) fetchPassengers()
+      const { error } = await supabase.from('abordajes').delete().neq('id', 0)
+      if (!error) {
+        passengers = []
+        await fetchPassengers()
+      } else {
+        console.error('Error al vaciar la lista:', error)
+      }
     }
   })
 }
@@ -360,34 +368,24 @@ async function onScanSuccess(decodedText) {
 
   scanFeedback.textContent = 'Validando...'
 
-  const { data: alumno } = await supabase
+  const { data: alumno, error: fetchError } = await supabase
     .from('alumnos')
     .select('nombre, matricula')
     .eq('matricula', scannedId)
     .maybeSingle()
 
-  if (!alumno) {
+  if (fetchError || !alumno) {
     scanFeedback.textContent = `❌ Matrícula ${scannedId} inválida`
     setTimeout(() => { isProcessingScan = false }, 2000)
     return
   }
 
-// Depurar los datos del alumno leídos por el escáner
-  console.log('Datos del alumno detectado:', alumno)
+  const matriculaVal = String(alumno.matricula).trim()
+  const nombreVal = String(alumno.nombre).trim()
 
-  // Validar que las propiedades existan antes de insertar
-  const matriculaVal = alumno?.matricula ? String(alumno.matricula).trim() : String(alumno?.id || '').trim()
-  const nombreVal = alumno?.nombre ? String(alumno.nombre).trim() : String(alumno?.name || '').trim()
-
-  // Guardar nuevo abordaje en la base de datos
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('abordajes')
-    .insert([
-      { 
-        nombre: nombreVal, 
-        matricula: matriculaVal 
-      }
-    ])
+    .insert([{ nombre: nombreVal, matricula: matriculaVal }])
 
   if (error) {
     console.error('Error detallado de Supabase:', error)
