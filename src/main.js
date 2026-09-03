@@ -257,6 +257,65 @@ if (btnClearList) {
 // Candado para evitar que lea varios fotogramas del mismo QR
 let isProcessingScan = false
 
+// 1. Cargar pasajeros almacenados en Supabase
+async function fetchPassengers() {
+  const { data, error } = await supabase
+    .from('abordajes')
+    .select('id, nombre, matricula')
+    .order('created_at', { ascending: false })
+
+  if (!error && data) {
+    passengers = data
+    renderPassengersUI()
+  }
+}
+
+// 2. Renderizar la lista de pasajeros y actualizar contador
+function renderPassengersUI() {
+  if (!passengersCount || !studentsUl) return
+
+  passengersCount.textContent = `${passengers.length} / 40`
+  studentsUl.innerHTML = ''
+
+  if (passengers.length === 0) {
+    studentsUl.innerHTML = '<li style="color:#444; font-size:0.8rem; text-align:center; padding:12px 0;">No hay alumnos a bordo</li>'
+    return
+  }
+
+  passengers.forEach((p) => {
+    const li = document.createElement('li')
+    li.className = 'student-item'
+    li.innerHTML = `
+      <div class="student-info">
+        <span class="student-item-name">${p.nombre}</span>
+        <span class="student-item-id">Matrícula: ${p.matricula}</span>
+      </div>
+      <button class="btn-remove-student" data-id="${p.id}">✕</button>
+    `
+    studentsUl.appendChild(li)
+  })
+
+  // Eliminar un alumno individual en Supabase
+  document.querySelectorAll('.btn-remove-student').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.target.dataset.id
+      const { error } = await supabase.from('abordajes').delete().eq('id', id)
+      if (!error) fetchPassengers()
+    })
+  })
+}
+
+// 3. Vaciar la tabla completa en Supabase
+if (btnClearList) {
+  btnClearList.addEventListener('click', async () => {
+    if (passengers.length > 0 && confirm('¿Deseas vaciar la lista de abordaje?')) {
+      const { error } = await supabase.from('abordajes').delete().gt('id', 0)
+      if (!error) fetchPassengers()
+    }
+  })
+}
+
+// 4. Control del Escáner QR
 if (btnOpenScanner) {
   btnOpenScanner.addEventListener('click', async () => {
     isProcessingScan = false
@@ -277,21 +336,19 @@ async function stopScanner() {
 }
 if (btnCloseScanner) btnCloseScanner.addEventListener('click', stopScanner)
 
+// 5. Procesamiento del escaneo con inserción en Supabase
 async function onScanSuccess(decodedText) {
-  // Ignora si ya hay una lectura procesándose
   if (isProcessingScan) return
   isProcessingScan = true
 
   const scannedId = String(decodedText).trim()
 
-  // 1. Validar límite máximo de 40 pasajeros
   if (passengers.length >= 40) {
     scanFeedback.textContent = '❌ Límite alcanzado (Máximo 40 pasajeros)'
     setTimeout(() => { isProcessingScan = false }, 2000)
     return
   }
 
-  // 2. Evitar registros duplicados
   const alreadyExists = passengers.some(p => String(p.matricula).trim() === scannedId)
   if (alreadyExists) {
     scanFeedback.textContent = `⚠️ El alumno (${scannedId}) ya está a bordo`
@@ -313,11 +370,24 @@ async function onScanSuccess(decodedText) {
     return
   }
 
-  passengers.unshift({ nombre: alumno.nombre, matricula: alumno.matricula })
-  updatePassengersUI()
+  // Guardar nuevo abordaje en la base de datos
+  const { error } = await supabase
+    .from('abordajes')
+    .insert([{ nombre: alumno.nombre, matricula: alumno.matricula }])
+
+  if (error) {
+    scanFeedback.textContent = '❌ Error al guardar en Supabase'
+    setTimeout(() => { isProcessingScan = false }, 2000)
+    return
+  }
+
+  await fetchPassengers()
   scanFeedback.textContent = `✅ ¡${alumno.nombre} listo!`
   setTimeout(stopScanner, 800)
 }
+
+// Cargar registros al iniciar
+fetchPassengers()
 // --- 5. LÓGICA DASHBOARD ADMINISTRADOR ---
 const adminTabs = document.querySelectorAll('.admin-tab')
 const tabContents = document.querySelectorAll('.tab-content')
