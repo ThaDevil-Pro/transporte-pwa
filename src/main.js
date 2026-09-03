@@ -693,7 +693,9 @@ if (splash) {
   })
 }
 // --- MÓDULO DE HORARIOS EN TIEMPO REAL ---
-// --- MÓDULO MATRIZ DE HORARIOS SEMANALES ---
+// --- MÓDULO MATRIZ DE HORARIOS SEMANALES (VERSIÓN ESTABLE) ---
+
+let isEditingSchedule = false
 
 // Cargar filas desde Supabase
 async function fetchScheduleMatrix() {
@@ -709,6 +711,9 @@ async function fetchScheduleMatrix() {
 
 // Renderizar tabla tanto para Alumnos como para Chofer
 function renderScheduleUI(rows) {
+  // Si el chofer está interactuando con un input, pausamos el refresco para no quitarle el foco
+  if (isEditingSchedule) return
+
   if (tbodyAlumnos) tbodyAlumnos.innerHTML = ''
   if (tbodyChofer) tbodyChofer.innerHTML = ''
 
@@ -723,8 +728,8 @@ function renderScheduleUI(rows) {
         const td = document.createElement('td')
         if (cellData.hora) {
           td.innerHTML = `
-            <div class="badge-schedule ${cellData.tipo.toLowerCase()}">
-              ${cellData.hora} <br> <small>${cellData.tipo}</small>
+            <div class="badge-schedule ${cellData.tipo ? cellData.tipo.toLowerCase() : 'ida'}">
+              ${cellData.hora} <br> <small>${cellData.tipo || 'IDA'}</small>
             </div>
           `
         } else {
@@ -735,7 +740,7 @@ function renderScheduleUI(rows) {
       tbodyAlumnos.appendChild(trAlumno)
     }
 
-    // 2. Renderizar fila vista Chofer (Editable)
+    // 2. Renderizar fila vista Chofer (Editable y Estable)
     if (tbodyChofer) {
       const trChofer = document.createElement('tr')
       trChofer.dataset.id = row.id
@@ -746,8 +751,8 @@ function renderScheduleUI(rows) {
         td.innerHTML = `
           <div class="schedule-cell">
             <input type="time" class="schedule-time-input" data-dia="${dia}" value="${cellData.hora || ''}">
-            <button class="btn-type-toggle ${cellData.tipo.toLowerCase()}" data-dia="${dia}" data-tipo="${cellData.tipo}">
-              ${cellData.tipo}
+            <button class="btn-type-toggle ${cellData.tipo ? cellData.tipo.toLowerCase() : 'ida'}" data-dia="${dia}" data-tipo="${cellData.tipo || 'IDA'}">
+              ${cellData.tipo || 'IDA'}
             </button>
           </div>
         `
@@ -781,17 +786,23 @@ if (btnAddScheduleRow) {
   })
 }
 
-// Eventos interactivos en la tabla del chofer (Edición e Intercambio IDA/REGRESO)
+// Eventos interactivos ultra-estables en la tabla del chofer
 if (tbodyChofer) {
-  // Cambio de Hora
-  tbodyChofer.addEventListener('change', async (e) => {
+  // Detectar cuándo el usuario entra a editar (desactiva actualizaciones en vivo momentáneamente)
+  tbodyChofer.addEventListener('focusin', (e) => {
+    if (e.target.classList.contains('schedule-time-input')) {
+      isEditingSchedule = true
+    }
+  })
+
+  // Guardar datos ÚNICAMENTE cuando el usuario termine y salga del input (blur)
+  tbodyChofer.addEventListener('focusout', async (e) => {
     if (e.target.classList.contains('schedule-time-input')) {
       const tr = e.target.closest('tr')
       const rowId = tr.dataset.id
       const dia = e.target.dataset.dia
       const nuevaHora = e.target.value
 
-      // Obtener estado del botón tipo
       const btnTipo = tr.querySelector(`button[data-dia="${dia}"]`)
       const tipoActual = btnTipo ? btnTipo.dataset.tipo : 'IDA'
 
@@ -801,10 +812,13 @@ if (tbodyChofer) {
         .from('horarios_matriz')
         .update({ [dia]: updatedDayData })
         .eq('id', rowId)
+
+      // Rehabilitar actualizaciones en vivo tras guardar
+      isEditingSchedule = false
     }
   })
 
-  // Clics: Cambiar botón IDA / REGRESO o Eliminar Fila
+  // Alternar botón IDA / REGRESO o Eliminar Fila
   tbodyChofer.addEventListener('click', async (e) => {
     // Alternar IDA / REGRESO
     if (e.target.classList.contains('btn-type-toggle')) {
@@ -819,12 +833,15 @@ if (tbodyChofer) {
 
       const updatedDayData = { hora: horaActual, tipo: nuevoTipo }
 
+      // Actualizar interfaz visual inmediatamente
+      e.target.dataset.tipo = nuevoTipo
+      e.target.textContent = nuevoTipo
+      e.target.className = `btn-type-toggle ${nuevoTipo.toLowerCase()}`
+
       await supabase
         .from('horarios_matriz')
         .update({ [dia]: updatedDayData })
         .eq('id', rowId)
-
-      fetchScheduleMatrix()
     }
 
     // Eliminar Fila
@@ -836,13 +853,15 @@ if (tbodyChofer) {
   })
 }
 
-// Suscripción Realtime
+// Suscripción Realtime (Sincroniza alumnos y chofer suavemente)
 supabase
   .channel('horarios-matriz-changes')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'horarios_matriz' }, () => {
-    fetchScheduleMatrix()
+    if (!isEditingSchedule) {
+      fetchScheduleMatrix()
+    }
   })
   .subscribe()
 
-// Inicializar matriz
+// Inicializar la matriz
 fetchScheduleMatrix()
