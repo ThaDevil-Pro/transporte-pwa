@@ -263,15 +263,15 @@ let isProcessingScan = false
 async function fetchPassengers() {
   const { data, error } = await supabase
     .from('abordajes')
-    .select('id, nombre, matricula')
-    .order('created_at', { ascending: false })
+    .select('*')
 
-  if (!error && data) {
+  if (error) {
+    console.error('Error al cargar pasajeros:', error)
+  } else if (data) {
     passengers = data
     renderPassengersUI()
   }
 }
-
 // 2. Renderizar la lista de pasajeros y actualizar contador
 function renderPassengersUI() {
   if (!passengersCount || !studentsUl) return
