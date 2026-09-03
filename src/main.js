@@ -1087,3 +1087,153 @@ supabase
   .subscribe()
 
 fetchScheduleMatrix()
+
+// ==========================================
+// ⏱️ LÓGICA DEL TEMPORIZADOR EN TIEMPO REAL
+// ==========================================
+
+let timerInterval = null
+let targetEndTime = null
+
+const timerStudentBox = document.getElementById('timer-student-box')
+const timerStudentDisplay = document.getElementById('timer-student-display')
+const driverTimerDisplay = document.getElementById('driver-timer-display')
+
+const btnTimerStart = document.getElementById('btn-timer-start')
+const btnTimerAdd = document.getElementById('btn-timer-add')
+const btnTimerStop = document.getElementById('btn-timer-stop')
+
+// Función que calcula y refresca la pantalla cada segundo
+function renderTimerUI() {
+  if (!targetEndTime) {
+    if (timerStudentBox) timerStudentBox.classList.add('hidden')
+    if (driverTimerDisplay) driverTimerDisplay.textContent = '05:00'
+    if (btnTimerAdd) btnTimerAdd.disabled = true
+    if (btnTimerStop) btnTimerStop.disabled = true
+    if (btnTimerStart) btnTimerStart.disabled = false
+    return
+  }
+
+  const now = new Date().getTime()
+  const diff = targetEndTime - now
+
+  if (diff <= 0) {
+    clearInterval(timerInterval)
+    timerInterval = null
+    targetEndTime = null
+
+    if (timerStudentDisplay) timerStudentDisplay.textContent = '00:00 - ¡SALIDA!'
+    if (driverTimerDisplay) driverTimerDisplay.textContent = '00:00 - ¡TIEMPO AGOTADO!'
+    if (btnTimerAdd) btnTimerAdd.disabled = true
+    if (btnTimerStop) btnTimerStop.disabled = true
+    if (btnTimerStart) btnTimerStart.disabled = false
+    return
+  }
+
+  const minutes = Math.floor(diff / (1000 * 60))
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+  const formatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+
+  if (timerStudentDisplay) timerStudentDisplay.textContent = formatted
+  if (driverTimerDisplay) driverTimerDisplay.textContent = formatted
+  if (timerStudentBox) timerStudentBox.classList.remove('hidden')
+}
+
+// Inicia el ciclo local usando el timestamp guardado
+function startLocalTimer(isoEndTime) {
+  if (!isoEndTime) {
+    targetEndTime = null
+    clearInterval(timerInterval)
+    renderTimerUI()
+    return
+  }
+
+  targetEndTime = new Date(isoEndTime).getTime()
+  if (timerInterval) clearInterval(timerInterval)
+  
+  renderTimerUI()
+  timerInterval = setInterval(renderTimerUI, 1000)
+
+  if (btnTimerAdd) btnTimerAdd.disabled = false
+  if (btnTimerStop) btnTimerStop.disabled = false
+  if (btnTimerStart) btnTimerStart.disabled = true
+}
+
+// Evento: Botón Iniciar 5 min
+if (btnTimerStart) {
+  btnTimerStart.addEventListener('click', async () => {
+    const endTime = new Date(Date.now() + 5 * 60 * 1000).toISOString()
+
+    const { error } = await supabase
+      .from('estado_viaje')
+      .update({
+        tiempo_salida: endTime,
+        temporizador_activo: true
+      })
+      .eq('id', 1)
+
+    if (error) alert('Error al iniciar temporizador: ' + error.message)
+  })
+}
+
+// Evento: Botón +1 Minuto
+if (btnTimerAdd) {
+  btnTimerAdd.addEventListener('click', async () => {
+    if (!targetEndTime) return
+
+    const newEndTime = new Date(targetEndTime + 1 * 60 * 1000).toISOString()
+
+    const { error } = await supabase
+      .from('estado_viaje')
+      .update({ tiempo_salida: newEndTime })
+      .eq('id', 1)
+
+    if (error) alert('Error al agregar tiempo: ' + error.message)
+  })
+}
+
+// Evento: Botón Cancelar
+if (btnTimerStop) {
+  btnTimerStop.addEventListener('click', async () => {
+    const { error } = await supabase
+      .from('estado_viaje')
+      .update({
+        tiempo_salida: null,
+        temporizador_activo: false
+      })
+      .eq('id', 1)
+
+    if (error) alert('Error al detener temporizador: ' + error.message)
+  })
+}
+
+// Cargar estado inicial desde Supabase
+async function cargarEstadoTemporizador() {
+  const { data } = await supabase
+    .from('estado_viaje')
+    .select('tiempo_salida, temporizador_activo')
+    .eq('id', 1)
+    .maybeSingle()
+
+  if (data && data.temporizador_activo && data.tiempo_salida) {
+    startLocalTimer(data.tiempo_salida)
+  } else {
+    startLocalTimer(null)
+  }
+}
+
+// Escuchar cambios en tiempo real desde Supabase
+supabase
+  .channel('temporizador_channel')
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'estado_viaje' }, (payload) => {
+    const updated = payload.new
+    if (updated.temporizador_activo && updated.tiempo_salida) {
+      startLocalTimer(updated.tiempo_salida)
+    } else {
+      startLocalTimer(null)
+    }
+  })
+  .subscribe()
+
+// Ejecutar consulta inicial
+cargarEstadoTemporizador()

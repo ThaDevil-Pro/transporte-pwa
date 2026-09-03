@@ -63,6 +63,12 @@
     <span id="indicador-status" class="indicador-status-text">Esperando...</span>
   </div>
 
+  <!-- TEMPORIZADOR ALUMNO (NUEVO) -->
+  <div id="timer-student-box" class="timer-box hidden" style="background: rgba(0, 255, 102, 0.1); border: 1px solid #00ff66; padding: 12px; border-radius: 8px; text-align: center; margin-top: 10px;">
+    <span style="font-size: 0.85rem; color: #aaa; display: block; margin-bottom: 4px;">TIEMPO RESTANTE PARA SALIDA</span>
+    <div id="timer-student-display" style="font-size: 1.8rem; font-weight: bold; color: #00ff66; font-family: monospace;">05:00</div>
+  </div>
+
   <div class="balance-card">
     <span class="balance-label">SALDO PENDIENTE</span>
     <div class="balance-amount">
@@ -158,6 +164,18 @@
       <span id="passengers-count">0</span>
     </div>
     <span class="balance-status">Capacidad activa en la unidad</span>
+  </div>
+
+  <!-- CONTROL TEMPORIZADOR CHOFER (NUEVO) -->
+  <div class="driver-timer-control" style="background: #1e1e1e; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; border: 1px solid #333;">
+    <span style="font-size: 0.9rem; color: #ccc; font-weight: bold; letter-spacing: 0.5px;">⏱️ TEMPORIZADOR DE SALIDA</span>
+    <div id="driver-timer-display" style="font-size: 2rem; font-weight: bold; color: #ffcc00; font-family: monospace; margin: 8px 0;">05:00</div>
+    
+    <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+      <button id="btn-timer-start" class="btn" style="background: #00ff66; color: #000; font-weight: bold; padding: 8px 12px; flex: 1; min-width: 100px;">Iniciar (5 min)</button>
+      <button id="btn-timer-add" class="btn" style="background: #ffcc00; color: #000; font-weight: bold; padding: 8px 12px; flex: 1; min-width: 80px;" disabled>+1 Min</button>
+      <button id="btn-timer-stop" class="btn" style="background: #ff4444; color: #fff; font-weight: bold; padding: 8px 12px; flex: 1; min-width: 90px;" disabled>Cancelar</button>
+    </div>
   </div>
 
   <div style="margin-bottom: 20px;">
