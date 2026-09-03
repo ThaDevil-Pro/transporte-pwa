@@ -210,56 +210,16 @@ if (btnShowQr) {
 if (btnCloseQr) btnCloseQr.addEventListener('click', () => qrModal.classList.add('hidden'))
 if (qrModal) qrModal.addEventListener('click', (e) => { if (e.target === qrModal) qrModal.classList.add('hidden') })
 
-// --- 4. CHOFER & ESCÁNER QR ---
+// --- CHOFER & ESCÁNER QR ---
 const scannerModal = document.getElementById('scanner-modal')
 const btnOpenScanner = document.getElementById('btn-open-scanner')
 const btnCloseScanner = document.getElementById('btn-close-scanner')
 const btnClearList = document.getElementById('btn-clear-list')
 const scanFeedback = document.getElementById('scan-feedback')
 
-function updatePassengersUI() {
-  if (!passengersCount || !studentsUl) return
-  
-  // Muestra el total actual con el tope de 40 alumnos
-  passengersCount.textContent = `${passengers.length} / 40`
-  
-  studentsUl.innerHTML = ''
-  if (passengers.length === 0) {
-    studentsUl.innerHTML = '<li style="color:#444; font-size:0.8rem; text-align:center; padding:12px 0;">No hay alumnos a bordo</li>'
-    return
-  }
-  passengers.forEach((p, index) => {
-    const li = document.createElement('li')
-    li.className = 'student-item'
-    li.innerHTML = `
-      <div class="student-info">
-        <span class="student-item-name">${p.nombre}</span>
-        <span class="student-item-id">Matrícula: ${p.matricula}</span>
-      </div>
-      <button class="btn-remove-student" data-index="${index}">✕</button>
-    `
-    studentsUl.appendChild(li)
-  })
-  document.querySelectorAll('.btn-remove-student').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      passengers.splice(e.target.dataset.index, 1)
-      updatePassengersUI()
-    })
-  })
-}
-
-if (btnClearList) {
-  btnClearList.addEventListener('click', () => {
-    if (passengers.length > 0 && confirm('¿Deseas vaciar la lista de abordaje?')) {
-      passengers = []
-      updatePassengersUI()
-    }
-  })
-}
-// Candado para evitar que lea varios fotogramas del mismo QR
 let isProcessingScan = false
 
-// 1. Cargar pasajeros almacenados en Supabase
+// 1. Cargar pasajeros desde Supabase
 async function fetchPassengers() {
   const { data, error } = await supabase
     .from('abordajes')
@@ -273,7 +233,7 @@ async function fetchPassengers() {
   }
 }
 
-// 2. Renderizar la lista de pasajeros y actualizar contador
+// 2. Renderizar la lista
 function renderPassengersUI() {
   if (!passengersCount || !studentsUl) return
 
@@ -299,7 +259,7 @@ function renderPassengersUI() {
   })
 }
 
-// Delegación de eventos global para eliminar un solo alumno (Evita duplicar listeners)
+// 3. Eliminar un alumno individual en Supabase
 if (studentsUl) {
   studentsUl.addEventListener('click', async (e) => {
     if (e.target.classList.contains('btn-remove-student')) {
@@ -310,22 +270,30 @@ if (studentsUl) {
   })
 }
 
-// 3. Vaciar la tabla completa en Supabase (Eliminación total garantizada)
+// 4. Vaciar la tabla completa en Supabase (Limpia BD y UI al 100%)
 if (btnClearList) {
   btnClearList.addEventListener('click', async () => {
-    if (passengers.length > 0 && confirm('¿Deseas vaciar la lista de abordaje?')) {
-      const { error } = await supabase.from('abordajes').delete().neq('id', 0)
-      if (!error) {
-        passengers = []
-        await fetchPassengers()
+    if (passengers.length === 0) return
+
+    if (confirm('¿Deseas vaciar la lista de abordaje?')) {
+      const { error } = await supabase
+        .from('abordajes')
+        .delete()
+        .gt('id', -1)
+
+      if (error) {
+        console.error('Error al vaciar en Supabase:', error)
+        alert(`Error al vaciar: ${error.message}`)
       } else {
-        console.error('Error al vaciar la lista:', error)
+        passengers = []
+        renderPassengersUI()
+        await fetchPassengers()
       }
     }
   })
 }
 
-// 4. Control del Escáner QR
+// 5. Control del Escáner QR
 if (btnOpenScanner) {
   btnOpenScanner.addEventListener('click', async () => {
     isProcessingScan = false
@@ -346,7 +314,7 @@ async function stopScanner() {
 }
 if (btnCloseScanner) btnCloseScanner.addEventListener('click', stopScanner)
 
-// 5. Procesamiento del escaneo con inserción en Supabase
+// 6. Procesamiento del escaneo
 async function onScanSuccess(decodedText) {
   if (isProcessingScan) return
   isProcessingScan = true
@@ -388,7 +356,7 @@ async function onScanSuccess(decodedText) {
     .insert([{ nombre: nombreVal, matricula: matriculaVal }])
 
   if (error) {
-    console.error('Error detallado de Supabase:', error)
+    console.error('Error al insertar:', error)
     scanFeedback.textContent = `❌ Error: ${error.message}`
     setTimeout(() => { isProcessingScan = false }, 3000)
     return
