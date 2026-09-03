@@ -78,12 +78,27 @@
         </button>
       </div>
 
-      <!-- MÓDULO NUEVO: HORARIOS VISIBLES PARA EL ALUMNO -->
+<!-- MÓDULO NUEVO: TABLA DE HORARIOS SEMANALES PARA EL ALUMNO -->
       <div class="students-list-container" style="margin-top: 20px;">
         <div class="list-header">
-          <h3>⏰ PRÓXIMAS SALIDAS</h3>
+          <h3>📅 HORARIOS DE SALIDA</h3>
         </div>
-        <ul id="lista-horarios-alumnos" class="students-list"></ul>
+        <div style="overflow-x: auto;">
+          <table class="schedule-table">
+            <thead>
+              <tr>
+                <th>LUNES</th>
+                <th>MARTES</th>
+                <th>MIÉRCOLES</th>
+                <th>JUEVES</th>
+                <th>VIERNES</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-horarios-alumnos">
+              <!-- Se llena dinámicamente -->
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <button id="btn-logout-student" class="btn btn-logout" style="margin-top: 24px;">Cerrar Sesión</button>
@@ -138,26 +153,34 @@
         <ul id="students-ul" class="students-list"></ul>
       </div>
 
-      <!-- MÓDULO NUEVO: GESTIÓN DE HORARIOS PARA EL CHOFER -->
+<!-- MÓDULO NUEVO: TABLA Y GESTIÓN DE HORARIOS SEMANALES PARA EL CHOFER -->
       <div class="students-list-container" style="margin-top: 20px;">
         <div class="list-header">
-          <h3>⚙️ GESTIONAR HORARIOS</h3>
+          <h3>⚙️ GESTIONAR HORARIOS SEMANALES</h3>
         </div>
 
-        <form id="form-horario" style="display: flex; gap: 8px; flex-direction: column; padding: 10px 0;">
-          <div class="input-group" style="margin-bottom: 8px;">
-            <input type="text" id="horario-titulo" placeholder="Ej. Ruta Mañana" required />
-          </div>
-          <div class="input-group" style="margin-bottom: 8px;">
-            <input type="time" id="horario-hora" required />
-          </div>
-          <div class="input-group" style="margin-bottom: 8px;">
-            <input type="text" id="horario-desc" placeholder="Nota u observación (opcional)" />
-          </div>
-          <button type="submit" class="btn btn-qr" style="padding: 10px;">➕ AGREGAR HORARIO</button>
-        </form>
+        <div style="overflow-x: auto;">
+          <table class="schedule-table">
+            <thead>
+              <tr>
+                <th>LUNES</th>
+                <th>MARTES</th>
+                <th>MIÉRCOLES</th>
+                <th>JUEVES</th>
+                <th>VIERNES</th>
+                <th>ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-horarios-chofer">
+              <!-- Se llena dinámicamente -->
+            </tbody>
+          </table>
+        </div>
 
-        <ul id="lista-horarios-chofer" class="students-list"></ul>
+        <!-- Botón para agregar una nueva fila a la tabla -->
+        <button id="btn-add-schedule-row" class="btn btn-qr" style="margin-top: 12px; padding: 10px;">
+          ➕ AGREGAR FILA DE HORARIO
+        </button>
       </div>
 
       <button id="btn-logout-driver" class="btn btn-logout" style="margin-top: 24px;">Cerrar Sesión</button>
@@ -177,7 +200,6 @@
         <p id="scan-feedback" class="scan-status-text">Buscando cámara...</p>
       </div>
     </div>
-
     <!-- PASO E: PANEL ADMIN -->
     <div id="view-dash-admin" class="card dashboard-card hidden">
       <div class="dash-header">

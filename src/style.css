@@ -647,3 +647,82 @@ select option {
   color: #09090b;
   font-weight: 500;
 }
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+
+.schedule-table th, 
+.schedule-table td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 4px;
+  text-align: center;
+}
+
+.schedule-table th {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+
+.schedule-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.schedule-time-input {
+  width: 90%;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  color: #fff;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.btn-type-toggle {
+  border: none;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.65rem;
+  font-weight: bold;
+  cursor: pointer;
+  width: 90%;
+  transition: background 0.2s;
+}
+
+.btn-type-toggle.ida {
+  background: #2563eb;
+  color: #fff;
+}
+
+.btn-type-toggle.vuelta {
+  background: #d97706;
+  color: #fff;
+}
+
+.badge-schedule {
+  display: inline-block;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.badge-schedule.ida {
+  background: rgba(37, 99, 235, 0.2);
+  color: #60a5fa;
+  border: 1px solid #2563eb;
+}
+
+.badge-schedule.vuelta {
+  background: rgba(217, 119, 6, 0.2);
+  color: #fbbf24;
+  border: 1px solid #d97706;
+}

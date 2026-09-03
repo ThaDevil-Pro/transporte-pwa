@@ -27,20 +27,18 @@ const driverLicense = document.getElementById('driver-license')
 const passengersCount = document.getElementById('passengers-count')
 const studentsUl = document.getElementById('students-ul')
 
-// Referencias Módulo Horarios
-const listaHorariosAlumnos = document.getElementById('lista-horarios-alumnos')
-const listaHorariosChofer = document.getElementById('lista-horarios-chofer')
-const formHorario = document.getElementById('form-horario')
+// Referencias Módulo Horarios (Matriz Semanal)
+const tbodyAlumnos = document.getElementById('tbody-horarios-alumnos')
+const tbodyChofer = document.getElementById('tbody-horarios-chofer')
+const btnAddScheduleRow = document.getElementById('btn-add-schedule-row')
 
 // Variables Globales
 let currentRole = ''
 // Carga la lista previa guardada o inicia un arreglo vacío
 let passengers = JSON.parse(localStorage.getItem('chofer_passengers')) || []
-let horariosData = []
 let html5QrcodeScanner = null
 let allUsersCache = []
 let currentFilter = 'Todos'
-
 // --- FUNCIÓN DEL EFECTO DECODIFICADOR (OPTIMIZADA CON ANIMATION FRAME) ---
 function triggerDecodeEffect(elementId) {
   const element = document.getElementById(elementId)
@@ -695,108 +693,156 @@ if (splash) {
   })
 }
 // --- MÓDULO DE HORARIOS EN TIEMPO REAL ---
+// --- MÓDULO MATRIZ DE HORARIOS SEMANALES ---
 
-// 1. Cargar Horarios desde Supabase
-async function fetchHorarios() {
+// Cargar filas desde Supabase
+async function fetchScheduleMatrix() {
   const { data, error } = await supabase
-    .from('horarios')
+    .from('horarios_matriz')
     .select('*')
-    .order('hora_salida', { ascending: true })
+    .order('created_at', { ascending: true })
 
   if (!error && data) {
-    horariosData = data
-    renderHorariosUI()
+    renderScheduleUI(data)
   }
 }
 
-// 2. Renderizar UI para Alumnos y Chofer
-function renderHorariosUI() {
-  if (listaHorariosAlumnos) listaHorariosAlumnos.innerHTML = ''
-  if (listaHorariosChofer) listaHorariosChofer.innerHTML = ''
+// Renderizar tabla tanto para Alumnos como para Chofer
+function renderScheduleUI(rows) {
+  if (tbodyAlumnos) tbodyAlumnos.innerHTML = ''
+  if (tbodyChofer) tbodyChofer.innerHTML = ''
 
-  if (horariosData.length === 0) {
-    const emptyHtml = '<li style="color:#666; font-size:0.85rem; text-align:center; padding:8px;">No hay salidas programadas</li>'
-    if (listaHorariosAlumnos) listaHorariosAlumnos.innerHTML = emptyHtml
-    if (listaHorariosChofer) listaHorariosChofer.innerHTML = emptyHtml
-    return
-  }
+  const dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
 
-  horariosData.forEach(h => {
-    // Formatear hora (Ej: 07:30 -> 07:30 AM/PM)
-    const [hrs, mins] = h.hora_salida.split(':')
-    const horaObj = new Date()
-    horaObj.setHours(hrs, mins)
-    const horaFormateada = horaObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-
-    // Elemento para vista Alumno
-    if (listaHorariosAlumnos) {
-      const li = document.createElement('li')
-      li.className = 'student-item'
-      li.innerHTML = `
-        <div class="student-info">
-          <span class="student-item-name">${h.titulo}</span>
-          <span class="student-item-id">${h.descripcion || 'Sin observaciones'}</span>
-        </div>
-        <span class="control-badge" style="font-weight:bold;">${horaFormateada}</span>
-      `
-      listaHorariosAlumnos.appendChild(li)
+  rows.forEach((row) => {
+    // 1. Renderizar fila vista Alumno (Solo lectura)
+    if (tbodyAlumnos) {
+      const trAlumno = document.createElement('tr')
+      dias.forEach(dia => {
+        const cellData = row[dia] || { hora: '', tipo: 'IDA' }
+        const td = document.createElement('td')
+        if (cellData.hora) {
+          td.innerHTML = `
+            <div class="badge-schedule ${cellData.tipo.toLowerCase()}">
+              ${cellData.hora} <br> <small>${cellData.tipo}</small>
+            </div>
+          `
+        } else {
+          td.innerHTML = '<span style="color:#444;">-</span>'
+        }
+        trAlumno.appendChild(td)
+      })
+      tbodyAlumnos.appendChild(trAlumno)
     }
 
-    // Elemento para vista Chofer (con botón de eliminar)
-    if (listaHorariosChofer) {
-      const li = document.createElement('li')
-      li.className = 'student-item'
-      li.innerHTML = `
-        <div class="student-info">
-          <span class="student-item-name">${h.titulo} (${horaFormateada})</span>
-          <span class="student-item-id">${h.descripcion || 'Sin observaciones'}</span>
-        </div>
-        <button class="btn-remove-horario btn-remove-student" data-id="${h.id}">✕</button>
-      `
-      listaHorariosChofer.appendChild(li)
-    }
-  })
-}
+    // 2. Renderizar fila vista Chofer (Editable)
+    if (tbodyChofer) {
+      const trChofer = document.createElement('tr')
+      trChofer.dataset.id = row.id
 
-// 3. Crear nuevo horario (Chofer)
-if (formHorario) {
-  formHorario.addEventListener('submit', async (e) => {
-    e.preventDefault()
-    const titulo = document.getElementById('horario-titulo').value
-    const hora_salida = document.getElementById('horario-hora').value
-    const descripcion = document.getElementById('horario-desc').value
+      dias.forEach(dia => {
+        const cellData = row[dia] || { hora: '', tipo: 'IDA' }
+        const td = document.createElement('td')
+        td.innerHTML = `
+          <div class="schedule-cell">
+            <input type="time" class="schedule-time-input" data-dia="${dia}" value="${cellData.hora || ''}">
+            <button class="btn-type-toggle ${cellData.tipo.toLowerCase()}" data-dia="${dia}" data-tipo="${cellData.tipo}">
+              ${cellData.tipo}
+            </button>
+          </div>
+        `
+        trChofer.appendChild(td)
+      })
 
-    const { error } = await supabase
-      .from('horarios')
-      .insert([{ titulo, hora_salida, descripcion }])
+      // Columna Acción: Eliminar Fila
+      const tdAction = document.createElement('td')
+      tdAction.innerHTML = `<button class="btn-remove-student btn-delete-row" data-id="${row.id}">✕</button>`
+      trChofer.appendChild(tdAction)
 
-    if (!error) {
-      formHorario.reset()
-      await fetchHorarios()
-    } else {
-      console.error('Error al guardar horario:', error)
+      tbodyChofer.appendChild(trChofer)
     }
   })
 }
 
-// 4. Eliminar horario (Chofer)
-if (listaHorariosChofer) {
-  listaHorariosChofer.addEventListener('click', async (e) => {
-    if (e.target.classList.contains('btn-remove-horario')) {
-      const id = e.target.dataset.id
-      const { error } = await supabase.from('horarios').delete().eq('id', id)
-      if (!error) await fetchHorarios()
+// Evento: Agregar una nueva fila vacía (Chofer)
+if (btnAddScheduleRow) {
+  btnAddScheduleRow.addEventListener('click', async () => {
+    const emptyDay = { hora: '', tipo: 'IDA' }
+    const newRow = {
+      lunes: emptyDay,
+      martes: emptyDay,
+      miercoles: emptyDay,
+      jueves: emptyDay,
+      viernes: emptyDay
+    }
+
+    await supabase.from('horarios_matriz').insert([newRow])
+    fetchScheduleMatrix()
+  })
+}
+
+// Eventos interactivos en la tabla del chofer (Edición e Intercambio IDA/REGRESO)
+if (tbodyChofer) {
+  // Cambio de Hora
+  tbodyChofer.addEventListener('change', async (e) => {
+    if (e.target.classList.contains('schedule-time-input')) {
+      const tr = e.target.closest('tr')
+      const rowId = tr.dataset.id
+      const dia = e.target.dataset.dia
+      const nuevaHora = e.target.value
+
+      // Obtener estado del botón tipo
+      const btnTipo = tr.querySelector(`button[data-dia="${dia}"]`)
+      const tipoActual = btnTipo ? btnTipo.dataset.tipo : 'IDA'
+
+      const updatedDayData = { hora: nuevaHora, tipo: tipoActual }
+
+      await supabase
+        .from('horarios_matriz')
+        .update({ [dia]: updatedDayData })
+        .eq('id', rowId)
+    }
+  })
+
+  // Clics: Cambiar botón IDA / REGRESO o Eliminar Fila
+  tbodyChofer.addEventListener('click', async (e) => {
+    // Alternar IDA / REGRESO
+    if (e.target.classList.contains('btn-type-toggle')) {
+      const tr = e.target.closest('tr')
+      const rowId = tr.dataset.id
+      const dia = e.target.dataset.dia
+      const tipoActual = e.target.dataset.tipo
+      const nuevoTipo = tipoActual === 'IDA' ? 'REGRESO' : 'IDA'
+
+      const inputHora = tr.querySelector(`input[data-dia="${dia}"]`)
+      const horaActual = inputHora ? inputHora.value : ''
+
+      const updatedDayData = { hora: horaActual, tipo: nuevoTipo }
+
+      await supabase
+        .from('horarios_matriz')
+        .update({ [dia]: updatedDayData })
+        .eq('id', rowId)
+
+      fetchScheduleMatrix()
+    }
+
+    // Eliminar Fila
+    if (e.target.classList.contains('btn-delete-row')) {
+      const rowId = e.target.dataset.id
+      await supabase.from('horarios_matriz').delete().eq('id', rowId)
+      fetchScheduleMatrix()
     }
   })
 }
 
-// 5. Escuchar cambios en Tiempo Real mediante Supabase Broadcast/Changes
+// Suscripción Realtime
 supabase
-  .channel('horarios-changes')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'horarios' }, () => {
-    fetchHorarios()
+  .channel('horarios-matriz-changes')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'horarios_matriz' }, () => {
+    fetchScheduleMatrix()
   })
   .subscribe()
 
-// Inicializar la lectura de horarios
-fetchHorarios()
+// Inicializar matriz
+fetchScheduleMatrix()
