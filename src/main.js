@@ -2,13 +2,15 @@ import QRCode from 'qrcode'
 import { Html5Qrcode } from 'html5-qrcode'
 import { supabase } from './supabase.js'
 
+// Hacer disponible supabase globalmente para depuración y consola
+window.supabase = supabase
+
 // Referencias Vistas DOM
 const viewRoles = document.getElementById('view-roles')
 const viewLogin = document.getElementById('view-login')
 const viewStudent = document.getElementById('view-student')
 const viewDashDriver = document.getElementById('view-dash-driver')
 const viewDashAdmin = document.getElementById('view-dash-admin')
-
 // Formulario Login
 const loginTitle = document.getElementById('login-title')
 const loginForm = document.getElementById('login-form')
