@@ -26,7 +26,8 @@ const studentsUl = document.getElementById('students-ul')
 
 // Variables Globales
 let currentRole = ''
-let passengers = []
+// Carga la lista previa guardada o inicia un arreglo vacío
+let passengers = JSON.parse(localStorage.getItem('chofer_passengers')) || []
 let html5QrcodeScanner = null
 let allUsersCache = []
 let currentFilter = 'Todos'
