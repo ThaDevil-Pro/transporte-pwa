@@ -78,7 +78,15 @@
         </button>
       </div>
 
-      <button id="btn-logout-student" class="btn btn-logout">Cerrar Sesión</button>
+      <!-- MÓDULO NUEVO: HORARIOS VISIBLES PARA EL ALUMNO -->
+      <div class="students-list-container" style="margin-top: 20px;">
+        <div class="list-header">
+          <h3>⏰ PRÓXIMAS SALIDAS</h3>
+        </div>
+        <ul id="lista-horarios-alumnos" class="students-list"></ul>
+      </div>
+
+      <button id="btn-logout-student" class="btn btn-logout" style="margin-top: 24px;">Cerrar Sesión</button>
     </div>
 
     <!-- MODAL POPUP PARA EL QR EN GRANDE -->
@@ -128,6 +136,28 @@
           <button id="btn-clear-list" class="btn-clear">Vaciar lista</button>
         </div>
         <ul id="students-ul" class="students-list"></ul>
+      </div>
+
+      <!-- MÓDULO NUEVO: GESTIÓN DE HORARIOS PARA EL CHOFER -->
+      <div class="students-list-container" style="margin-top: 20px;">
+        <div class="list-header">
+          <h3>⚙️ GESTIONAR HORARIOS</h3>
+        </div>
+
+        <form id="form-horario" style="display: flex; gap: 8px; flex-direction: column; padding: 10px 0;">
+          <div class="input-group" style="margin-bottom: 8px;">
+            <input type="text" id="horario-titulo" placeholder="Ej. Ruta Mañana" required />
+          </div>
+          <div class="input-group" style="margin-bottom: 8px;">
+            <input type="time" id="horario-hora" required />
+          </div>
+          <div class="input-group" style="margin-bottom: 8px;">
+            <input type="text" id="horario-desc" placeholder="Nota u observación (opcional)" />
+          </div>
+          <button type="submit" class="btn btn-qr" style="padding: 10px;">➕ AGREGAR HORARIO</button>
+        </form>
+
+        <ul id="lista-horarios-chofer" class="students-list"></ul>
       </div>
 
       <button id="btn-logout-driver" class="btn btn-logout" style="margin-top: 24px;">Cerrar Sesión</button>

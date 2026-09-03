@@ -11,6 +11,7 @@ const viewLogin = document.getElementById('view-login')
 const viewStudent = document.getElementById('view-student')
 const viewDashDriver = document.getElementById('view-dash-driver')
 const viewDashAdmin = document.getElementById('view-dash-admin')
+
 // Formulario Login
 const loginTitle = document.getElementById('login-title')
 const loginForm = document.getElementById('login-form')
@@ -26,10 +27,16 @@ const driverLicense = document.getElementById('driver-license')
 const passengersCount = document.getElementById('passengers-count')
 const studentsUl = document.getElementById('students-ul')
 
+// Referencias Módulo Horarios
+const listaHorariosAlumnos = document.getElementById('lista-horarios-alumnos')
+const listaHorariosChofer = document.getElementById('lista-horarios-chofer')
+const formHorario = document.getElementById('form-horario')
+
 // Variables Globales
 let currentRole = ''
 // Carga la lista previa guardada o inicia un arreglo vacío
 let passengers = JSON.parse(localStorage.getItem('chofer_passengers')) || []
+let horariosData = []
 let html5QrcodeScanner = null
 let allUsersCache = []
 let currentFilter = 'Todos'
@@ -687,3 +694,109 @@ if (splash) {
     })
   })
 }
+// --- MÓDULO DE HORARIOS EN TIEMPO REAL ---
+
+// 1. Cargar Horarios desde Supabase
+async function fetchHorarios() {
+  const { data, error } = await supabase
+    .from('horarios')
+    .select('*')
+    .order('hora_salida', { ascending: true })
+
+  if (!error && data) {
+    horariosData = data
+    renderHorariosUI()
+  }
+}
+
+// 2. Renderizar UI para Alumnos y Chofer
+function renderHorariosUI() {
+  if (listaHorariosAlumnos) listaHorariosAlumnos.innerHTML = ''
+  if (listaHorariosChofer) listaHorariosChofer.innerHTML = ''
+
+  if (horariosData.length === 0) {
+    const emptyHtml = '<li style="color:#666; font-size:0.85rem; text-align:center; padding:8px;">No hay salidas programadas</li>'
+    if (listaHorariosAlumnos) listaHorariosAlumnos.innerHTML = emptyHtml
+    if (listaHorariosChofer) listaHorariosChofer.innerHTML = emptyHtml
+    return
+  }
+
+  horariosData.forEach(h => {
+    // Formatear hora (Ej: 07:30 -> 07:30 AM/PM)
+    const [hrs, mins] = h.hora_salida.split(':')
+    const horaObj = new Date()
+    horaObj.setHours(hrs, mins)
+    const horaFormateada = horaObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+    // Elemento para vista Alumno
+    if (listaHorariosAlumnos) {
+      const li = document.createElement('li')
+      li.className = 'student-item'
+      li.innerHTML = `
+        <div class="student-info">
+          <span class="student-item-name">${h.titulo}</span>
+          <span class="student-item-id">${h.descripcion || 'Sin observaciones'}</span>
+        </div>
+        <span class="control-badge" style="font-weight:bold;">${horaFormateada}</span>
+      `
+      listaHorariosAlumnos.appendChild(li)
+    }
+
+    // Elemento para vista Chofer (con botón de eliminar)
+    if (listaHorariosChofer) {
+      const li = document.createElement('li')
+      li.className = 'student-item'
+      li.innerHTML = `
+        <div class="student-info">
+          <span class="student-item-name">${h.titulo} (${horaFormateada})</span>
+          <span class="student-item-id">${h.descripcion || 'Sin observaciones'}</span>
+        </div>
+        <button class="btn-remove-horario btn-remove-student" data-id="${h.id}">✕</button>
+      `
+      listaHorariosChofer.appendChild(li)
+    }
+  })
+}
+
+// 3. Crear nuevo horario (Chofer)
+if (formHorario) {
+  formHorario.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const titulo = document.getElementById('horario-titulo').value
+    const hora_salida = document.getElementById('horario-hora').value
+    const descripcion = document.getElementById('horario-desc').value
+
+    const { error } = await supabase
+      .from('horarios')
+      .insert([{ titulo, hora_salida, descripcion }])
+
+    if (!error) {
+      formHorario.reset()
+      await fetchHorarios()
+    } else {
+      console.error('Error al guardar horario:', error)
+    }
+  })
+}
+
+// 4. Eliminar horario (Chofer)
+if (listaHorariosChofer) {
+  listaHorariosChofer.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('btn-remove-horario')) {
+      const id = e.target.dataset.id
+      const { error } = await supabase.from('horarios').delete().eq('id', id)
+      if (!error) await fetchHorarios()
+    }
+  })
+}
+
+// 5. Escuchar cambios en Tiempo Real mediante Supabase Broadcast/Changes
+supabase
+  .channel('horarios-changes')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'horarios' }, () => {
+    fetchHorarios()
+  })
+  .subscribe()
+
+// Inicializar la lectura de horarios
+fetchHorarios()
