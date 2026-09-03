@@ -370,14 +370,15 @@ async function onScanSuccess(decodedText) {
     return
   }
 
-  // Guardar nuevo abordaje en la base de datos
-  const { error } = await supabase
+// Guardar nuevo abordaje en la base de datos
+  const { data, error } = await supabase
     .from('abordajes')
     .insert([{ nombre: alumno.nombre, matricula: alumno.matricula }])
 
   if (error) {
-    scanFeedback.textContent = '❌ Error al guardar en Supabase'
-    setTimeout(() => { isProcessingScan = false }, 2000)
+    console.error('Error detallado de Supabase:', error) // <-- Mira este mensaje en F12
+    scanFeedback.textContent = `❌ Error: ${error.message}`
+    setTimeout(() => { isProcessingScan = false }, 3000)
     return
   }
 
