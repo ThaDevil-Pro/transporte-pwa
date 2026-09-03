@@ -372,20 +372,32 @@ async function onScanSuccess(decodedText) {
     return
   }
 
-// Guardar nuevo abordaje en la base de datos
+// Depurar los datos del alumno leídos por el escáner
+  console.log('Datos del alumno detectado:', alumno)
+
+  // Validar que las propiedades existan antes de insertar
+  const matriculaVal = alumno?.matricula ? String(alumno.matricula).trim() : String(alumno?.id || '').trim()
+  const nombreVal = alumno?.nombre ? String(alumno.nombre).trim() : String(alumno?.name || '').trim()
+
+  // Guardar nuevo abordaje en la base de datos
   const { data, error } = await supabase
     .from('abordajes')
-    .insert([{ nombre: alumno.nombre, matricula: alumno.matricula }])
+    .insert([
+      { 
+        nombre: nombreVal, 
+        matricula: matriculaVal 
+      }
+    ])
 
   if (error) {
-    console.error('Error detallado de Supabase:', error) // <-- Mira este mensaje en F12
+    console.error('Error detallado de Supabase:', error)
     scanFeedback.textContent = `❌ Error: ${error.message}`
     setTimeout(() => { isProcessingScan = false }, 3000)
     return
   }
 
   await fetchPassengers()
-  scanFeedback.textContent = `✅ ¡${alumno.nombre} listo!`
+  scanFeedback.textContent = `✅ ¡${nombreVal} listo!`
   setTimeout(stopScanner, 800)
 }
 
