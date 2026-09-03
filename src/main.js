@@ -216,7 +216,10 @@ const scanFeedback = document.getElementById('scan-feedback')
 
 function updatePassengersUI() {
   if (!passengersCount || !studentsUl) return
-  passengersCount.textContent = passengers.length
+  
+  // Muestra el total actual con el tope de 40 alumnos
+  passengersCount.textContent = `${passengers.length} / 40`
+  
   studentsUl.innerHTML = ''
   if (passengers.length === 0) {
     studentsUl.innerHTML = '<li style="color:#444; font-size:0.8rem; text-align:center; padding:12px 0;">No hay alumnos a bordo</li>'
@@ -270,22 +273,39 @@ async function stopScanner() {
 if (btnCloseScanner) btnCloseScanner.addEventListener('click', stopScanner)
 
 async function onScanSuccess(decodedText) {
-  if (passengers.some(p => p.matricula === decodedText)) {
-    scanFeedback.textContent = `⚠️ ${decodedText} ya abordó`
+  const scannedId = String(decodedText).trim()
+
+  // 1. Validar límite máximo de 40 pasajeros
+  if (passengers.length >= 40) {
+    scanFeedback.textContent = '❌ Límite alcanzado (Máximo 40 pasajeros)'
     return
   }
-  scanFeedback.textContent = `Validando...`
-  const { data: alumno } = await supabase.from('alumnos').select('nombre, matricula').eq('matricula', decodedText).maybeSingle()
+
+  // 2. Evitar registros duplicados convirtiendo a texto
+  const alreadyExists = passengers.some(p => String(p.matricula).trim() === scannedId)
+  if (alreadyExists) {
+    scanFeedback.textContent = `⚠️ El alumno (${scannedId}) ya está a bordo`
+    return
+  }
+
+  scanFeedback.textContent = 'Validando...'
+
+  const { data: alumno } = await supabase
+    .from('alumnos')
+    .select('nombre, matricula')
+    .eq('matricula', scannedId)
+    .maybeSingle()
+
   if (!alumno) {
-    scanFeedback.textContent = `❌ Matrícula ${decodedText} inválida`
+    scanFeedback.textContent = `❌ Matrícula ${scannedId} inválida`
     return
   }
+
   passengers.unshift({ nombre: alumno.nombre, matricula: alumno.matricula })
   updatePassengersUI()
   scanFeedback.textContent = `✅ ¡${alumno.nombre} listo!`
   setTimeout(stopScanner, 1000)
 }
-
 // --- 5. LÓGICA DASHBOARD ADMINISTRADOR ---
 const adminTabs = document.querySelectorAll('.admin-tab')
 const tabContents = document.querySelectorAll('.tab-content')
