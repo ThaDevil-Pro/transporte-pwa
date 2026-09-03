@@ -41,6 +41,7 @@ let html5QrcodeScanner = null
 let allUsersCache = []
 let currentFilter = 'Todos'
 let currentStudentMatricula = null
+let localTimerInterval = null
 
 // --- FUNCIÓN DEL EFECTO DECODIFICADOR (OPTIMIZADA CON ANIMATION FRAME) ---
 function triggerDecodeEffect(elementId) {
@@ -86,6 +87,71 @@ function triggerDecodeEffect(elementId) {
 
   const initialFrame = requestAnimationFrame(animate)
   element.dataset.animationFrame = initialFrame.toString()
+}
+
+// --- GESTIÓN DEL TEMPORIZADOR EN TIEMPO REAL (B&N) ---
+async function consultarEstadoViaje() {
+  const { data, error } = await supabase
+    .from('estado_viaje')
+    .select('*')
+    .eq('id', 1)
+    .maybeSingle()
+
+  if (data) {
+    actualizarVistaReloj(data)
+  }
+
+  // Suscripción Realtime robusta para el alumno
+  supabase.removeChannel(supabase.channel('student-estado-viaje'))
+  supabase
+    .channel('student-estado-viaje')
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'estado_viaje',
+        filter: 'id=eq.1'
+      },
+      (payload) => {
+        console.log('Cambio en tiempo real recibido por el alumno:', payload.new)
+        actualizarVistaReloj(payload.new)
+      }
+    )
+    .subscribe()
+}
+
+function actualizarVistaReloj(estado) {
+  const timerBox = document.getElementById('timer-student-box')
+  const timerDisplay = document.getElementById('timer-student-display')
+
+  if (!timerBox || !timerDisplay) return
+
+  if (estado.temporizador_activo && estado.tiempo_salida) {
+    timerBox.classList.remove('hidden')
+    
+    // Si viene en formato de fecha/hora o segundos, lo manejamos
+    if (localTimerInterval) clearInterval(localTimerInterval)
+    
+    const targetTime = new Date(estado.tiempo_salida).getTime()
+    
+    localTimerInterval = setInterval(() => {
+      const now = new Date().getTime()
+      const distance = targetTime - now
+
+      if (distance < 0) {
+        clearInterval(localTimerInterval)
+        timerDisplay.textContent = "00:00"
+      } else {
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000)
+        timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      }
+    }, 1000)
+  } else {
+    if (localTimerInterval) clearInterval(localTimerInterval)
+    timerBox.classList.add('hidden')
+  }
 }
 
 // --- 1. SELECCIÓN DE ROL ---
