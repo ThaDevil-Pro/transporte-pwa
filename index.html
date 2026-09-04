@@ -64,10 +64,12 @@
     <!-- Texto de estado normal -->
     <div id="indicador-status" class="indicador-status-text" style="font-size: 1.2rem; font-weight: 600; color: #fff;">Esperando...</div>
 
-    <!-- Temporizador que toma protagonismo al activarse el viaje -->
-    <div id="timer-student-box" class="timer-box hidden" style="margin-top: 4px;">
-      <div id="timer-student-display" style="font-size: 2rem; font-weight: 600; color: #ffffff; font-family: monospace;">05:00</div>
-    </div>
+<!-- CAJITA INDICADOR Y TEMPORIZADOR UNIFICADOS (Minimalista B&N) -->
+  <div id="indicador-viaje-box" class="indicador-box esperando" style="background: #121212; border: 1px solid #262626; padding: 15px; border-radius: 8px; text-align: center;">
+    <span class="indicador-label" style="font-size: 0.75rem; color: #888; letter-spacing: 1px; font-weight: 500; display: block; margin-bottom: 4px;">ESTADO DEL VIAJE</span>
+    
+    <!-- Texto o Temporizador unificado en una sola línea -->
+    <div id="indicador-status" class="indicador-status-text" style="font-size: 1.8rem; font-weight: 600; color: #fff; font-family: monospace;">Esperando...</div>
   </div>
 
   <div class="balance-card">

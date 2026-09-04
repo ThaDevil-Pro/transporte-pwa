@@ -129,7 +129,6 @@ async function consultarEstadoViaje() {
     )
     .subscribe()
 }
-
 function actualizarVistaReloj(estado) {
   const timerBox = document.getElementById('timer-student-box')
   const timerDisplay = document.getElementById('timer-student-display')
@@ -186,7 +185,6 @@ function actualizarUIIndicador(estado) {
     boxElem.classList.remove('en-camino')
   }
 }
-
 // Controles del Chofer para el Temporizador
 const btnTimerStart = document.getElementById('btn-timer-start')
 const btnTimerAdd = document.getElementById('btn-timer-add')
