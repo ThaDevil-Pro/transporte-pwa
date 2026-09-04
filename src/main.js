@@ -42,7 +42,7 @@ let allUsersCache = []
 let currentFilter = 'Todos'
 let currentStudentMatricula = null
 
-// --- FUNCIÓN DEL EFECTO DECODIFICADOR (OPTIMIZADA CON ANIMATION FRAME) ---
+// --- FUNCIÓN DEL EFECTO DECODIFICADOR ---
 function triggerDecodeEffect(elementId) {
   const element = document.getElementById(elementId)
   if (!element) return
@@ -89,7 +89,7 @@ function triggerDecodeEffect(elementId) {
 }
 
 // ==========================================
-// ⏱️ GESTIÓN DEL TEMPORIZADOR Y ESTADO (B&N)
+// ⏱️ GESTIÓN DEL TEMPORIZADOR Y ESTADO
 // ==========================================
 
 let localTimerInterval = null
@@ -138,7 +138,6 @@ function actualizarVistaReloj(estado) {
   if (!timerBox || !timerDisplay || !indicadorStatus) return
 
   if (estado.temporizador_activo && estado.tiempo_salida) {
-    // Oculta el texto de "Esperando..." y muestra el temporizador embebido en su lugar
     indicadorStatus.classList.add('hidden')
     timerBox.classList.remove('hidden')
     
@@ -163,7 +162,6 @@ function actualizarVistaReloj(estado) {
       }
     }, 1000)
   } else {
-    // Si no está activo, regresa el texto de "Esperando..." y oculta el reloj
     if (localTimerInterval) clearInterval(localTimerInterval)
     localTimerInterval = null
     indicadorStatus.classList.remove('hidden')
@@ -307,7 +305,6 @@ loginForm.addEventListener('submit', async (e) => {
     document.getElementById('student-balance').textContent = saldo
     document.getElementById('modal-student-id').textContent = `ID: ${alumno.matricula}`
 
-    // Cargar Indicador de Viaje y Historial
     consultarEstadoViaje()
     cargarHistorialAlumno(alumno.matricula)
   }
@@ -370,7 +367,6 @@ if (btnShowQr) {
 if (btnCloseQr) btnCloseQr.addEventListener('click', () => qrModal.classList.add('hidden'))
 if (qrModal) qrModal.addEventListener('click', (e) => { if (e.target === qrModal) qrModal.classList.add('hidden') })
 
-// Cargar historial de viajes del alumno
 async function cargarHistorialAlumno(matricula) {
   const tbody = document.getElementById('tbody-historial-alumno')
   if (!tbody) return
@@ -410,7 +406,6 @@ const scanFeedback = document.getElementById('scan-feedback')
 
 let isProcessingScan = false
 
-// Cargar pasajeros desde Supabase
 async function fetchPassengers() {
   const { data, error } = await supabase
     .from('abordajes')
@@ -424,7 +419,6 @@ async function fetchPassengers() {
   }
 }
 
-// Renderizar lista de pasajeros
 function renderPassengersUI() {
   if (!passengersCount || !studentsUl) return
 
@@ -450,7 +444,6 @@ function renderPassengersUI() {
   })
 }
 
-// Eliminar un alumno individual de abordajes
 if (studentsUl) {
   studentsUl.addEventListener('click', async (e) => {
     if (e.target.classList.contains('btn-remove-student')) {
@@ -461,19 +454,12 @@ if (studentsUl) {
   })
 }
 
-// Vaciar la lista sin cobro
 if (btnClearList) {
   btnClearList.addEventListener('click', async () => {
     if (passengers.length === 0) return
-
     if (confirm('¿Deseas vaciar la lista de abordaje sin realizar cobros?')) {
-      const { error } = await supabase
-        .from('abordajes')
-        .delete()
-        .gt('id', -1)
-
+      const { error } = await supabase.from('abordajes').delete().gt('id', -1)
       if (error) {
-        console.error('Error al vaciar en Supabase:', error)
         alert(`Error al vaciar: ${error.message}`)
       } else {
         passengers = []
@@ -520,19 +506,10 @@ if (btnIniciarViaje) {
 
           await supabase
             .from('historial_viajes')
-            .insert([
-              {
-                matricula: student.matricula,
-                monto: 30,
-                fecha_hora: fechaHoraActual
-              }
-            ])
+            .insert([{ matricula: student.matricula, monto: 30, fecha_hora: fechaHoraActual }])
         }
 
-        await supabase
-          .from('estado_viaje')
-          .update({ estado: 'EN_CAMINO' })
-          .eq('id', 1)
+        await supabase.from('estado_viaje').update({ estado: 'EN_CAMINO' }).eq('id', 1)
 
         alert(`Cobro realizado exitosamente a los ${passengers.length} alumnos.`)
 
@@ -587,10 +564,7 @@ if (btnCerrarComprobante) {
       passengers = []
       renderPassengersUI()
 
-      await supabase
-        .from('estado_viaje')
-        .update({ estado: 'ESPERANDO' })
-        .eq('id', 1)
+      await supabase.from('estado_viaje').update({ estado: 'ESPERANDO' }).eq('id', 1)
 
       isTripActive = false
       btnIniciarViaje.textContent = 'HACER CORTE ($30 C/U)'
@@ -598,7 +572,6 @@ if (btnCerrarComprobante) {
       const modalComp = document.getElementById('modal-comprobante')
       if (modalComp) modalComp.classList.add('hidden')
       alert('Viaje finalizado y lista vaciada correctamente.')
-
     } catch (err) {
       console.error('Error al limpiar lista:', err)
       alert('Error al vaciar la lista de abordaje.')
@@ -606,7 +579,6 @@ if (btnCerrarComprobante) {
   })
 }
 
-// Control del Escáner QR
 if (btnOpenScanner) {
   btnOpenScanner.addEventListener('click', async () => {
     isProcessingScan = false
@@ -724,7 +696,6 @@ const roleInput = document.getElementById('admin-new-role')
 
 if (dropdown && selectedRole && optionsList) {
   const options = optionsList.querySelectorAll('.option')
-
   selectedRole.addEventListener('click', (e) => {
     e.stopPropagation()
     dropdown.classList.toggle('open')
@@ -735,13 +706,10 @@ if (dropdown && selectedRole && optionsList) {
     option.addEventListener('click', () => {
       selectedRole.querySelector('span').textContent = option.textContent
       roleInput.value = option.dataset.value
-      
       options.forEach(opt => opt.classList.remove('active'))
       option.classList.add('active')
-
       optionsList.classList.add('hidden')
       dropdown.classList.remove('open')
-
       roleInput.dispatchEvent(new Event('change'))
     })
   })
@@ -931,7 +899,6 @@ filterChips.forEach(chip => {
   })
 })
 
-// Cierre de sesión seguro
 const btnLogoutStudent = document.getElementById('btn-logout-student')
 const btnLogoutDriver = document.getElementById('btn-logout-driver') || document.getElementById('btn-logout-other')
 const btnLogoutAdmin = document.getElementById('btn-logout-admin')
@@ -951,14 +918,12 @@ function resetApp() {
   passengers = []
   currentStudentMatricula = null
   loginForm.reset()
-  
   triggerDecodeEffect('text-decode')
 }
 
 // --- 6. VIDEO INTRO Y ANIMACIÓN AUTOMÁTICA ---
 const splash = document.getElementById('splash-screen')
 const video = document.getElementById('splash-video')
-
 const DURACION_VIDEO_MS = 2500 
 
 if (splash) {
@@ -981,24 +946,16 @@ if (splash) {
     setTimeout(() => {
       splash.style.display = 'none'
       if (video) video.pause()
-      
-      requestAnimationFrame(() => {
-        triggerDecodeEffect('text-decode')
-      })
-
+      requestAnimationFrame(() => { triggerDecodeEffect('text-decode') })
     }, 500)
   }, DURACION_VIDEO_MS)
-
 } else {
   document.addEventListener('DOMContentLoaded', () => {
-    requestAnimationFrame(() => {
-      triggerDecodeEffect('text-decode')
-    })
+    requestAnimationFrame(() => { triggerDecodeEffect('text-decode') })
   })
 }
 
 // --- 7. MÓDULO MATRIZ DE HORARIOS SEMANALES ---
-
 let isEditingSchedule = false
 
 async function fetchScheduleMatrix() {
@@ -1006,15 +963,11 @@ async function fetchScheduleMatrix() {
     .from('horarios_matriz')
     .select('*')
     .order('created_at', { ascending: true })
-
-  if (!error && data) {
-    renderScheduleUI(data)
-  }
+  if (!error && data) renderScheduleUI(data)
 }
 
 function renderScheduleUI(rows) {
   if (isEditingSchedule) return
-
   if (tbodyAlumnos) tbodyAlumnos.innerHTML = ''
   if (tbodyChofer) tbodyChofer.innerHTML = ''
 
@@ -1027,11 +980,7 @@ function renderScheduleUI(rows) {
         const cellData = row[dia] || { hora: '', tipo: 'IDA' }
         const td = document.createElement('td')
         if (cellData.hora) {
-          td.innerHTML = `
-            <div class="badge-schedule ${cellData.tipo ? cellData.tipo.toLowerCase() : 'ida'}">
-              ${cellData.hora} <br> <small>${cellData.tipo || 'IDA'}</small>
-            </div>
-          `
+          td.innerHTML = `<div class="badge-schedule ${cellData.tipo ? cellData.tipo.toLowerCase() : 'ida'}">${cellData.hora} <br> <small>${cellData.tipo || 'IDA'}</small></div>`
         } else {
           td.innerHTML = '<span style="color:#444;">-</span>'
         }
@@ -1043,25 +992,20 @@ function renderScheduleUI(rows) {
     if (tbodyChofer) {
       const trChofer = document.createElement('tr')
       trChofer.dataset.id = row.id
-
       dias.forEach(dia => {
         const cellData = row[dia] || { hora: '', tipo: 'IDA' }
         const td = document.createElement('td')
         td.innerHTML = `
           <div class="schedule-cell">
             <input type="time" class="schedule-time-input" data-dia="${dia}" value="${cellData.hora || ''}">
-            <button class="btn-type-toggle ${cellData.tipo ? cellData.tipo.toLowerCase() : 'ida'}" data-dia="${dia}" data-tipo="${cellData.tipo || 'IDA'}">
-              ${cellData.tipo || 'IDA'}
-            </button>
+            <button class="btn-type-toggle ${cellData.tipo ? cellData.tipo.toLowerCase() : 'ida'}" data-dia="${dia}" data-tipo="${cellData.tipo || 'IDA'}">${cellData.tipo || 'IDA'}</button>
           </div>
         `
         trChofer.appendChild(td)
       })
-
       const tdAction = document.createElement('td')
       tdAction.innerHTML = `<button class="btn-remove-student btn-delete-row" data-id="${row.id}">✕</button>`
       trChofer.appendChild(tdAction)
-
       tbodyChofer.appendChild(trChofer)
     }
   })
@@ -1070,14 +1014,7 @@ function renderScheduleUI(rows) {
 if (btnAddScheduleRow) {
   btnAddScheduleRow.addEventListener('click', async () => {
     const emptyDay = { hora: '', tipo: 'IDA' }
-    const newRow = {
-      lunes: emptyDay,
-      martes: emptyDay,
-      miercoles: emptyDay,
-      jueves: emptyDay,
-      viernes: emptyDay
-    }
-
+    const newRow = { lunes: emptyDay, martes: emptyDay, miercoles: emptyDay, jueves: emptyDay, viernes: emptyDay }
     await supabase.from('horarios_matriz').insert([newRow])
     fetchScheduleMatrix()
   })
@@ -1087,33 +1024,14 @@ if (tbodyChofer) {
   tbodyChofer.addEventListener('focusin', (e) => {
     if (e.target.classList.contains('schedule-time-input')) {
       isEditingSchedule = true
-
       if (!e.target.value) {
         const tr = e.target.closest('tr')
         const allInputs = Array.from(tr.querySelectorAll('.schedule-time-input'))
         const currentIndex = allInputs.indexOf(e.target)
-
         let neighbourTime = ''
-
-        for (let i = currentIndex - 1; i >= 0; i--) {
-          if (allInputs[i].value) {
-            neighbourTime = allInputs[i].value
-            break
-          }
-        }
-
-        if (!neighbourTime) {
-          for (let i = currentIndex + 1; i < allInputs.length; i++) {
-            if (allInputs[i].value) {
-              neighbourTime = allInputs[i].value
-              break
-            }
-          }
-        }
-
-        if (neighbourTime) {
-          e.target.value = neighbourTime
-        }
+        for (let i = currentIndex - 1; i >= 0; i--) { if (allInputs[i].value) { neighbourTime = allInputs[i].value; break } }
+        if (!neighbourTime) { for (let i = currentIndex + 1; i < allInputs.length; i++) { if (allInputs[i].value) { neighbourTime = allInputs[i].value; break } } }
+        if (neighbourTime) e.target.value = neighbourTime
       }
     }
   })
@@ -1124,17 +1042,9 @@ if (tbodyChofer) {
       const rowId = tr.dataset.id
       const dia = e.target.dataset.dia
       const nuevaHora = e.target.value
-
       const btnTipo = tr.querySelector(`button[data-dia="${dia}"]`)
       const tipoActual = btnTipo ? btnTipo.dataset.tipo : 'IDA'
-
-      const updatedDayData = { hora: nuevaHora, tipo: tipoActual }
-
-      await supabase
-        .from('horarios_matriz')
-        .update({ [dia]: updatedDayData })
-        .eq('id', rowId)
-
+      await supabase.from('horarios_matriz').update({ [dia]: { hora: nuevaHora, tipo: tipoActual } }).eq('id', rowId)
       isEditingSchedule = false
     }
   })
@@ -1146,20 +1056,13 @@ if (tbodyChofer) {
       const dia = e.target.dataset.dia
       const tipoActual = e.target.dataset.tipo
       const nuevoTipo = tipoActual === 'IDA' ? 'REGRESO' : 'IDA'
-
       const inputHora = tr.querySelector(`input[data-dia="${dia}"]`)
       const horaActual = inputHora ? inputHora.value : ''
-
-      const updatedDayData = { hora: horaActual, tipo: nuevoTipo }
 
       e.target.dataset.tipo = nuevoTipo
       e.target.textContent = nuevoTipo
       e.target.className = `btn-type-toggle ${nuevoTipo.toLowerCase()}`
-
-      await supabase
-        .from('horarios_matriz')
-        .update({ [dia]: updatedDayData })
-        .eq('id', rowId)
+      await supabase.from('horarios_matriz').update({ [dia]: { hora: horaActual, tipo: nuevoTipo } }).eq('id', rowId)
     }
 
     if (e.target.classList.contains('btn-delete-row')) {
@@ -1174,11 +1077,8 @@ if (tbodyChofer) {
 supabase
   .channel('estado_viaje_channel')
   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'estado_viaje' }, (payload) => {
-    if (payload.new && payload.new.estado) {
-      actualizarUIIndicador(payload.new.estado)
-    }
-  })
-  .subscribe()
+    if (payload.new && payload.new.estado) actualizarUIIndicador(payload.new.estado)
+  }).subscribe()
 
 supabase
   .channel('historial_viajes_channel')
@@ -1186,7 +1086,6 @@ supabase
     if (currentStudentMatricula && payload.new && payload.new.matricula === currentStudentMatricula) {
       cargarHistorialAlumno(currentStudentMatricula)
     }
-  })
-  .subscribe()
+  }).subscribe()
 
 fetchScheduleMatrix()
