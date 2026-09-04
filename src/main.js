@@ -41,7 +41,7 @@ let html5QrcodeScanner = null
 let allUsersCache = []
 let currentFilter = 'Todos'
 let currentStudentMatricula = null
-let localTimerInterval = null
+
 
 // --- FUNCIÓN DEL EFECTO DECODIFICADOR (OPTIMIZADA CON ANIMATION FRAME) ---
 function triggerDecodeEffect(elementId) {
@@ -89,7 +89,12 @@ function triggerDecodeEffect(elementId) {
   element.dataset.animationFrame = initialFrame.toString()
 }
 
-// --- GESTIÓN DEL TEMPORIZADOR EN TIEMPO REAL (B&N) ---
+// ==========================================
+// ⏱️ GESTIÓN DEL TEMPORIZADOR Y ESTADO (B&N)
+// ==========================================
+
+let localTimerInterval = null
+
 async function consultarEstadoViaje() {
   const { data, error } = await supabase
     .from('estado_viaje')
@@ -99,6 +104,7 @@ async function consultarEstadoViaje() {
 
   if (data) {
     actualizarVistaReloj(data)
+    actualizarUIIndicador(data.estado || 'ESPERANDO')
   }
 
   // Suscripción Realtime robusta para el alumno
@@ -116,6 +122,9 @@ async function consultarEstadoViaje() {
       (payload) => {
         console.log('Cambio en tiempo real recibido por el alumno:', payload.new)
         actualizarVistaReloj(payload.new)
+        if (payload.new.estado) {
+          actualizarUIIndicador(payload.new.estado)
+        }
       }
     )
     .subscribe()
@@ -124,36 +133,113 @@ async function consultarEstadoViaje() {
 function actualizarVistaReloj(estado) {
   const timerBox = document.getElementById('timer-student-box')
   const timerDisplay = document.getElementById('timer-student-display')
+  const indicadorStatus = document.getElementById('indicador-status')
+  const driverTimerDisplay = document.getElementById('driver-timer-display')
 
-  if (!timerBox || !timerDisplay) return
+  if (!timerBox || !timerDisplay || !indicadorStatus) return
 
   if (estado.temporizador_activo && estado.tiempo_salida) {
+    // Oculta el texto de "Esperando..." y muestra el temporizador embebido en su lugar
+    indicadorStatus.classList.add('hidden')
     timerBox.classList.remove('hidden')
     
-    // Si viene en formato de fecha/hora o segundos, lo manejamos
     if (localTimerInterval) clearInterval(localTimerInterval)
-    
     const targetTime = new Date(estado.tiempo_salida).getTime()
     
     localTimerInterval = setInterval(() => {
       const now = new Date().getTime()
       const distance = targetTime - now
 
-      if (distance < 0) {
+      if (distance <= 0) {
         clearInterval(localTimerInterval)
+        localTimerInterval = null
         timerDisplay.textContent = "00:00"
+        if (driverTimerDisplay) driverTimerDisplay.textContent = "00:00 - ¡TIEMPO AGOTADO!"
       } else {
         const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))
         const seconds = Math.floor((distance % (1000 * 60)) / 1000)
-        timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+        const formatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+        timerDisplay.textContent = formatted
+        if (driverTimerDisplay) driverTimerDisplay.textContent = formatted
       }
     }, 1000)
   } else {
+    // Si no está activo, regresa el texto de "Esperando..." y oculta el reloj
     if (localTimerInterval) clearInterval(localTimerInterval)
+    localTimerInterval = null
+    indicadorStatus.classList.remove('hidden')
+    indicadorStatus.textContent = "Esperando..."
     timerBox.classList.add('hidden')
+    if (driverTimerDisplay) driverTimerDisplay.textContent = '05:00'
   }
 }
 
+function actualizarUIIndicador(estado) {
+  const statusElem = document.getElementById('indicador-status')
+  const boxElem = document.getElementById('indicador-viaje-box')
+
+  if (!statusElem || !boxElem) return
+
+  if (estado === 'EN_CAMINO') {
+    boxElem.classList.add('en-camino')
+  } else {
+    boxElem.classList.remove('en-camino')
+  }
+}
+
+// Controles del Chofer para el Temporizador
+const btnTimerStart = document.getElementById('btn-timer-start')
+const btnTimerAdd = document.getElementById('btn-timer-add')
+const btnTimerStop = document.getElementById('btn-timer-stop')
+
+if (btnTimerStart) {
+  btnTimerStart.addEventListener('click', async () => {
+    const endTime = new Date(Date.now() + 5 * 60 * 1000).toISOString()
+
+    const { error } = await supabase
+      .from('estado_viaje')
+      .update({
+        tiempo_salida: endTime,
+        temporizador_activo: true,
+        estado: 'EN_CAMINO'
+      })
+      .eq('id', 1)
+
+    if (error) alert('Error al iniciar temporizador: ' + error.message)
+  })
+}
+
+if (btnTimerAdd) {
+  btnTimerAdd.addEventListener('click', async () => {
+    const { data } = await supabase.from('estado_viaje').select('tiempo_salida').eq('id', 1).maybeSingle()
+    if (!data || !data.tiempo_salida) return
+
+    const currentTarget = new Date(data.tiempo_salida).getTime()
+    const newEndTime = new Date(currentTarget + 1 * 60 * 1000).toISOString()
+
+    const { error } = await supabase
+      .from('estado_viaje')
+      .update({ tiempo_salida: newEndTime })
+      .eq('id', 1)
+
+    if (error) alert('Error al agregar tiempo: ' + error.message)
+  })
+}
+
+if (btnTimerStop) {
+  btnTimerStop.addEventListener('click', async () => {
+    const { error } = await supabase
+      .from('estado_viaje')
+      .update({
+        tiempo_salida: null,
+        temporizador_activo: false,
+        estado: 'ESPERANDO'
+      })
+      .eq('id', 1)
+
+    if (error) alert('Error al detener temporizador: ' + error.message)
+  })
+}
 // --- 1. SELECCIÓN DE ROL ---
 document.querySelectorAll('.btn[data-role]').forEach(btn => {
   btn.addEventListener('click', (e) => {
@@ -1153,189 +1239,3 @@ supabase
   .subscribe()
 
 fetchScheduleMatrix()
-
-// ==========================================
-// ⏱️ LÓGICA DEL TEMPORIZADOR EN TIEMPO REAL
-// ==========================================
-
-let timerInterval = null
-let targetEndTime = null
-
-const timerStudentBox = document.getElementById('timer-student-box')
-const timerStudentDisplay = document.getElementById('timer-student-display')
-const driverTimerDisplay = document.getElementById('driver-timer-display')
-
-const btnTimerStart = document.getElementById('btn-timer-start')
-const btnTimerAdd = document.getElementById('btn-timer-add')
-const btnTimerStop = document.getElementById('btn-timer-stop')
-
-// Función que calcula y refresca la pantalla cada segundo
-function renderTimerUI() {
-  if (!targetEndTime) {
-    if (timerStudentBox) timerStudentBox.classList.add('hidden')
-    if (driverTimerDisplay) driverTimerDisplay.textContent = '05:00'
-    if (btnTimerAdd) btnTimerAdd.disabled = true
-    if (btnTimerStop) btnTimerStop.disabled = true
-    if (btnTimerStart) btnTimerStart.disabled = false
-    return
-  }
-
-  const now = new Date().getTime()
-  const diff = targetEndTime - now
-
-  if (diff <= 0) {
-    clearInterval(timerInterval)
-    timerInterval = null
-    targetEndTime = null
-
-    if (timerStudentDisplay) timerStudentDisplay.textContent = '00:00 - ¡SALIDA!'
-    if (driverTimerDisplay) driverTimerDisplay.textContent = '00:00 - ¡TIEMPO AGOTADO!'
-    if (btnTimerAdd) btnTimerAdd.disabled = true
-    if (btnTimerStop) btnTimerStop.disabled = true
-    if (btnTimerStart) btnTimerStart.disabled = false
-    return
-  }
-
-  const minutes = Math.floor(diff / (1000 * 60))
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-  const formatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-
-  if (timerStudentDisplay) timerStudentDisplay.textContent = formatted
-  if (driverTimerDisplay) driverTimerDisplay.textContent = formatted
-  if (timerStudentBox) timerStudentBox.classList.remove('hidden')
-}
-
-// Inicia el ciclo local usando el timestamp guardado
-function startLocalTimer(isoEndTime) {
-  if (!isoEndTime) {
-    targetEndTime = null
-    clearInterval(timerInterval)
-    renderTimerUI()
-    return
-  }
-
-  targetEndTime = new Date(isoEndTime).getTime()
-  if (timerInterval) clearInterval(timerInterval)
-  
-  renderTimerUI()
-  timerInterval = setInterval(renderTimerUI, 1000)
-
-  if (btnTimerAdd) btnTimerAdd.disabled = false
-  if (btnTimerStop) btnTimerStop.disabled = false
-  if (btnTimerStart) btnTimerStart.disabled = true
-}
-
-// Evento: Botón Iniciar 5 min
-if (btnTimerStart) {
-  btnTimerStart.addEventListener('click', async () => {
-    const endTime = new Date(Date.now() + 5 * 60 * 1000).toISOString()
-
-    const { error } = await supabase
-      .from('estado_viaje')
-      .update({
-        tiempo_salida: endTime,
-        temporizador_activo: true
-      })
-      .eq('id', 1)
-
-    if (error) alert('Error al iniciar temporizador: ' + error.message)
-  })
-}
-
-// Evento: Botón +1 Minuto
-if (btnTimerAdd) {
-  btnTimerAdd.addEventListener('click', async () => {
-    if (!targetEndTime) return
-
-    const newEndTime = new Date(targetEndTime + 1 * 60 * 1000).toISOString()
-
-    const { error } = await supabase
-      .from('estado_viaje')
-      .update({ tiempo_salida: newEndTime })
-      .eq('id', 1)
-
-    if (error) alert('Error al agregar tiempo: ' + error.message)
-  })
-}
-
-// Evento: Botón Cancelar
-if (btnTimerStop) {
-  btnTimerStop.addEventListener('click', async () => {
-    const { error } = await supabase
-      .from('estado_viaje')
-      .update({
-        tiempo_salida: null,
-        temporizador_activo: false
-      })
-      .eq('id', 1)
-
-    if (error) alert('Error al detener temporizador: ' + error.message)
-  })
-}
-
-// Cargar estado inicial desde Supabase
-async function cargarEstadoTemporizador() {
-  const { data } = await supabase
-    .from('estado_viaje')
-    .select('tiempo_salida, temporizador_activo')
-    .eq('id', 1)
-    .maybeSingle()
-
-  if (data && data.temporizador_activo && data.tiempo_salida) {
-    startLocalTimer(data.tiempo_salida)
-  } else {
-    startLocalTimer(null)
-  }
-}
-
-// Escuchar cambios en tiempo real desde Supabase
-supabase
-  .channel('temporizador_channel')
-  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'estado_viaje' }, (payload) => {
-    const updated = payload.new
-    if (updated.temporizador_activo && updated.tiempo_salida) {
-      startLocalTimer(updated.tiempo_salida)
-    } else {
-      startLocalTimer(null)
-    }
-  })
-  .subscribe()
-
-// Ejecutar consulta inicial
-cargarEstadoTemporizador()
-function actualizarVistaReloj(estado) {
-  const timerBox = document.getElementById('timer-student-box')
-  const timerDisplay = document.getElementById('timer-student-display')
-  const indicadorStatus = document.getElementById('indicador-status')
-
-  if (!timerBox || !timerDisplay || !indicadorStatus) return
-
-  if (estado.temporizador_activo && estado.tiempo_salida) {
-    // Oculta el texto de "Esperando..." y muestra el temporizador limpio
-    indicadorStatus.classList.add('hidden')
-    timerBox.classList.remove('hidden')
-    
-    if (localTimerInterval) clearInterval(localTimerInterval)
-    const targetTime = new Date(estado.tiempo_salida).getTime()
-    
-    localTimerInterval = setInterval(() => {
-      const now = new Date().getTime()
-      const distance = targetTime - now
-
-      if (distance < 0) {
-        clearInterval(localTimerInterval)
-        timerDisplay.textContent = "00:00"
-      } else {
-        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))
-        const seconds = Math.floor((distance % (1000 * 60)) / 1000)
-        timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-      }
-    }, 1000)
-  } else {
-    // Si no está activo, regresa el texto de "Esperando..." y oculta el reloj
-    if (localTimerInterval) clearInterval(localTimerInterval)
-    indicadorStatus.classList.remove('hidden')
-    indicadorStatus.textContent = "Esperando..."
-    timerBox.classList.add('hidden')
-  }
-}
