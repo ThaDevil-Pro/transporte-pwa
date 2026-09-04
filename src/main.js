@@ -1303,3 +1303,39 @@ supabase
 
 // Ejecutar consulta inicial
 cargarEstadoTemporizador()
+function actualizarVistaReloj(estado) {
+  const timerBox = document.getElementById('timer-student-box')
+  const timerDisplay = document.getElementById('timer-student-display')
+  const indicadorStatus = document.getElementById('indicador-status')
+
+  if (!timerBox || !timerDisplay || !indicadorStatus) return
+
+  if (estado.temporizador_activo && estado.tiempo_salida) {
+    // Oculta el texto de "Esperando..." y muestra el temporizador limpio
+    indicadorStatus.classList.add('hidden')
+    timerBox.classList.remove('hidden')
+    
+    if (localTimerInterval) clearInterval(localTimerInterval)
+    const targetTime = new Date(estado.tiempo_salida).getTime()
+    
+    localTimerInterval = setInterval(() => {
+      const now = new Date().getTime()
+      const distance = targetTime - now
+
+      if (distance < 0) {
+        clearInterval(localTimerInterval)
+        timerDisplay.textContent = "00:00"
+      } else {
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000)
+        timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      }
+    }, 1000)
+  } else {
+    // Si no está activo, regresa el texto de "Esperando..." y oculta el reloj
+    if (localTimerInterval) clearInterval(localTimerInterval)
+    indicadorStatus.classList.remove('hidden')
+    indicadorStatus.textContent = "Esperando..."
+    timerBox.classList.add('hidden')
+  }
+}
