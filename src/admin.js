@@ -9,7 +9,21 @@ const btnGuardar = document.getElementById('btn-guardar')
 const btnCancelar = document.getElementById('btn-cancelar')
 const tabla = document.getElementById('tabla-alumnos')
 
-// 1. Cargar lista de alumnos
+// Variable global para almacenar temporalmente los alumnos y buscar sin consultar de más a Supabase
+let alumnosCache = []
+
+// Creamos e insertamos dinámicamente la barra de búsqueda arriba de la tabla (si no la tienes en el HTML)
+let inputBusqueda = document.getElementById('search-alumnos-input')
+if (!inputBusqueda && tabla) {
+  inputBusqueda = document.createElement('input')
+  inputBusqueda.type = 'text'
+  inputBusqueda.id = 'search-alumnos-input'
+  inputBusqueda.placeholder = '🔍 Buscar por nombre o matrícula...'
+  inputBusqueda.style.cssText = 'width: 100%; padding: 10px; margin-bottom: 12px; background: #111; border: 1px solid #333; color: #fff; border-radius: 6px; font-size: 0.9rem;'
+  tabla.parentNode.insertBefore(inputBusqueda, tabla)
+}
+
+// 1. Cargar lista de alumnos y guardarla en caché
 async function obtenerAlumnos() {
   const { data: alumnos, error } = await supabase
     .from('alumnos')
@@ -21,13 +35,20 @@ async function obtenerAlumnos() {
     return
   }
 
+  alumnosCache = alumnos || []
+  renderizarTabla(alumnosCache)
+}
+
+// Función encargada de pintar los datos en la tabla
+function renderizarTabla(lista) {
   tabla.innerHTML = ''
-  if (alumnos.length === 0) {
-    tabla.innerHTML = '<tr><td colspan="4">No hay alumnos registrados.</td></tr>'
+  
+  if (lista.length === 0) {
+    tabla.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #888;">No se encontraron alumnos.</td></tr>'
     return
   }
 
-  alumnos.forEach(alumno => {
+  lista.forEach(alumno => {
     const tr = document.createElement('tr')
     const badgeClass = alumno.estado === 'Activo' ? 'badge-activo' : 'badge-inactivo'
 
@@ -44,6 +65,19 @@ async function obtenerAlumnos() {
   })
 
   asignarEventos()
+}
+
+// Evento de filtrado en tiempo real desde la barra de búsqueda
+if (inputBusqueda) {
+  inputBusqueda.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim()
+    const filtrados = alumnosCache.filter(alumno => {
+      const nombre = (alumno.nombre || '').toLowerCase()
+      const matricula = String(alumno.matricula || '').toLowerCase()
+      return nombre.includes(query) || matricula.includes(query)
+    })
+    renderizarTabla(filtrados)
+  })
 }
 
 // 2. Guardar o Actualizar Alumno
