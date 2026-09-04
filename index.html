@@ -57,18 +57,17 @@
     <span id="student-control" class="control-badge">23010099</span>
   </div>
 
-  <!-- CAJITA INDICADOR (PASO 3) -->
-  <div id="indicador-viaje-box" class="indicador-box esperando">
-    <span class="indicador-label">ESTADO DEL VIAJE</span>
-    <span id="indicador-status" class="indicador-status-text">Esperando...</span>
-  </div>
+  <!-- CAJITA INDICADOR Y TEMPORIZADOR INTEGRADOS (Minimalista B&N) -->
+  <div id="indicador-viaje-box" class="indicador-box esperando" style="background: #121212; border: 1px solid #262626; padding: 15px; border-radius: 8px; text-align: center;">
+    <span class="indicador-label" style="font-size: 0.75rem; color: #888; letter-spacing: 1px; font-weight: 500;">ESTADO DEL VIAJE</span>
+    <div id="indicador-status" class="indicador-status-text" style="font-size: 1.2rem; font-weight: 600; color: #fff; margin: 4px 0;">Esperando...</div>
 
-  <!-- TEMPORIZADOR ALUMNO (NUEVO) -->
-<!-- Temporizador Alumno (Minimalista B&N) -->
-<div id="timer-student-box" class="timer-box hidden" style="background: #121212; border: 1px solid #262626; padding: 12px; border-radius: 8px; text-align: center; margin-top: 10px;">
-  <span style="font-size: 0.75rem; color: #888; letter-spacing: 1px; font-weight: 500;">TIEMPO RESTANTE</span>
-  <div id="timer-student-display" style="font-size: 1.8rem; font-weight: 600; color: #ffffff; font-family: monospace; margin-top: 4px;">05:00</div>
-</div>
+    <!-- Temporizador anidado (se oculta/muestra con la clase hidden) -->
+    <div id="timer-student-box" class="timer-box hidden" style="border-top: 1px solid #262626; padding-top: 10px; margin-top: 10px;">
+      <span style="font-size: 0.70rem; color: #888; letter-spacing: 1px; font-weight: 500;">TIEMPO RESTANTE</span>
+      <div id="timer-student-display" style="font-size: 1.8rem; font-weight: 600; color: #ffffff; font-family: monospace; margin-top: 2px;">05:00</div>
+    </div>
+  </div>
 
   <div class="balance-card">
     <span class="balance-label">SALDO PENDIENTE</span>
