@@ -2,6 +2,7 @@ import QRCode from 'qrcode'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { supabase } from './supabase.js'
 import { runIntro } from './intro.js'
+import { initAsientos } from './asientos.js'
 import {
   $, $$, esc, icon, avatar, emptyState, skeletonRows, haptic,
   initScreens, showScreen, initTabs, selectTab, initSegmented,
@@ -83,6 +84,9 @@ initPasswordToggles()
 initTabs($('#view-driver'))
 initTabs($('#view-admin'))
 
+// Asientos y parejas del alumno (rpc es una declaración de función, ya disponible)
+const asientos = initAsientos({ rpc, supabase })
+
 const rolesTitle = $('#roles-title')
 const loginForm = $('#login-form')
 const inputControl = $('#input-control')
@@ -132,6 +136,7 @@ function cerrarSesion() {
   borrarSesion()
   stopScanner()
   closeAllSheets()
+  asientos.limpiar()
   passengers = []
   currentStudentMatricula = null
   allUsersCache = []
@@ -251,6 +256,7 @@ function iniciarAlumno(perfil) {
   renderStudentSchedule()
   renderTripCard()
   refrescarAlumno()
+  asientos.cargar(perfil.nombre)
 }
 
 function renderPerfilAlumno(perfil) {
@@ -1113,7 +1119,10 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible' || !sessionToken) return
   cargarEstadoViaje()
   fetchScheduleMatrix()
-  if (currentRole === 'Estudiante') refrescarAlumno()
+  if (currentRole === 'Estudiante') {
+    refrescarAlumno()
+    asientos.cargar()
+  }
   if (currentRole === 'Chofer') fetchPassengers()
 })
 

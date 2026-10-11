@@ -590,6 +590,7 @@ button {
 .tint-orange { --tint: var(--orange); }
 .tint-green { --tint: var(--green); }
 .tint-indigo { --tint: var(--indigo); }
+.tint-gray { --tint: var(--label-2); }
 
 /* --- 8. BOTONES --- */
 .btn {
@@ -1034,15 +1035,14 @@ button.row:active {
 }
 
 .row-icon {
-  --tint: var(--blue);
   width: 40px;
   height: 40px;
   flex: none;
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--tint) 13%, transparent);
-  color: var(--tint);
+  background: color-mix(in srgb, var(--tint, var(--blue)) 13%, transparent);
+  color: var(--tint, var(--blue));
 }
 
 .row-icon .icon {
@@ -1801,6 +1801,686 @@ button.row:active {
 
 .balance-amount {
   color: var(--label);
+}
+
+/* --- 16b. ASIENTOS Y PAREJAS --- */
+.alerts {
+  display: grid;
+  gap: 12px;
+}
+
+.alerts:empty {
+  display: none;
+}
+
+.alert-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+
+.alert-card .row-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+}
+
+.alert-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.alert-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.alert-msg {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--label-2);
+}
+
+.alert-time {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--label-3);
+}
+
+.alert-card .button-row {
+  margin-top: 12px;
+}
+
+.alert-card .button-row .btn {
+  height: 40px;
+  font-size: 15px;
+}
+
+.alert-close {
+  margin: -4px -4px 0 0;
+}
+
+/* Tarjeta "Tu asiento" */
+.seat-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 16px 0 18px;
+}
+
+.seat-badge {
+  --tint: var(--blue);
+  position: relative;
+  width: 72px;
+  height: 80px;
+  flex: none;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  border-radius: 20px 20px 15px 15px;
+  color: #fff;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tint) 70%, #fff), var(--tint) 60%, color-mix(in srgb, var(--tint) 85%, #000));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 12px 28px color-mix(in srgb, var(--tint) 35%, transparent);
+}
+
+.seat-badge::before {
+  content: "";
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  top: 7px;
+  height: 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.seat-badge small {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.seat-badge strong {
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.seat-when {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.seat-sub {
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--label-2);
+}
+
+.seat-sub b {
+  font-weight: 600;
+  color: var(--indigo);
+}
+
+.seat-cta-title {
+  margin-top: 14px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.seat-cta-sub {
+  margin: 4px 0 16px;
+  font-size: 14px;
+  color: var(--label-2);
+}
+
+.countdown-inline {
+  color: var(--blue);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tarjeta "Pareja de viaje" */
+.pair-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 16px 0 14px;
+}
+
+.pair-avatars {
+  position: relative;
+  display: flex;
+  flex: none;
+}
+
+.pair-avatars .avatar {
+  width: 46px;
+  height: 46px;
+  font-size: 16px;
+  box-shadow: 0 0 0 3px var(--surface);
+}
+
+.pair-avatars .avatar + .avatar {
+  margin-left: -12px;
+}
+
+.pair-link {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--indigo);
+  color: #fff;
+  box-shadow: 0 0 0 3px var(--surface);
+}
+
+.pair-link .icon {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.6;
+}
+
+.pair-names {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.pair-sub {
+  font-size: 14px;
+  color: var(--label-2);
+}
+
+.pair-progress {
+  --status: var(--indigo);
+  height: 5px;
+  margin-bottom: 8px;
+}
+
+.pair-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pair-empty-title {
+  margin-top: 14px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.pair-empty-text {
+  margin: 4px 0 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--label-2);
+}
+
+/* Selector de salidas */
+.departures {
+  flex: none;
+  display: flex;
+  gap: 10px;
+  padding: 2px 20px 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding: 0 20px;
+  scrollbar-width: none;
+}
+
+.departures::-webkit-scrollbar {
+  display: none;
+}
+
+.departure {
+  flex: none;
+  width: 118px;
+  display: grid;
+  gap: 1px;
+  padding: 11px 12px 10px;
+  border-radius: 18px;
+  background: var(--fill);
+  text-align: left;
+  scroll-snap-align: start;
+  transition: background-color 0.3s var(--ease), color 0.3s var(--ease), transform 0.3s var(--ease);
+}
+
+.departure:active {
+  transform: scale(0.95);
+}
+
+.departure[aria-selected="true"] {
+  background: var(--label);
+  color: var(--on-label);
+}
+
+.departure-day {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.65;
+}
+
+.departure-time {
+  font-family: var(--font-display);
+  font-size: 21px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+.departure-time small {
+  margin-left: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  opacity: 0.7;
+}
+
+.departure-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.departure-status .icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.4;
+}
+
+.departure.is-mine .departure-status {
+  opacity: 1;
+  color: var(--blue);
+}
+
+.departure.is-mine[aria-selected="true"] .departure-status {
+  color: inherit;
+}
+
+/* Camión */
+.seat-body {
+  padding-top: 4px;
+}
+
+.seat-hint {
+  max-width: 320px;
+  margin: 0 auto 16px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--label-2);
+}
+
+.seat-hint b {
+  font-weight: 600;
+  color: var(--label);
+}
+
+.bus {
+  position: relative;
+  width: min(100%, 320px);
+  margin: 0 auto;
+  padding: 16px 16px 20px;
+  border-radius: 56px 56px 28px 28px;
+  background: color-mix(in srgb, var(--label) 3.5%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--separator);
+}
+
+.bus-front {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 6px 16px;
+  padding: 6px 2px 16px;
+  border-bottom: 1.5px dashed var(--separator);
+}
+
+.bus-driver {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--fill);
+  color: var(--label-2);
+}
+
+.bus-driver .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.bus-door {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--label-3);
+}
+
+.bus-door i {
+  width: 4px;
+  height: 34px;
+  border-radius: 2px;
+  background: var(--separator);
+}
+
+.bus-seats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 24px 1fr 1fr;
+  gap: 10px 7px;
+  transition: filter 0.5s var(--ease), opacity 0.5s var(--ease);
+}
+
+.bus-row-label {
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.seat {
+  position: relative;
+  aspect-ratio: 1 / 1.1;
+  display: grid;
+  place-items: center;
+  padding-top: 4px;
+  border-radius: 13px 13px 10px 10px;
+  background: var(--surface);
+  color: var(--label-2);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 0 0 1.5px var(--separator), 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: transform 0.4s var(--ease-spring), background-color 0.3s var(--ease), color 0.3s var(--ease), box-shadow 0.3s var(--ease), opacity 0.3s var(--ease);
+}
+
+/* Respaldo del asiento */
+.seat::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 20%;
+  right: 20%;
+  height: 4px;
+  border-radius: 3px;
+  background: currentColor;
+  opacity: 0.2;
+}
+
+.seat:disabled {
+  cursor: default;
+}
+
+.seat:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+.seat[data-estado="ocupado"] {
+  background: var(--fill-2);
+  color: transparent;
+  box-shadow: none;
+}
+
+.seat[data-estado="ocupado"]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -4px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--label-3);
+  opacity: 0.5;
+}
+
+.seat[data-estado="mio"],
+.seat[data-estado="pareja"] {
+  --tint: var(--blue);
+  color: #fff;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tint) 72%, #fff), var(--tint));
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--tint) 35%, transparent);
+}
+
+.seat[data-estado="pareja"] {
+  --tint: var(--indigo);
+}
+
+.seat[data-estado="mio"]::before,
+.seat[data-estado="pareja"]::before {
+  opacity: 0.45;
+}
+
+.seat.is-off {
+  opacity: 0.3;
+}
+
+.seat.is-move::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.seat.is-selected {
+  z-index: 1;
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 12%, var(--surface));
+  box-shadow: 0 0 0 2.5px var(--blue), 0 10px 24px color-mix(in srgb, var(--blue) 30%, transparent);
+  transform: scale(1.1);
+}
+
+.seat.is-partner-pick {
+  color: var(--indigo);
+  background: color-mix(in srgb, var(--indigo) 10%, var(--surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--indigo) 70%, transparent);
+  transform: scale(1.04);
+}
+
+.seat.is-pulse {
+  animation: seat-pulse 0.8s var(--ease);
+}
+
+.bus.is-locked .bus-seats {
+  filter: blur(2px);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.bus-lock {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  align-content: start;
+  justify-content: center;
+  justify-items: center;
+  gap: 4px;
+  padding: 116px 24px 24px;
+  text-align: center;
+}
+
+.bus-lock-icon {
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: 20px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-2);
+}
+
+.bus-lock-icon .icon {
+  width: 28px;
+  height: 28px;
+}
+
+.bus-lock-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--label-2);
+}
+
+.bus-lock-count {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+
+.bus-lock-when {
+  max-width: 220px;
+  font-size: 14px;
+  color: var(--label-2);
+}
+
+.seat-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 16px;
+  margin: 18px 0 4px;
+  font-size: 13px;
+  color: var(--label-2);
+}
+
+.seat-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-seat {
+  width: 14px;
+  height: 15px;
+  border-radius: 5px 5px 4px 4px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px var(--separator);
+}
+
+.legend-seat.is-taken { background: var(--fill-2); box-shadow: none; }
+.legend-seat.is-mine { background: var(--blue); box-shadow: none; }
+.legend-seat.is-pair { background: var(--indigo); box-shadow: none; }
+
+.seat-footer {
+  display: grid;
+  gap: 12px;
+}
+
+.seat-selection {
+  min-height: 40px;
+  display: grid;
+  align-content: center;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.seat-selection small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--label-2);
+}
+
+.seat-selection .is-warning {
+  color: var(--orange-text);
+}
+
+.seat-footer .button-row .btn-lg {
+  flex: 2;
+}
+
+/* Hoja de invitación */
+.invite-hero {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0 4px;
+}
+
+.invite-seat {
+  --tint: var(--blue);
+  position: relative;
+  width: 54px;
+  height: 60px;
+  border-radius: 16px 16px 12px 12px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tint) 72%, #fff), var(--tint));
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--tint) 35%, transparent);
+  animation: pop-in 0.7s var(--ease-spring) both;
+}
+
+.invite-seat.is-partner {
+  --tint: var(--indigo);
+  animation-delay: 0.12s;
+}
+
+.invite-seat::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 22%;
+  right: 22%;
+  height: 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.invite-text {
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--label-2);
+}
+
+@keyframes seat-pulse {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.18); }
+  100% { transform: scale(1); }
 }
 
 /* --- 17. DOCK: TAB BAR FLOTANTE + ACCIÓN --- */

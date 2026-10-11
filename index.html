@@ -53,6 +53,11 @@
     <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
     <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
     <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></symbol>
+    <symbol id="i-seat" viewBox="0 0 24 24"><path d="M7 12V5.5A2.5 2.5 0 0 1 9.5 3h5A2.5 2.5 0 0 1 17 5.5V12"/><path d="M5 12h14a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"/><path d="M6.5 17v4"/><path d="M17.5 17v4"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect width="16" height="11" x="4" y="11" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></symbol>
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
   </svg>
 
@@ -169,6 +174,9 @@
         </div>
 
         <div class="stack">
+          <!-- Mensajes: reacomodos, invitaciones de pareja, etc. -->
+          <div class="alerts" id="student-alerts" aria-live="polite"></div>
+
           <article class="card trip-card" id="trip-card" data-state="waiting" data-reveal style="--i:1">
             <div class="trip-top">
               <span class="status-pill"><span class="status-dot"></span><span id="trip-status-label">Esperando</span></span>
@@ -183,14 +191,24 @@
             <div class="progress" id="timer-student-progress" hidden><span></span></div>
           </article>
 
-          <article class="card balance-card" id="student-balance-card" data-state="clear" data-reveal style="--i:2">
+          <article class="card seat-card" id="seat-card" data-reveal style="--i:2">
+            <div class="card-label"><svg class="icon"><use href="#i-seat"/></svg>Tu asiento</div>
+            <div id="seat-card-body"><div class="skeleton" style="height:80px;margin-top:14px;border-radius:16px"></div></div>
+          </article>
+
+          <article class="card pair-card" id="pair-card" data-reveal style="--i:3">
+            <div class="card-label"><svg class="icon"><use href="#i-link"/></svg>Pareja de viaje</div>
+            <div id="pair-card-body"><div class="skeleton" style="height:60px;margin-top:14px;border-radius:16px"></div></div>
+          </article>
+
+          <article class="card balance-card" id="student-balance-card" data-state="clear" data-reveal style="--i:4">
             <div class="card-label"><svg class="icon"><use href="#i-wallet"/></svg>Saldo pendiente</div>
             <div class="amount"><span class="amount-currency">$</span><span class="amount-value" id="student-balance">0.00</span></div>
             <p class="card-foot"><span class="status-dot"></span><span id="student-balance-status">Estás al corriente</span></p>
           </article>
         </div>
 
-        <section class="section" data-reveal style="--i:3">
+        <section class="section" data-reveal style="--i:5">
           <div class="section-header"><h2>Horarios</h2><span class="section-meta" id="student-schedule-meta"></span></div>
           <div class="segmented segmented-days" id="student-days" style="--n:5">
             <span class="segmented-thumb"></span>
@@ -203,7 +221,7 @@
           <div class="list" id="student-schedule-list"></div>
         </section>
 
-        <section class="section" data-reveal style="--i:4">
+        <section class="section" data-reveal style="--i:6">
           <div class="section-header"><h2>Historial</h2><span class="section-meta" id="student-history-meta"></span></div>
           <div class="list" id="student-history-list"></div>
         </section>
@@ -542,6 +560,75 @@
           <button type="button" class="btn btn-tinted-green" data-adjust="paid"><svg class="icon"><use href="#i-check"/></svg>Pagado</button>
         </div>
         <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-save-balance">Guardar saldo</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Mapa de asientos -->
+  <div class="sheet" id="sheet-seats" role="dialog" aria-modal="true" aria-labelledby="sheet-seats-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-seats-title">Elige tu asiento</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <div class="departures" id="seat-departures" role="tablist" aria-label="Salidas"></div>
+      <div class="sheet-body seat-body">
+        <p class="seat-hint" id="seat-hint"></p>
+        <div class="bus" id="bus">
+          <div class="bus-front" aria-hidden="true">
+            <span class="bus-driver"><svg class="icon"><use href="#i-wheel"/></svg></span>
+            <span class="bus-door">Puerta<i></i></span>
+          </div>
+          <div class="bus-seats" id="bus-seats" role="group" aria-label="Asientos del camión"></div>
+          <div class="bus-lock" id="bus-lock" hidden>
+            <span class="bus-lock-icon"><svg class="icon"><use href="#i-lock"/></svg></span>
+            <p class="bus-lock-label">El apartado abre en</p>
+            <p class="bus-lock-count digits" id="bus-lock-count">--:--:--</p>
+            <p class="bus-lock-when" id="bus-lock-when"></p>
+          </div>
+        </div>
+        <div class="seat-legend" aria-hidden="true">
+          <span><i class="legend-seat is-free"></i>Libre</span>
+          <span><i class="legend-seat is-taken"></i>Ocupado</span>
+          <span><i class="legend-seat is-mine"></i>Tú</span>
+          <span id="legend-pair" hidden><i class="legend-seat is-pair"></i>Tu pareja</span>
+        </div>
+      </div>
+      <div class="sheet-footer seat-footer">
+        <p class="seat-selection" id="seat-selection"></p>
+        <div class="button-row">
+          <button class="btn btn-danger" id="btn-seat-release" hidden>Liberar</button>
+          <button class="btn btn-primary btn-lg" id="btn-seat-confirm" disabled>Apartar asiento</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invitar pareja -->
+  <div class="sheet" id="sheet-invite" role="dialog" aria-modal="true" aria-labelledby="sheet-invite-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-invite-title">Pareja de viaje</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <form class="sheet-body sheet-form" id="form-invite" novalidate>
+        <div class="invite-hero" aria-hidden="true">
+          <span class="invite-seat"></span><span class="invite-seat is-partner"></span>
+        </div>
+        <p class="invite-text">Durante un mes, cuando uno de los dos aparte asiento, el de al lado se apartará automáticamente para el otro.</p>
+        <div class="field">
+          <input id="invite-matricula" type="text" placeholder=" " autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send">
+          <label for="invite-matricula">Matrícula de tu compañero</label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-invite-send"><svg class="icon"><use href="#i-send"/></svg>Enviar invitación</button>
       </form>
     </div>
   </div>
