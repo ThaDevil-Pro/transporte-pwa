@@ -42,6 +42,7 @@ let allUsersCache = []
 let currentFilter = 'Todos'
 let currentStudentMatricula = null
 let localTimerInterval = null
+let sessionToken = null
 
 // --- FUNCIÓN DEL EFECTO DECODIFICADOR (OPTIMIZADA CON ANIMATION FRAME) ---
 function triggerDecodeEffect(elementId) {
@@ -133,69 +134,64 @@ loginForm.addEventListener('submit', async (e) => {
   const control = inputControl.value.trim()
   const password = inputPassword.value.trim()
 
-  if (currentRole === 'Estudiante') {
-    const { data: alumno, error } = await supabase
-      .from('alumnos')
-      .select('*')
-      .eq('matricula', control)
-      .eq('password', password)
-      .maybeSingle()
+  // La contraseña se valida en Supabase (hash bcrypt); el cliente solo recibe un token de sesión
+  const { data: sesion, error } = await supabase.rpc('login', {
+    p_rol: currentRole,
+    p_identificador: control,
+    p_password: password
+  })
 
-    if (error || !alumno) {
-      showError('Número de control o contraseña incorrectos')
-      return
+  if (error || !sesion) {
+    const mensajes = {
+      Estudiante: 'Número de control o contraseña incorrectos',
+      Chofer: 'Número de licencia o contraseña incorrectos',
+      Admin: 'Usuario o contraseña de Admin incorrectos'
     }
+    showError(error ? 'Error de conexión, intenta de nuevo' : mensajes[currentRole])
+    return
+  }
 
-    currentStudentMatricula = alumno.matricula
-    viewLogin.classList.add('hidden')
+  sessionToken = sesion.token
+  const perfil = sesion.perfil
+  viewLogin.classList.add('hidden')
+
+  if (currentRole === 'Estudiante') {
+    currentStudentMatricula = perfil.matricula
     viewStudent.classList.remove('hidden')
-    document.getElementById('student-name').textContent = alumno.nombre
-    document.getElementById('student-control').textContent = alumno.matricula
-    const saldo = alumno.saldo !== undefined && alumno.saldo !== null ? Number(alumno.saldo).toFixed(2) : '0.00'
-    document.getElementById('student-balance').textContent = saldo
-    document.getElementById('modal-student-id').textContent = `ID: ${alumno.matricula}`
+    renderPerfilAlumno(perfil)
+    document.getElementById('modal-student-id').textContent = `ID: ${perfil.matricula}`
 
     // Cargar Indicador de Viaje (Paso 3) y Historial (Paso 4)
     consultarEstadoViaje()
-    cargarHistorialAlumno(alumno.matricula)
+    cargarHistorialAlumno()
   }
   else if (currentRole === 'Chofer') {
-    const { data: chofer, error } = await supabase
-      .from('choferes')
-      .select('*')
-      .eq('licencia', control)
-      .eq('password', password)
-      .maybeSingle()
-
-    if (error || !chofer) {
-      showError('Número de licencia o contraseña incorrectos')
-      return
-    }
-
-    viewLogin.classList.add('hidden')
     viewDashDriver.classList.remove('hidden')
-    driverName.textContent = `¡Hola, ${chofer.nombre}!`
-    driverLicense.textContent = `Licencia: ${chofer.licencia}`
+    driverName.textContent = `¡Hola, ${perfil.nombre}!`
+    driverLicense.textContent = `Licencia: ${perfil.licencia}`
     fetchPassengers()
+    sincronizarEstadoCorte()
   }
   else if (currentRole === 'Admin') {
-    const { data: admin, error } = await supabase
-      .from('admins')
-      .select('*')
-      .eq('usuario', control)
-      .eq('password', password)
-      .maybeSingle()
-
-    if (error || !admin) {
-      showError('Usuario o contraseña de Admin incorrectos')
-      return
-    }
-
-    viewLogin.classList.add('hidden')
     viewDashAdmin.classList.remove('hidden')
     loadAdminData()
   }
 })
+
+// Llama una función RPC con el token de la sesión activa
+async function rpc(nombre, params = {}) {
+  const res = await supabase.rpc(nombre, { p_token: sessionToken, ...params })
+  if (res.error && res.error.code === '28000') {
+    alert('Tu sesión expiró. Vuelve a iniciar sesión.')
+    resetApp()
+  }
+  return res
+}
+
+// Escapa texto antes de insertarlo con innerHTML
+function esc(valor) {
+  return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
 
 function showError(msg) {
   errorMessage.textContent = msg
@@ -229,7 +225,10 @@ async function consultarEstadoViaje() {
   actualizarUIIndicador(data?.estado || 'ESPERANDO')
 }
 
+let ultimoEstadoViaje = null
+
 function actualizarUIIndicador(estado) {
+  ultimoEstadoViaje = estado
   const statusElem = document.getElementById('indicador-status')
   const boxElem = document.getElementById('indicador-viaje-box')
 
@@ -244,16 +243,26 @@ function actualizarUIIndicador(estado) {
   }
 }
 
+function renderPerfilAlumno(perfil) {
+  document.getElementById('student-name').textContent = perfil.nombre
+  document.getElementById('student-control').textContent = perfil.matricula
+  const saldo = perfil.saldo !== undefined && perfil.saldo !== null ? Number(perfil.saldo).toFixed(2) : '0.00'
+  document.getElementById('student-balance').textContent = saldo
+}
+
+// Refresca saldo e historial del alumno (por ejemplo, después de un corte)
+async function refrescarAlumno() {
+  const { data: perfil } = await rpc('alumno_perfil')
+  if (perfil) renderPerfilAlumno(perfil)
+  cargarHistorialAlumno()
+}
+
 // PASO 4: Cargar historial de viajes del alumno
-async function cargarHistorialAlumno(matricula) {
+async function cargarHistorialAlumno() {
   const tbody = document.getElementById('tbody-historial-alumno')
   if (!tbody) return
 
-  const { data: viajes, error } = await supabase
-    .from('historial_viajes')
-    .select('*')
-    .eq('matricula', matricula)
-    .order('fecha_hora', { ascending: false })
+  const { data: viajes, error } = await rpc('alumno_historial')
 
   if (error || !viajes || viajes.length === 0) {
     tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #888;">No hay viajes registrados.</td></tr>'
@@ -269,7 +278,7 @@ async function cargarHistorialAlumno(matricula) {
       <tr>
         <td>${fecha}</td>
         <td>${hora}</td>
-        <td>$${viaje.monto}.00</td>
+        <td>$${Number(viaje.monto).toFixed(2)}</td>
       </tr>
     `
   }).join('')
@@ -286,9 +295,7 @@ let isProcessingScan = false
 
 // Cargar pasajeros desde Supabase
 async function fetchPassengers() {
-  const { data, error } = await supabase
-    .from('abordajes')
-    .select('*')
+  const { data, error } = await rpc('chofer_abordajes')
 
   if (error) {
     console.error('Error al cargar pasajeros:', error)
@@ -315,10 +322,10 @@ function renderPassengersUI() {
     li.className = 'student-item'
     li.innerHTML = `
       <div class="student-info">
-        <span class="student-item-name">${p.nombre}</span>
-        <span class="student-item-id">Matrícula: ${p.matricula}</span>
+        <span class="student-item-name">${esc(p.nombre)}</span>
+        <span class="student-item-id">Matrícula: ${esc(p.matricula)}</span>
       </div>
-      <button class="btn-remove-student" data-id="${p.id}">✕</button>
+      <button class="btn-remove-student" data-id="${esc(p.id)}">✕</button>
     `
     studentsUl.appendChild(li)
   })
@@ -329,7 +336,7 @@ if (studentsUl) {
   studentsUl.addEventListener('click', async (e) => {
     if (e.target.classList.contains('btn-remove-student')) {
       const id = e.target.dataset.id
-      const { error } = await supabase.from('abordajes').delete().eq('id', id)
+      const { error } = await rpc('chofer_quitar_abordaje', { p_id: Number(id) })
       if (!error) await fetchPassengers()
     }
   })
@@ -341,10 +348,7 @@ if (btnClearList) {
     if (passengers.length === 0) return
 
     if (confirm('¿Deseas vaciar la lista de abordaje sin realizar cobros?')) {
-      const { error } = await supabase
-        .from('abordajes')
-        .delete()
-        .gt('id', -1)
+      const { error } = await rpc('chofer_vaciar_abordajes')
 
       if (error) {
         console.error('Error al vaciar en Supabase:', error)
@@ -376,43 +380,12 @@ if (btnIniciarViaje) {
       btnIniciarViaje.textContent = 'Procesando cobros...'
 
       try {
-        const fechaHoraActual = new Date().toISOString()
+        // Cobro, historial y estado EN_CAMINO en una sola transacción en Supabase
+        const { data: totalCobrados, error } = await rpc('chofer_hacer_corte')
+        if (error) throw error
 
-        for (const student of passengers) {
-          // 1. Obtener saldo y sumar $30
-          const { data: alumnoData } = await supabase
-            .from('alumnos')
-            .select('saldo')
-            .eq('matricula', student.matricula)
-            .maybeSingle()
-
-          const saldoActual = alumnoData?.saldo || 0
-          const nuevoSaldo = Number(saldoActual) + 30
-
-          await supabase
-            .from('alumnos')
-            .update({ saldo: nuevoSaldo })
-            .eq('matricula', student.matricula)
-
-          // 2. PASO 4: Registrar en el Historial con fecha y hora
-          await supabase
-            .from('historial_viajes')
-            .insert([
-              {
-                matricula: student.matricula,
-                monto: 30,
-                fecha_hora: fechaHoraActual
-              }
-            ])
-        }
-
-        // 3. PASO 3: Actualizar el estado del viaje a "EN_CAMINO"
-        await supabase
-          .from('estado_viaje')
-          .update({ estado: 'EN_CAMINO' })
-          .eq('id', 1)
-
-        alert(`Cobro realizado exitosamente a los ${passengers.length} alumnos.`)
+        await fetchPassengers()
+        alert(`Cobro realizado exitosamente a los ${totalCobrados} alumnos.`)
 
         isTripActive = true
         btnIniciarViaje.textContent = 'FINALIZAR VIAJE'
@@ -447,8 +420,8 @@ if (btnIniciarViaje) {
         tbodyComp.innerHTML = copyPassengers.map((student, index) => `
           <tr>
             <td>${index + 1}</td>
-            <td>${student.matricula}</td>
-            <td>${student.nombre || student.nombre_completo || 'ALUMNO'}</td>
+            <td>${esc(student.matricula)}</td>
+            <td>${esc(student.nombre || 'ALUMNO')}</td>
             <td>$30.00</td>
           </tr>
         `).join('')
@@ -461,21 +434,23 @@ if (btnIniciarViaje) {
   })
 }
 
+// Al entrar el chofer, retoma el viaje si ya se hizo el corte (estado EN_CAMINO)
+async function sincronizarEstadoCorte() {
+  const { data } = await supabase.from('estado_viaje').select('estado').eq('id', 1).maybeSingle()
+  isTripActive = data?.estado === 'EN_CAMINO'
+  if (btnIniciarViaje) btnIniciarViaje.textContent = isTripActive ? 'FINALIZAR VIAJE' : 'HACER CORTE ($30 C/U)'
+}
+
 // Botón para cerrar comprobante y vaciar lista definitivamente (Paso 5)
 const btnCerrarComprobante = document.getElementById('btn-cerrar-comprobante')
 if (btnCerrarComprobante) {
   btnCerrarComprobante.addEventListener('click', async () => {
     try {
-      // Vaciar en Supabase y localmente
-      await supabase.from('abordajes').delete().gt('id', -1)
+      // Vaciar lista y regresar estado a "ESPERANDO" (Paso 3)
+      const { error } = await rpc('chofer_finalizar_viaje')
+      if (error) throw error
       passengers = []
       renderPassengersUI()
-
-      // PASO 3: Regresar estado a "ESPERANDO"
-      await supabase
-        .from('estado_viaje')
-        .update({ estado: 'ESPERANDO' })
-        .eq('id', 1)
 
       isTripActive = false
       btnIniciarViaje.textContent = 'HACER CORTE ($30 C/U)'
@@ -535,29 +510,13 @@ async function onScanSuccess(decodedText) {
 
   scanFeedback.textContent = 'Validando...'
 
-  const { data: alumno, error: fetchError } = await supabase
-    .from('alumnos')
-    .select('nombre, matricula')
-    .eq('matricula', scannedId)
-    .maybeSingle()
-
-  if (fetchError || !alumno) {
-    scanFeedback.textContent = `❌ Matrícula ${scannedId} inválida`
-    setTimeout(() => { isProcessingScan = false }, 2000)
-    return
-  }
-
-  const matriculaVal = String(alumno.matricula).trim()
-  const nombreVal = String(alumno.nombre).trim()
-
-  const { error } = await supabase
-    .from('abordajes')
-    .insert([{ nombre: nombreVal, matricula: matriculaVal }])
+  // Supabase valida la matrícula, el límite de 40 y los duplicados
+  const { data: nombreVal, error } = await rpc('chofer_registrar_abordaje', { p_matricula: scannedId })
 
   if (error) {
-    console.error('Error al insertar:', error)
-    scanFeedback.textContent = `❌ Error: ${error.message}`
-    setTimeout(() => { isProcessingScan = false }, 3000)
+    console.error('Error al registrar abordaje:', error)
+    scanFeedback.textContent = `❌ ${error.message}`
+    setTimeout(() => { isProcessingScan = false }, 2000)
     return
   }
 
@@ -565,8 +524,6 @@ async function onScanSuccess(decodedText) {
   scanFeedback.textContent = `✅ ¡${nombreVal} listo!`
   setTimeout(stopScanner, 800)
 }
-
-fetchPassengers()
 
 // --- 5. LÓGICA DASHBOARD ADMINISTRADOR ---
 const adminTabs = document.querySelectorAll('.admin-tab')
@@ -649,17 +606,13 @@ if (formCreateUser) {
     const balance = parseFloat(document.getElementById('admin-new-balance').value) || 0
     const msg = document.getElementById('admin-register-msg')
 
-    let error = null
-    if (role === 'Estudiante') {
-      const res = await supabase.from('alumnos').insert([{ nombre: name, matricula: identifier, password, saldo: balance }])
-      error = res.error
-    } else if (role === 'Chofer') {
-      const res = await supabase.from('choferes').insert([{ nombre: name, licencia: identifier, password }])
-      error = res.error
-    } else {
-      const res = await supabase.from('admins').insert([{ usuario: identifier, password }])
-      error = res.error
-    }
+    const { error } = await rpc('admin_crear_usuario', {
+      p_rol: role,
+      p_nombre: name,
+      p_identificador: identifier,
+      p_password: password,
+      p_saldo: balance
+    })
 
     if (error) {
       msg.style.color = '#ff4444'
@@ -674,11 +627,12 @@ if (formCreateUser) {
 }
 
 async function loadAdminData() {
-  const [{ data: alumnos }, { data: choferes }, { data: admins }] = await Promise.all([
-    supabase.from('alumnos').select('*'),
-    supabase.from('choferes').select('*'),
-    supabase.from('admins').select('*')
-  ])
+  const { data, error } = await rpc('admin_usuarios')
+  if (error) {
+    console.error('Error al cargar usuarios:', error)
+    return
+  }
+  const { alumnos, choferes, admins } = data
 
   allUsersCache = [
     ...(alumnos || []).map(u => ({ ...u, rol: 'Estudiante', idStr: u.matricula })),
@@ -725,12 +679,12 @@ function renderUsersList() {
     li.className = 'student-item'
     li.innerHTML = `
       <div class="student-info">
-        <span class="student-item-name">${u.nombre} <small style="color:#666">(${u.rol})</small></span>
-        <span class="student-item-id">ID: ${u.idStr}</span>
+        <span class="student-item-name">${esc(u.nombre)} <small style="color:#666">(${u.rol})</small></span>
+        <span class="student-item-id">ID: ${esc(u.idStr)}</span>
       </div>
       <div class="user-actions">
-        <button class="btn-action edit" data-role="${u.rol}" data-id="${u.id}">✏️</button>
-        <button class="btn-action delete" data-role="${u.rol}" data-id="${u.id}">🗑️</button>
+        <button class="btn-action edit" data-role="${u.rol}" data-id="${esc(u.id)}">✏️</button>
+        <button class="btn-action delete" data-role="${u.rol}" data-id="${esc(u.id)}">🗑️</button>
       </div>
     `
     ul.appendChild(li)
@@ -741,8 +695,8 @@ function renderUsersList() {
       if (!confirm('¿Deseas eliminar este usuario?')) return
       const role = e.target.dataset.role
       const id = e.target.dataset.id
-      const table = role === 'Estudiante' ? 'alumnos' : role === 'Chofer' ? 'choferes' : 'admins'
-      await supabase.from(table).delete().eq('id', id)
+      const { error } = await rpc('admin_eliminar_usuario', { p_rol: role, p_id: String(id) })
+      if (error) alert(`Error al eliminar: ${error.message}`)
       loadAdminData()
     })
   })
@@ -757,10 +711,13 @@ function renderUsersList() {
       const newPass = prompt('Nueva Contraseña (vacío para conservar):')
       
       if (newName) {
-        const table = role === 'Estudiante' ? 'alumnos' : role === 'Chofer' ? 'choferes' : 'admins'
-        const updates = role === 'Admin' ? { usuario: newName } : { nombre: newName }
-        if (newPass) updates.password = newPass
-        await supabase.from(table).update(updates).eq('id', id)
+        const { error } = await rpc('admin_editar_usuario', {
+          p_rol: role,
+          p_id: String(id),
+          p_nombre: newName,
+          p_password: newPass || null
+        })
+        if (error) alert(`Error al editar: ${error.message}`)
         loadAdminData()
       }
     })
@@ -783,12 +740,12 @@ function renderBalancesList(alumnos) {
     const saldo = a.saldo !== undefined && a.saldo !== null ? Number(a.saldo).toFixed(2) : '0.00'
     li.innerHTML = `
       <div class="student-info">
-        <span class="student-item-name">${a.nombre}</span>
-        <span class="student-item-id">Matrícula: ${a.matricula}</span>
+        <span class="student-item-name">${esc(a.nombre)}</span>
+        <span class="student-item-id">Matrícula: ${esc(a.matricula)}</span>
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
         <span class="balance-tag">$${saldo}</span>
-        <button class="btn-action edit-balance" data-id="${a.id}" data-saldo="${saldo}">✏️</button>
+        <button class="btn-action edit-balance" data-id="${esc(a.id)}" data-saldo="${saldo}">✏️</button>
       </div>
     `
     ul.appendChild(li)
@@ -799,8 +756,9 @@ function renderBalancesList(alumnos) {
       const id = e.target.dataset.id
       const currentSaldo = e.target.dataset.saldo
       const newSaldo = prompt('Ingresa el nuevo saldo ($):', currentSaldo)
-      if (newSaldo !== null && !isNaN(newSaldo)) {
-        await supabase.from('alumnos').update({ saldo: parseFloat(newSaldo) }).eq('id', id)
+      if (newSaldo !== null && newSaldo.trim() !== '' && !isNaN(newSaldo)) {
+        const { error } = await rpc('admin_actualizar_saldo', { p_id: id, p_saldo: parseFloat(newSaldo) })
+        if (error) alert(`Error al actualizar saldo: ${error.message}`)
         loadAdminData()
       }
     })
@@ -828,6 +786,8 @@ if (btnLogoutDriver) btnLogoutDriver.addEventListener('click', resetApp)
 if (btnLogoutAdmin) btnLogoutAdmin.addEventListener('click', resetApp)
 
 function resetApp() {
+  if (sessionToken) supabase.rpc('logout', { p_token: sessionToken })
+  sessionToken = null
   stopScanner()
   if (qrModal) qrModal.classList.add('hidden')
   if (viewStudent) viewStudent.classList.add('hidden')
@@ -961,16 +921,7 @@ function renderScheduleUI(rows) {
 // Evento: Agregar una nueva fila vacía (Chofer)
 if (btnAddScheduleRow) {
   btnAddScheduleRow.addEventListener('click', async () => {
-    const emptyDay = { hora: '', tipo: 'IDA' }
-    const newRow = {
-      lunes: emptyDay,
-      martes: emptyDay,
-      miercoles: emptyDay,
-      jueves: emptyDay,
-      viernes: emptyDay
-    }
-
-    await supabase.from('horarios_matriz').insert([newRow])
+    await rpc('chofer_horario_agregar')
     fetchScheduleMatrix()
   })
 }
@@ -1027,10 +978,7 @@ if (tbodyChofer) {
 
       const updatedDayData = { hora: nuevaHora, tipo: tipoActual }
 
-      await supabase
-        .from('horarios_matriz')
-        .update({ [dia]: updatedDayData })
-        .eq('id', rowId)
+      await rpc('chofer_horario_actualizar', { p_id: Number(rowId), p_dia: dia, p_valor: updatedDayData })
 
       isEditingSchedule = false
     }
@@ -1054,15 +1002,12 @@ if (tbodyChofer) {
       e.target.textContent = nuevoTipo
       e.target.className = `btn-type-toggle ${nuevoTipo.toLowerCase()}`
 
-      await supabase
-        .from('horarios_matriz')
-        .update({ [dia]: updatedDayData })
-        .eq('id', rowId)
+      await rpc('chofer_horario_actualizar', { p_id: Number(rowId), p_dia: dia, p_valor: updatedDayData })
     }
 
     if (e.target.classList.contains('btn-delete-row')) {
       const rowId = e.target.dataset.id
-      await supabase.from('horarios_matriz').delete().eq('id', rowId)
+      await rpc('chofer_horario_eliminar', { p_id: Number(rowId) })
       fetchScheduleMatrix()
     }
   })
@@ -1073,18 +1018,20 @@ supabase
   .channel('estado_viaje_channel')
   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'estado_viaje' }, (payload) => {
     if (payload.new && payload.new.estado) {
+      // El corte cambia el estado a EN_CAMINO: refrescar saldo e historial del alumno
+      if (currentStudentMatricula && payload.new.estado !== ultimoEstadoViaje) {
+        refrescarAlumno()
+      }
       actualizarUIIndicador(payload.new.estado)
     }
   })
   .subscribe()
 
-// Suscripción en tiempo real al historial de viajes
+// Mantener la tabla de horarios sincronizada entre dispositivos
 supabase
-  .channel('historial_viajes_channel')
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'historial_viajes' }, (payload) => {
-    if (currentStudentMatricula && payload.new && payload.new.matricula === currentStudentMatricula) {
-      cargarHistorialAlumno(currentStudentMatricula)
-    }
+  .channel('horarios_channel')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'horarios_matriz' }, () => {
+    fetchScheduleMatrix()
   })
   .subscribe()
 
@@ -1164,15 +1111,7 @@ function startLocalTimer(isoEndTime) {
 // Evento: Botón Iniciar 5 min
 if (btnTimerStart) {
   btnTimerStart.addEventListener('click', async () => {
-    const endTime = new Date(Date.now() + 5 * 60 * 1000).toISOString()
-
-    const { error } = await supabase
-      .from('estado_viaje')
-      .update({
-        tiempo_salida: endTime,
-        temporizador_activo: true
-      })
-      .eq('id', 1)
+    const { error } = await rpc('chofer_temporizador', { p_accion: 'iniciar' })
 
     if (error) alert('Error al iniciar temporizador: ' + error.message)
   })
@@ -1183,12 +1122,7 @@ if (btnTimerAdd) {
   btnTimerAdd.addEventListener('click', async () => {
     if (!targetEndTime) return
 
-    const newEndTime = new Date(targetEndTime + 1 * 60 * 1000).toISOString()
-
-    const { error } = await supabase
-      .from('estado_viaje')
-      .update({ tiempo_salida: newEndTime })
-      .eq('id', 1)
+    const { error } = await rpc('chofer_temporizador', { p_accion: 'agregar' })
 
     if (error) alert('Error al agregar tiempo: ' + error.message)
   })
@@ -1197,13 +1131,7 @@ if (btnTimerAdd) {
 // Evento: Botón Cancelar
 if (btnTimerStop) {
   btnTimerStop.addEventListener('click', async () => {
-    const { error } = await supabase
-      .from('estado_viaje')
-      .update({
-        tiempo_salida: null,
-        temporizador_activo: false
-      })
-      .eq('id', 1)
+    const { error } = await rpc('chofer_temporizador', { p_accion: 'cancelar' })
 
     if (error) alert('Error al detener temporizador: ' + error.message)
   })
@@ -1239,3 +1167,10 @@ supabase
 
 // Ejecutar consulta inicial
 cargarEstadoTemporizador()
+
+// --- 8. PWA: SERVICE WORKER (solo en producción para no cachear en desarrollo) ---
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(err => console.error('Error al registrar el service worker:', err))
+  })
+}
