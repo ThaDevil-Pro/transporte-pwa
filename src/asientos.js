@@ -8,7 +8,7 @@ import {
   $, $$, esc, icon, avatar, haptic, openSheet, closeSheet, confirm, toast, setLoading, shake, patchList
 } from './ui.js'
 
-const TZ = 'America/Mexico_City'
+export const TZ = 'America/Mexico_City'
 const FILAS = 10
 const EASE = 'cubic-bezier(0.25, 1, 0.5, 1)'
 const ESQUELETO = '<div class="skeleton" style="height:72px;margin-top:14px;border-radius:16px"></div>'
@@ -22,24 +22,25 @@ const AVISO_UI = {
 }
 
 // --- FORMATO ---
-const vecino = n => (n % 2 === 1 ? n + 1 : n - 1)
+export const vecino = n => (n % 2 === 1 ? n + 1 : n - 1)
 const esVentana = n => n % 4 === 1 || n % 4 === 0
-const claveSalida = s => `${s.fecha}T${s.hora}`
+// Igual que la clave de la tabla "actividad": salida:<fecha>T<hora>:<camión>
+export const claveSalida = s => `${s.fecha}T${s.hora}:${s.camion}`
 const fechaISO = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
 const hoyLocal = (dias = 0) => fechaISO.format(new Date(Date.now() + dias * 864e5))
 const relativo = new Intl.RelativeTimeFormat('es', { numeric: 'auto' })
 
-function splitHora(hhmm) {
+export function splitHora(hhmm) {
   const [h, m] = hhmm.split(':').map(Number)
   return { t: `${h % 12 || 12}:${String(m).padStart(2, '0')}`, p: h < 12 ? 'a. m.' : 'p. m.' }
 }
 
-const horaTexto = hhmm => {
+export const horaTexto = hhmm => {
   const { t, p } = splitHora(hhmm)
   return `${t} ${p}`
 }
 
-function etiquetaDia(fecha) {
+export function etiquetaDia(fecha) {
   if (fecha === hoyLocal()) return 'Hoy'
   if (fecha === hoyLocal(1)) return 'Mañana'
   const txt = new Date(`${fecha}T12:00:00`).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' }).replace('.', '')
@@ -71,7 +72,7 @@ function tiempoAtras(iso) {
   return relativo.format(Math.round(seg / 86400), 'day')
 }
 
-export function initAsientos({ rpc, supabase }) {
+export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
   let activo = false
   let miNombre = ''
   let salidas = []
@@ -109,6 +110,7 @@ export function initAsientos({ rpc, supabase }) {
     salidas = data
     renderSeatCard()
     if (salidaSel) renderDepartures()
+    alCambiarSalidas?.(salidas)
   }
 
   async function cargarPareja() {
@@ -232,18 +234,18 @@ export function initAsientos({ rpc, supabase }) {
           <span class="seat-badge"><small>Asiento</small><strong>${s.mi_asiento}</strong></span>
           <div>
             <p class="seat-when">${esc(etiquetaDia(s.fecha))} · ${esc(horaTexto(s.hora))}</p>
-            <p class="seat-sub">${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'} · ${esVentana(s.mi_asiento) ? 'Ventana' : 'Pasillo'} · Fila ${Math.ceil(s.mi_asiento / 4)}</p>
+            <p class="seat-sub">Camión ${s.camion} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'} · ${esVentana(s.mi_asiento) ? 'Ventana' : 'Pasillo'} · Fila ${Math.ceil(s.mi_asiento / 4)}</p>
             ${junto ? `<p class="seat-sub"><b>Junto a ${esc(pareja.activa?.nombre || 'tu pareja')}</b> · asiento ${s.asiento_pareja}</p>` : ''}
           </div>
         </div>
         <button class="btn btn-secondary btn-block" data-abrir-asientos="${esc(claveSalida(s))}">Ver o cambiar asiento</button>`
     } else if (abierta) {
       seatBody.innerHTML = `<p class="seat-cta-title">Ya puedes apartar tu lugar</p>
-        <p class="seat-cta-sub">Salida de ${esc(etiquetaDia(abierta.fecha).toLowerCase())} a las ${esc(horaTexto(abierta.hora))} · ${40 - abierta.ocupados} asientos libres</p>
+        <p class="seat-cta-sub">Camión ${abierta.camion}, ${esc(etiquetaDia(abierta.fecha).toLowerCase())} a las ${esc(horaTexto(abierta.hora))} · ${40 - abierta.ocupados} asientos libres</p>
         <button class="btn btn-primary btn-block" data-abrir-asientos="${esc(claveSalida(abierta))}">${icon('i-seat')}Elegir asiento</button>`
     } else if (proxima) {
       seatBody.innerHTML = `<p class="seat-cta-title">El apartado abre en <span class="countdown-inline" data-cuenta="${esc(proxima.abre_en)}">${formatCuenta(new Date(proxima.abre_en) - Date.now())}</span></p>
-        <p class="seat-cta-sub">Para la salida de ${esc(etiquetaDia(proxima.fecha).toLowerCase())} a las ${esc(horaTexto(proxima.hora))}. Se abre 12 horas antes.</p>
+        <p class="seat-cta-sub">Para el camión ${proxima.camion}, ${esc(etiquetaDia(proxima.fecha).toLowerCase())} a las ${esc(horaTexto(proxima.hora))}. Se abre 12 horas antes.</p>
         <button class="btn btn-secondary btn-block" data-abrir-asientos="${esc(claveSalida(proxima))}">Ver el camión</button>`
     } else {
       seatBody.innerHTML = `<p class="seat-cta-title">Sin salidas próximas</p>
@@ -383,10 +385,10 @@ export function initAsientos({ rpc, supabase }) {
         : s.abierta
           ? `${40 - s.ocupados} libres`
           : `${icon('i-lock')}${esc(new Date(s.abre_en).toLocaleTimeString('es-MX', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true }))}`
-      return `<button class="departure${s.mi_asiento ? ' is-mine' : ''}" role="tab" aria-selected="${k === salidaSel}" data-salida="${esc(k)}">
+      return `<button class="departure${s.mi_asiento ? ' is-mine' : ''}" role="tab" aria-selected="${k === salidaSel}" data-salida="${esc(k)}" aria-label="Camión ${s.camion}, ${esc(etiquetaDia(s.fecha))} ${esc(horaTexto(s.hora))}">
         <span class="departure-day">${esc(etiquetaDia(s.fecha))} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'}</span>
         <span class="departure-time">${t}<small>${p}</small></span>
-        <span class="departure-status">${estado}</span>
+        <span class="departure-status"><span class="departure-bus">${icon('i-bus')}${s.camion}</span>${estado}</span>
       </button>`
     }).join('')
   }
@@ -406,7 +408,7 @@ export function initAsientos({ rpc, supabase }) {
     const s = salidas.find(x => claveSalida(x) === salidaSel)
     if (!s) return
     const turno = ++peticionMapa
-    const { data, error } = await rpc('alumno_mapa', { p_fecha: s.fecha, p_hora: s.hora })
+    const { data, error } = await rpc('alumno_mapa', { p_fecha: s.fecha, p_hora: s.hora, p_camion: s.camion })
     // Ignora respuestas viejas si el alumno ya cambió de salida
     if (turno !== peticionMapa || claveSalida(s) !== salidaSel) return
     if (error) {
@@ -476,6 +478,7 @@ export function initAsientos({ rpc, supabase }) {
 
   function renderMapa(anterior) {
     renderHint()
+    $('#bus-name').textContent = `Camión ${mapa.camion}`
     $('#legend-pair').hidden = !mapa.pareja
     bus.classList.toggle('is-locked', !mapa.abierta)
     $('#bus-lock').hidden = mapa.abierta
@@ -563,6 +566,7 @@ export function initAsientos({ rpc, supabase }) {
     const { data, error } = await rpc('alumno_apartar', {
       p_fecha: s.fecha,
       p_hora: s.hora,
+      p_camion: s.camion,
       p_asiento: n,
       p_solo: mapa.modo === 'pareja_sin_banca'
     })

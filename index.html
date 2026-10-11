@@ -180,7 +180,7 @@
           <article class="card trip-card" id="trip-card" data-state="waiting" data-reveal style="--i:1">
             <div class="trip-top">
               <span class="status-pill"><span class="status-dot"></span><span id="trip-status-label">Esperando</span></span>
-              <svg class="icon trip-bus"><use href="#i-bus"/></svg>
+              <span class="trip-bus-tag"><svg class="icon trip-bus"><use href="#i-bus"/></svg><span id="trip-bus-label">Camión 1</span></span>
             </div>
             <div class="trip-main" id="trip-main">
               <p class="trip-kicker" id="trip-kicker" hidden>Sale en</p>
@@ -237,7 +237,11 @@
     <!-- ============ CHOFER ============ -->
     <section class="screen has-dock" id="view-driver">
       <header class="nav">
-        <div class="nav-leading"></div>
+        <div class="nav-leading">
+          <button class="nav-pill" id="btn-camion" aria-label="Cambiar de camión">
+            <svg class="icon"><use href="#i-bus"/></svg><span id="camion-label">Camión 1</span><svg class="icon nav-pill-chevron"><use href="#i-chevron-right"/></svg>
+          </button>
+        </div>
         <div class="nav-title">Viaje</div>
         <div class="nav-trailing">
           <button class="icon-btn" data-logout aria-label="Cerrar sesión"><svg class="icon"><use href="#i-logout"/></svg></button>
@@ -303,6 +307,34 @@
         </article>
       </div>
 
+      <!-- Pestaña: Asientos -->
+      <div class="scroll tab-panel" id="driver-tab-seats" data-title="Asientos">
+        <div class="page-header" data-reveal style="--i:0">
+          <p class="eyebrow" id="driver-seats-eyebrow">Camión 1</p>
+          <h1 class="large-title">Asientos</h1>
+        </div>
+        <div class="departures departures-inline" id="driver-departures" role="tablist" aria-label="Salidas del camión" data-reveal style="--i:1"></div>
+        <div class="seat-stats" id="driver-seat-stats" data-reveal style="--i:2">
+          <div class="seat-stat"><span class="seat-stat-value" id="stat-apartados">0</span><span class="seat-stat-label">Apartados</span></div>
+          <div class="seat-stat is-green"><span class="seat-stat-value" id="stat-abordo">0</span><span class="seat-stat-label">A bordo</span></div>
+          <div class="seat-stat"><span class="seat-stat-value" id="stat-libres">40</span><span class="seat-stat-label">Libres</span></div>
+        </div>
+        <div class="bus bus-driver-view" id="driver-bus" data-reveal style="--i:3">
+          <div class="bus-front" aria-hidden="true">
+            <span class="bus-driver"><svg class="icon"><use href="#i-wheel"/></svg></span>
+            <span class="bus-name" id="driver-bus-name">Camión 1</span>
+            <span class="bus-door">Puerta<i></i></span>
+          </div>
+          <div class="bus-seats" id="driver-bus-seats" role="group" aria-label="Asientos del camión"></div>
+        </div>
+        <div class="seat-legend" aria-hidden="true">
+          <span><i class="legend-seat is-free"></i>Libre</span>
+          <span><i class="legend-seat is-taken"></i>Apartado</span>
+          <span><i class="legend-seat is-boarded"></i>A bordo</span>
+          <span><i class="legend-seat is-pair"></i>En pareja</span>
+        </div>
+      </div>
+
       <!-- Pestaña: Horarios -->
       <div class="scroll tab-panel" id="driver-tab-schedule" data-title="Horarios">
         <div class="page-header" data-reveal style="--i:0">
@@ -317,12 +349,13 @@
       </div>
 
       <div class="dock">
-        <nav class="tabbar" style="--n:2" role="tablist" aria-label="Secciones del chofer">
+        <nav class="tabbar" style="--n:3" role="tablist" aria-label="Secciones del chofer">
           <span class="tabbar-thumb"></span>
           <button class="tab is-active" role="tab" data-tab="driver-tab-trip"><svg class="icon"><use href="#i-bus"/></svg><span>Viaje</span></button>
+          <button class="tab" role="tab" data-tab="driver-tab-seats"><svg class="icon"><use href="#i-seat"/></svg><span>Asientos</span></button>
           <button class="tab" role="tab" data-tab="driver-tab-schedule"><svg class="icon"><use href="#i-calendar"/></svg><span>Horarios</span></button>
         </nav>
-        <button class="dock-action" id="btn-open-scanner"><svg class="icon"><use href="#i-scan"/></svg><span>Escanear</span></button>
+        <button class="dock-action dock-action-round" id="btn-open-scanner" aria-label="Escanear código QR"><svg class="icon"><use href="#i-scan"/></svg></button>
       </div>
     </section>
 
@@ -581,6 +614,7 @@
         <div class="bus" id="bus">
           <div class="bus-front" aria-hidden="true">
             <span class="bus-driver"><svg class="icon"><use href="#i-wheel"/></svg></span>
+            <span class="bus-name" id="bus-name">Camión 1</span>
             <span class="bus-door">Puerta<i></i></span>
           </div>
           <div class="bus-seats" id="bus-seats" role="group" aria-label="Asientos del camión"></div>

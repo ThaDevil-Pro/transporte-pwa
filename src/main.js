@@ -3,6 +3,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { supabase } from './supabase.js'
 import { runIntro } from './intro.js'
 import { initAsientos } from './asientos.js'
+import { initChoferAsientos } from './chofer-asientos.js'
 import {
   $, $$, esc, icon, avatar, emptyState, skeletonRows, haptic,
   initScreens, showScreen, initTabs, selectTab, initSegmented,
@@ -47,6 +48,17 @@ let timerInterval = null
 let targetEndTime = null
 let timerTotalMs = 5 * 60 * 1000
 
+// Camiones: cada uno tiene su estado de viaje (estado_viaje.id = camión)
+const CAMION_KEY = 'camify.camion'
+const CAMIONES = [1, 2]
+let estados = {}
+let camionActual = leerCamion() // el que maneja el chofer
+let camionAlumno = 1 // el del próximo asiento apartado del alumno
+
+function leerCamion() {
+  try { return Number(localStorage.getItem(CAMION_KEY)) || 1 } catch { return 1 }
+}
+
 // --- 1. FORMATO ---
 const money = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtMoney = n => `$${money.format(Number(n) || 0)}`
@@ -85,7 +97,20 @@ initTabs($('#view-driver'))
 initTabs($('#view-admin'))
 
 // Asientos y parejas del alumno (rpc es una declaración de función, ya disponible)
-const asientos = initAsientos({ rpc, supabase })
+const asientos = initAsientos({
+  rpc,
+  supabase,
+  // La tarjeta de viaje del alumno sigue al camión de su próximo asiento apartado
+  alCambiarSalidas: salidas => {
+    const s = salidas.find(x => x.mi_asiento) || salidas[0]
+    const nuevo = s?.camion || 1
+    $('#trip-bus-label').textContent = `Camión ${nuevo}`
+    if (nuevo === camionAlumno) return
+    camionAlumno = nuevo
+    if (currentRole === 'Estudiante') sincronizarViaje()
+  }
+})
+const asientosChofer = initChoferAsientos({ rpc, supabase, camion: () => camionActual })
 
 const rolesTitle = $('#roles-title')
 const loginForm = $('#login-form')
@@ -137,6 +162,7 @@ function cerrarSesion() {
   stopScanner()
   closeAllSheets()
   asientos.limpiar()
+  asientosChofer.limpiar()
   passengers = []
   currentStudentMatricula = null
   allUsersCache = []
@@ -369,9 +395,9 @@ function renderStudentSchedule() {
   const list = $('#student-schedule-list')
   const dia = studentDays.value
   const salidas = scheduleRows
-    .map(r => ({ id: r.id, ...(r[dia] || {}) }))
+    .map(r => ({ id: r.id, camion: r.camion || 1, ...(r[dia] || {}) }))
     .filter(s => s.hora)
-    .sort((a, b) => a.hora.localeCompare(b.hora))
+    .sort((a, b) => a.hora.localeCompare(b.hora) || a.camion - b.camion)
 
   const ahora = new Date()
   const hhmm = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`
@@ -387,7 +413,7 @@ function renderStudentSchedule() {
       return `<div class="row schedule-row${esProxima ? ' is-next' : ''}">
         <span class="schedule-time">${t}<small>${p}</small></span>
         <span class="badge ${ida ? 'badge-ida' : 'badge-regreso'}">${icon(ida ? 'i-arrow-right' : 'i-arrow-left')}${ida ? 'Ida' : 'Regreso'}</span>
-        ${esProxima ? '<span class="next-tag is-live"><span class="status-dot"></span>Próxima</span>' : ''}
+        ${esProxima ? '<span class="next-tag is-live"><span class="status-dot"></span>Próxima</span>' : `<span class="badge badge-bus">${icon('i-bus')}Camión ${s.camion}</span>`}
       </div>`
     },
     empty: emptyState('i-calendar', 'Sin salidas', `No hay salidas programadas el ${DIAS_NOMBRE[dia].toLowerCase()}.`)
@@ -395,7 +421,9 @@ function renderStudentSchedule() {
 }
 
 function renderDriverSchedule() {
-  patchList($('#driver-schedule-list'), scheduleRows, {
+  // Agrupadas por camión, en el orden en que se crearon
+  const filas = [...scheduleRows].sort((a, b) => (a.camion || 1) - (b.camion || 1) || a.created_at.localeCompare(b.created_at))
+  patchList($('#driver-schedule-list'), filas, {
     key: r => r.id,
     render: (r, i) => `<article class="card schedule-card" data-id="${esc(r.id)}">
       <header class="schedule-card-header">
@@ -403,6 +431,12 @@ function renderDriverSchedule() {
         <span class="saved-tag">${icon('i-check')}Guardado</span>
         <button type="button" class="icon-btn icon-btn-sm icon-btn-danger btn-delete-row" data-id="${esc(r.id)}" aria-label="Eliminar salida ${i + 1}">${icon('i-trash')}</button>
       </header>
+      <div class="schedule-bus">
+        <div class="segmented segmented-mini" role="tablist" aria-label="Camión de esta salida" style="--n:${CAMIONES.length};--i:${CAMIONES.indexOf(r.camion || 1)}">
+          <span class="segmented-thumb"></span>
+          ${CAMIONES.map(n => `<button type="button" role="tab" data-camion="${n}" aria-selected="${n === (r.camion || 1)}">Camión ${n}</button>`).join('')}
+        </div>
+      </div>
       ${DIAS.map(dia => {
         const c = r[dia] || {}
         const tipo = c.tipo === 'REGRESO' ? 'REGRESO' : 'IDA'
@@ -459,6 +493,32 @@ driverScheduleList.addEventListener('focusout', e => {
 })
 
 driverScheduleList.addEventListener('click', async e => {
+  // Cambiar el camión de una salida
+  const bus = e.target.closest('[data-camion]')
+  if (bus && bus.getAttribute('aria-selected') !== 'true') {
+    const card = bus.closest('.schedule-card')
+    const seg = bus.parentElement
+    const camion = Number(bus.dataset.camion)
+    seg.style.setProperty('--i', CAMIONES.indexOf(camion))
+    $$('[data-camion]', seg).forEach(b => b.setAttribute('aria-selected', String(b === bus)))
+    haptic(6)
+    const id = Number(card.dataset.id)
+    const { error } = await rpc('chofer_horario_camion', { p_id: id, p_camion: camion })
+    if (error) {
+      toast('No se pudo cambiar el camión', { type: 'error' })
+      fetchScheduleMatrix()
+      return
+    }
+    const fila = scheduleRows.find(r => r.id === id)
+    if (fila) fila.camion = camion
+    card.classList.add('is-saved')
+    setTimeout(() => {
+      renderDriverSchedule()
+      renderStudentSchedule()
+    }, 500)
+    return
+  }
+
   const toggle = e.target.closest('.type-toggle')
   if (toggle) {
     const nuevo = toggle.dataset.tipo === 'IDA' ? 'REGRESO' : 'IDA'
@@ -484,7 +544,7 @@ driverScheduleList.addEventListener('click', async e => {
 $('#btn-add-schedule-row').addEventListener('click', async e => {
   const btn = e.currentTarget
   setLoading(btn, true)
-  const { error } = await rpc('chofer_horario_agregar')
+  const { error } = await rpc('chofer_horario_agregar', { p_camion: camionActual })
   setLoading(btn, false)
   if (error) {
     toast('No se pudo agregar la salida', { type: 'error' })
@@ -499,23 +559,61 @@ $('#btn-add-schedule-row').addEventListener('click', async e => {
 function iniciarChofer(perfil) {
   $('#driver-name').textContent = `Hola, ${primerNombre(perfil.nombre)}`
   $('#driver-license').textContent = `Licencia ${perfil.licencia}`
-  $('#passengers-count').dataset.value = '0'
   selectTab($('#view-driver'), 'driver-tab-trip', { animate: false })
-  $('#students-ul').innerHTML = skeletonRows(3)
-  isTripActive = estadoViaje === 'EN_CAMINO'
-  renderDriverTrip()
-  fetchPassengers()
+  aplicarCamion()
   renderDriverSchedule()
+
+  // Primera vez en este teléfono: que elija su camión
+  let elegido = null
+  try { elegido = localStorage.getItem(CAMION_KEY) } catch { /* modo privado */ }
+  if (!elegido) setTimeout(() => elegirCamion({ primeraVez: true }), 900)
 }
 
+// Carga todo lo del camión que maneja el chofer
+function aplicarCamion() {
+  $('#camion-label').textContent = `Camión ${camionActual}`
+  $('#passengers-count').dataset.value = '0'
+  $('#students-ul').innerHTML = skeletonRows(3)
+  passengers = []
+  sincronizarViaje()
+  fetchPassengers()
+  asientosChofer.cargar()
+}
+
+async function elegirCamion({ primeraVez = false } = {}) {
+  const elegido = await actionSheet({
+    title: primeraVez ? '¿Qué camión manejas hoy?' : 'Cambiar de camión',
+    message: 'La lista de abordaje, el temporizador y el corte son de cada camión.',
+    actions: CAMIONES.map(n => ({ label: `Camión ${n}${n === camionActual ? ' ✓' : ''}`, value: n }))
+  })
+  if (!elegido) return
+  try { localStorage.setItem(CAMION_KEY, String(elegido)) } catch { /* modo privado */ }
+  if (elegido === camionActual) return
+  camionActual = elegido
+  haptic([10, 40, 14])
+  aplicarCamion()
+  toast(`Ahora manejas el camión ${elegido}`, { type: 'success' })
+}
+
+$('#btn-camion').addEventListener('click', () => elegirCamion())
+
+// El mapa del chofer se actualiza cada vez que abre la pestaña
+$('#view-driver').addEventListener('tabchange', e => {
+  if (e.detail === 'driver-tab-seats') asientosChofer.cargar()
+})
+
 async function fetchPassengers() {
-  const { data, error } = await rpc('chofer_abordajes')
+  const bus = camionActual
+  const { data, error } = await rpc('chofer_abordajes', { p_camion: bus })
   if (error) {
     console.error('Error al cargar pasajeros:', error)
     return
   }
+  // Si el chofer cambió de camión mientras tanto, se ignora la respuesta
+  if (bus !== camionActual) return
   passengers = data
   renderPassengersUI()
+  asientosChofer.refrescar()
 }
 
 function renderPassengersUI() {
@@ -573,7 +671,9 @@ $('#students-ul').addEventListener('click', async e => {
   if (error) {
     toast('No se pudo quitar al alumno', { type: 'error' })
     fetchPassengers()
+    return
   }
+  asientosChofer.refrescar()
 })
 
 $('#btn-clear-list').addEventListener('click', async () => {
@@ -586,13 +686,14 @@ $('#btn-clear-list').addEventListener('click', async () => {
   })
   if (!ok) return
 
-  const { error } = await rpc('chofer_vaciar_abordajes')
+  const { error } = await rpc('chofer_vaciar_abordajes', { p_camion: camionActual })
   if (error) {
     toast(`Error al vaciar: ${error.message}`, { type: 'error' })
     return
   }
   passengers = []
   renderPassengersUI()
+  asientosChofer.refrescar()
   toast('Lista vaciada', { type: 'success' })
 })
 
@@ -616,7 +717,7 @@ btnIniciarViaje.addEventListener('click', async () => {
 
   // Cobro, historial y estado EN_CAMINO en una sola transacción en Supabase
   setLoading(btnIniciarViaje, true)
-  const { data: totalCobrados, error } = await rpc('chofer_hacer_corte')
+  const { data: totalCobrados, error } = await rpc('chofer_hacer_corte', { p_camion: camionActual })
   setLoading(btnIniciarViaje, false)
 
   if (error) {
@@ -625,6 +726,7 @@ btnIniciarViaje.addEventListener('click', async () => {
     return
   }
 
+  estados[camionActual] = { ...estados[camionActual], estado: 'EN_CAMINO' }
   estadoViaje = 'EN_CAMINO'
   isTripActive = true
   haptic([15, 60, 15])
@@ -636,7 +738,7 @@ btnIniciarViaje.addEventListener('click', async () => {
 function renderComprobante() {
   const ahora = new Date()
   const n = copyPassengers.length
-  $('#comprobante-fecha-hora').textContent = `${fmtFechaLarga(ahora)} · ${fmtHora(ahora)}`
+  $('#comprobante-fecha-hora').textContent = `Camión ${camionActual} · ${fmtFechaLarga(ahora)} · ${fmtHora(ahora)}`
   $('#comprobante-total').textContent = fmtMoney(n * PRECIO_VIAJE)
   $('#comprobante-detalle').textContent = `${plural(n, 'alumno', 'alumnos')} × ${fmtMoney(PRECIO_VIAJE)}`
   $('#tbody-comprobante').innerHTML = n
@@ -651,16 +753,18 @@ function renderComprobante() {
 $('#btn-cerrar-comprobante').addEventListener('click', async e => {
   const btn = e.currentTarget
   setLoading(btn, true)
-  const { error } = await rpc('chofer_finalizar_viaje')
+  const { error } = await rpc('chofer_finalizar_viaje', { p_camion: camionActual })
   setLoading(btn, false)
   if (error) {
     toast('No se pudo finalizar el viaje', { type: 'error' })
     return
   }
   passengers = []
+  estados[camionActual] = { ...estados[camionActual], estado: 'ESPERANDO' }
   estadoViaje = 'ESPERANDO'
   isTripActive = false
   renderPassengersUI()
+  asientosChofer.refrescar()
   await closeSheet('sheet-receipt')
   haptic([10, 40, 10])
   toast('Viaje finalizado', { type: 'success' })
@@ -741,8 +845,8 @@ async function onScanSuccess(decodedText) {
 
   setScanFeedback('Validando…')
 
-  // Supabase valida la matrícula, el límite de 40 y los duplicados
-  const { data: nombre, error } = await rpc('chofer_registrar_abordaje', { p_matricula: scannedId })
+  // Supabase valida la matrícula, el límite de 40 y los duplicados (también en el otro camión)
+  const { data, error } = await rpc('chofer_registrar_abordaje', { p_camion: camionActual, p_matricula: scannedId })
 
   if (error) {
     console.error('Error al registrar abordaje:', error)
@@ -754,7 +858,9 @@ async function onScanSuccess(decodedText) {
 
   flash('success')
   haptic(30)
-  setScanFeedback(`${primerNombre(nombre)} está a bordo`, 'success', { volver: 1800 })
+  // Si apartó lugar para esta salida, el chofer ve a qué asiento va
+  const asiento = data.asiento ? ` · Asiento ${data.asiento}` : ''
+  setScanFeedback(`${primerNombre(data.nombre)} está a bordo${asiento}`, 'success', { volver: 2200 })
   await fetchPassengers()
   liberarEscaner(1100)
 }
@@ -817,7 +923,7 @@ function tickTimer() {
 async function accionTemporizador(accion, btn) {
   haptic(8)
   setLoading(btn, true)
-  const { error } = await rpc('chofer_temporizador', { p_accion: accion })
+  const { error } = await rpc('chofer_temporizador', { p_camion: camionActual, p_accion: accion })
   setLoading(btn, false)
   if (error) toast('No se pudo actualizar el temporizador', { type: 'error' })
   else cargarEstadoViaje()
@@ -827,25 +933,35 @@ btnTimerStart.addEventListener('click', () => accionTemporizador('iniciar', btnT
 btnTimerAdd.addEventListener('click', () => accionTemporizador('agregar', btnTimerAdd))
 btnTimerStop.addEventListener('click', () => accionTemporizador('cancelar', btnTimerStop))
 
-// Estado del viaje y temporizador (lectura pública)
+// Estado del viaje y temporizador de cada camión (lectura pública)
 async function cargarEstadoViaje() {
   const { data } = await supabase
     .from('estado_viaje')
-    .select('estado, tiempo_salida, temporizador_activo')
-    .eq('id', 1)
-    .maybeSingle()
-  return aplicarEstadoViaje(data)
+    .select('id, estado, tiempo_salida, temporizador_activo')
+  if (!data) return
+  data.forEach(row => { estados[row.id] = row })
+  sincronizarViaje()
 }
 
-function aplicarEstadoViaje(row) {
-  if (!row) return false
-  const cambio = row.estado !== estadoViaje
+// Camión que se muestra: el que maneja el chofer o el del asiento del alumno
+const camionVisible = () => (currentRole === 'Chofer' ? camionActual : camionAlumno)
+
+function sincronizarViaje() {
+  const row = estados[camionVisible()] || { estado: 'ESPERANDO', temporizador_activo: false }
   estadoViaje = row.estado
   isTripActive = estadoViaje === 'EN_CAMINO'
   startLocalTimer(row.temporizador_activo ? row.tiempo_salida : null)
   renderTripCard()
   renderDriverTrip()
-  return cambio
+}
+
+// Devuelve true si cambió el estado (ESPERANDO ↔ EN_CAMINO) de ese camión
+function aplicarEstadoViaje(row) {
+  if (!row) return false
+  const previo = estados[row.id]?.estado
+  estados[row.id] = row
+  if (row.id === camionVisible()) sincronizarViaje()
+  return previo !== undefined && previo !== row.estado
 }
 
 // --- 11. ADMINISTRACIÓN ---
@@ -1123,7 +1239,10 @@ document.addEventListener('visibilitychange', () => {
     refrescarAlumno()
     asientos.cargar()
   }
-  if (currentRole === 'Chofer') fetchPassengers()
+  if (currentRole === 'Chofer') {
+    fetchPassengers()
+    asientosChofer.cargar()
+  }
 })
 
 // --- 13. INTRO Y ARRANQUE ---
