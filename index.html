@@ -16,6 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="preload" href="/brand/camify-wordmark.png" as="image">
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
@@ -55,11 +56,17 @@
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
   </svg>
 
-  <!-- INTRO -->
+  <!-- INTRO ANIMADA DEL LOGOTIPO (toca para saltar) -->
   <div id="splash" aria-hidden="true">
-    <video id="splash-video" autoplay muted playsinline webkit-playsinline preload="auto">
-      <source src="intro.mp4" type="video/mp4">
-    </video>
+    <div class="splash-bg"></div>
+    <div class="splash-glow"></div>
+    <div class="splash-stage">
+      <div class="splash-logo">
+        <span class="splash-full"></span>
+        <span class="splash-sheen"><span></span></span>
+      </div>
+      <p class="splash-tagline">Transporte escolar</p>
+    </div>
   </div>
 
   <div id="app">

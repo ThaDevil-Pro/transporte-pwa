@@ -1,6 +1,7 @@
 import QRCode from 'qrcode'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { supabase } from './supabase.js'
+import { runIntro } from './intro.js'
 import {
   $, $$, esc, icon, avatar, emptyState, skeletonRows, haptic,
   initScreens, showScreen, initTabs, selectTab, initSegmented,
@@ -1117,50 +1118,27 @@ document.addEventListener('visibilitychange', () => {
 })
 
 // --- 13. INTRO Y ARRANQUE ---
-const splash = $('#splash')
-const video = $('#splash-video')
-const DURACION_VIDEO_MS = 2500
-let arrancado = false
-
 function actualizarThemeColor() {
   const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()
   $('meta[name="theme-color"]').setAttribute('content', bg || '#000000')
 }
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', actualizarThemeColor)
 
+// Al terminar la intro se abre la sesión guardada o la bienvenida.
+// Regresa dónde debe aterrizar el logotipo (solo en la bienvenida).
 function arrancar() {
-  if (arrancado) return
-  arrancado = true
-
   const sesion = leerSesion()
   if (sesion?.token && ROLES[sesion.rol]) {
     sessionToken = sesion.token
     entrar(sesion.rol, sesion.perfil || {})
-  } else {
-    showScreen('view-roles')
-    revealWords(rolesTitle)
+    return null
   }
-
-  if (splash) {
-    splash.style.pointerEvents = 'none'
-    splash.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(1.06)' }], { duration: 700, easing: 'cubic-bezier(0.25, 1, 0.5, 1)', fill: 'forwards' })
-      .finished.then(() => {
-        splash.remove()
-        actualizarThemeColor()
-      })
-  } else {
-    actualizarThemeColor()
-  }
+  showScreen('view-roles')
+  revealWords(rolesTitle)
+  return $('#view-roles .wordmark')
 }
 
-if (splash) {
-  video?.play().catch(() => {})
-  setTimeout(arrancar, DURACION_VIDEO_MS)
-  // Tocar la intro la salta
-  splash.addEventListener('pointerdown', arrancar)
-} else {
-  arrancar()
-}
+runIntro({ alSalir: arrancar, alTerminar: actualizarThemeColor })
 
 cargarEstadoViaje()
 fetchScheduleMatrix()

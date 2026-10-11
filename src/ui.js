@@ -46,6 +46,8 @@ export function skeletonRows(n = 3) {
 }
 
 export function haptic(patron = 10) {
+  // El navegador solo permite vibrar después de que el usuario tocó la página
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return
   try { navigator.vibrate?.(patron) } catch { /* sin vibración */ }
 }
 
