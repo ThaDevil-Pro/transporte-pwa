@@ -51,7 +51,6 @@ export function haptic(patron = 10) {
 
 // --- PANTALLAS ---
 let currentScreen = null
-let running = []
 let transicionId = 0
 
 export function initScreens() {
@@ -84,10 +83,11 @@ export function showScreen(id, transition = 'fade') {
   const prev = currentScreen
   if (!next || prev === next) return Promise.resolve()
 
-  running.forEach(a => a.finish())
-  running = []
-
   currentScreen = next
+  // Cancela cualquier transición anterior. No se usa finish(): sobre una animación
+  // ya cancelada la revive en su último cuadro y deja la pantalla desplazada.
+  $$('.screen').forEach(s => s.getAnimations().forEach(an => an.cancel()))
+
   next.classList.add('is-active')
   $$('.scroll', next).forEach(sc => { sc.scrollTop = 0 })
   syncNav(next)
@@ -116,7 +116,6 @@ export function showScreen(id, transition = 'fade') {
   const opts = { duration: dur(transition === 'fade' ? 480 : 540), easing: transition === 'fade' ? EASE : EASE_SHEET }
   const a = next.animate(frames[0], opts)
   const b = prev.animate(frames[1], { ...opts, fill: 'forwards' })
-  running = [a, b]
 
   return Promise.all([a.finished, b.finished]).catch(() => {}).then(() => {
     b.cancel()
