@@ -484,13 +484,17 @@ export function setDigits(el, texto) {
   })
 }
 
-// Título que aparece palabra por palabra con desenfoque
+// Título que aparece palabra por palabra con desenfoque.
+// data-accent="n" pinta la palabra n con el degradado de la marca.
 export function revealWords(el) {
   if (!el) return
   const texto = el.dataset.text || el.textContent.trim()
+  const acento = el.dataset.accent === undefined ? -1 : Number(el.dataset.accent)
   el.dataset.text = texto
   el.setAttribute('aria-label', texto)
-  el.innerHTML = texto.split(' ').map((w, i) => `<span class="word" aria-hidden="true" style="--w:${i}">${esc(w)}</span>`).join(' ')
+  el.innerHTML = texto.split(' ').map((w, i) =>
+    `<span class="word${i === acento ? ' word-accent' : ''}" aria-hidden="true" style="--w:${i}">${esc(w)}</span>`
+  ).join(' ')
 }
 
 // --- LISTAS CON ENTRADA/SALIDA ANIMADA ---

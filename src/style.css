@@ -2509,6 +2509,30 @@ button.row:active {
   animation-delay: calc(var(--w) * 85ms + 140ms);
 }
 
+/* Palabra clave con el degradado de la intro (azul → violeta → rosa) */
+.word-accent {
+  padding-bottom: 0.08em;
+  background: linear-gradient(100deg, var(--accent-1), var(--accent-2) 55%, var(--accent-3));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+:root {
+  --accent-1: #0071e3;
+  --accent-2: #8a3ffc;
+  --accent-3: #e8336d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent-1: #2997ff;
+    --accent-2: #bf5af2;
+    --accent-3: #ff6482;
+  }
+}
+
 /* --- 22. KEYFRAMES --- */
 @keyframes reveal {
   from { opacity: 0; transform: translateY(18px) scale(0.985); filter: blur(8px); }
