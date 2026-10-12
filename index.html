@@ -212,7 +212,7 @@
           </article>
         </div>
 
-        <section class="section" data-reveal style="--i:5">
+        <section class="section" id="student-schedule-section" data-reveal style="--i:5">
           <div class="section-header"><h2>Horarios</h2><span class="section-meta" id="student-schedule-meta"></span></div>
           <div class="segmented segmented-days" id="student-days" style="--n:5">
             <span class="segmented-thumb"></span>
@@ -225,15 +225,22 @@
           <div class="list" id="student-schedule-list"></div>
         </section>
 
-        <section class="section" data-reveal style="--i:6">
+        <section class="section" id="student-history-section" data-reveal style="--i:6">
           <div class="section-header"><h2>Historial</h2><span class="section-meta" id="student-history-meta"></span></div>
           <div class="list" id="student-history-list"></div>
         </section>
       </div>
 
       <div class="dock">
+        <div class="side-head"><div class="side-logo" role="img" aria-label="CAMIFY"></div><span class="side-role">Alumno</span></div>
         <button class="btn btn-primary btn-lg dock-wide" id="btn-show-qr">
           <svg class="icon"><use href="#i-qr"/></svg>Mostrar mi código
+        </button>
+        <p class="side-hint">Muéstralo al chofer al subir. Cambia cada 30 segundos.</p>
+        <button type="button" class="side-account" data-logout aria-label="Tu cuenta">
+          <span class="side-avatar" data-side-avatar></span>
+          <span class="side-account-text"><span class="side-account-name" data-side-name>—</span><span class="side-account-sub" data-side-sub>Alumno</span></span>
+          <svg class="icon"><use href="#i-chevron-right"/></svg>
         </button>
       </div>
     </section>
@@ -356,13 +363,19 @@
       </div>
 
       <div class="dock">
+        <div class="side-head"><div class="side-logo" role="img" aria-label="CAMIFY"></div><span class="side-role">Chofer</span></div>
         <nav class="tabbar" style="--n:3" role="tablist" aria-label="Secciones del chofer">
           <span class="tabbar-thumb"></span>
           <button class="tab is-active" role="tab" data-tab="driver-tab-trip"><svg class="icon"><use href="#i-bus"/></svg><span>Viaje</span></button>
           <button class="tab" role="tab" data-tab="driver-tab-seats"><svg class="icon"><use href="#i-seat"/></svg><span>Asientos</span></button>
           <button class="tab" role="tab" data-tab="driver-tab-schedule"><svg class="icon"><use href="#i-calendar"/></svg><span>Horarios</span></button>
         </nav>
-        <button class="dock-action dock-action-round" id="btn-open-scanner" aria-label="Escanear código QR"><svg class="icon"><use href="#i-scan"/></svg></button>
+        <button class="dock-action dock-action-round" id="btn-open-scanner" aria-label="Escanear código QR"><svg class="icon"><use href="#i-scan"/></svg><span class="dock-action-label">Escanear código</span></button>
+        <button type="button" class="side-account" data-logout aria-label="Tu cuenta">
+          <span class="side-avatar" data-side-avatar></span>
+          <span class="side-account-text"><span class="side-account-name" data-side-name>—</span><span class="side-account-sub" data-side-sub>Chofer</span></span>
+          <svg class="icon"><use href="#i-chevron-right"/></svg>
+        </button>
       </div>
     </section>
 
@@ -488,6 +501,7 @@
       </div>
 
       <div class="dock">
+        <div class="side-head"><div class="side-logo" role="img" aria-label="CAMIFY"></div><span class="side-role">Admin</span></div>
         <nav class="tabbar" style="--n:4" role="tablist" aria-label="Secciones de administración">
           <span class="tabbar-thumb"></span>
           <button class="tab is-active" role="tab" data-tab="admin-tab-register"><svg class="icon"><use href="#i-user-plus"/></svg><span>Registrar</span></button>
@@ -495,6 +509,11 @@
           <button class="tab" role="tab" data-tab="admin-tab-balance"><svg class="icon"><use href="#i-wallet"/></svg><span>Saldos</span></button>
           <button class="tab" role="tab" data-tab="admin-tab-log"><svg class="icon"><use href="#i-shield"/></svg><span>Actividad</span></button>
         </nav>
+        <button type="button" class="side-account" data-logout aria-label="Tu cuenta">
+          <span class="side-avatar" data-side-avatar></span>
+          <span class="side-account-text"><span class="side-account-name" data-side-name>—</span><span class="side-account-sub" data-side-sub>Administración</span></span>
+          <svg class="icon"><use href="#i-chevron-right"/></svg>
+        </button>
       </div>
     </section>
   </div>

@@ -175,10 +175,21 @@ async function rpc(nombre, params = {}) {
 function entrar(rol, perfil, transition = 'fade') {
   currentRole = rol
   sesionExpirada = false
+  pintarCuentaLateral(rol, perfil)
   if (rol === 'Estudiante') iniciarAlumno(perfil)
   else if (rol === 'Chofer') iniciarChofer(perfil)
   else iniciarAdmin()
   return showScreen(ROLES[rol].screen, transition)
+}
+
+// Cuenta en la barra lateral (vista de computadora)
+function pintarCuentaLateral(rol, perfil = {}) {
+  const screen = document.getElementById(ROLES[rol].screen)
+  const nombre = perfil.nombre || perfil.usuario || ROLES[rol].title
+  const sub = rol === 'Estudiante' ? perfil.matricula : rol === 'Chofer' && perfil.licencia ? `Licencia ${perfil.licencia}` : ROLES[rol].title
+  $('[data-side-name]', screen).textContent = nombre
+  $('[data-side-sub]', screen).textContent = sub || ROLES[rol].title
+  $('[data-side-avatar]', screen).innerHTML = avatar(nombre)
 }
 
 function cerrarSesion() {

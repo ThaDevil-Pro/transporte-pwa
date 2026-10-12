@@ -7,6 +7,9 @@ export const $ = (sel, root = document) => root.querySelector(sel)
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)]
 
 const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+// En computadora las hojas se muestran como ventana centrada en lugar de subir desde abajo
+const anchoQuery = window.matchMedia('(min-width: 1024px)')
+export const esAncho = () => anchoQuery.matches
 const reduced = () => motionQuery.matches
 const dur = ms => (reduced() ? 1 : ms)
 
@@ -216,7 +219,9 @@ export function openSheet(id, { onClose } = {}) {
   openSheets.push(sheet)
 
   backdrop.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dur(320), easing: 'linear' })
-  const anim = panel.animate([{ transform: 'translateY(110%)' }, { transform: 'translateY(0)' }], { duration: dur(560), easing: EASE_SHEET })
+  const anim = esAncho()
+    ? panel.animate([{ opacity: 0, transform: 'translateY(18px) scale(0.97)' }, { opacity: 1, transform: 'none' }], { duration: dur(420), easing: EASE })
+    : panel.animate([{ transform: 'translateY(110%)' }, { transform: 'translateY(0)' }], { duration: dur(560), easing: EASE_SHEET })
   setTimeout(() => panel.focus({ preventScroll: true }), 60)
   return anim.finished.catch(() => {})
 }
@@ -233,7 +238,9 @@ export async function closeSheet(id, { force = false } = {}) {
   const opBackdrop = backdrop.style.opacity || 1
 
   const a = backdrop.animate([{ opacity: opBackdrop }, { opacity: 0 }], { duration: dur(280), fill: 'forwards' })
-  const b = panel.animate([{ transform: desde }, { transform: 'translateY(110%)' }], { duration: dur(400), easing: EASE_SHEET, fill: 'forwards' })
+  const b = esAncho()
+    ? panel.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(10px) scale(0.98)' }], { duration: dur(240), easing: EASE, fill: 'forwards' })
+    : panel.animate([{ transform: desde }, { transform: 'translateY(110%)' }], { duration: dur(400), easing: EASE_SHEET, fill: 'forwards' })
   await Promise.all([a.finished, b.finished]).catch(() => {})
 
   sheet.classList.remove('is-open')
@@ -263,7 +270,7 @@ function enableDrag(sheet) {
   let arrastrando = false
 
   handle.addEventListener('pointerdown', e => {
-    if (e.target.closest('button, input, a') || sheet.dataset.locked) return
+    if (e.target.closest('button, input, a') || sheet.dataset.locked || esAncho()) return
     arrastrando = true
     startY = lastY = e.clientY
     lastT = performance.now()
@@ -343,7 +350,7 @@ function dialog({ title, message = '', actions, variant = 'alert', cancelValue =
     const backdrop = $('.dialog-backdrop', root)
 
     backdrop.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dur(240) })
-    if (variant === 'sheet') {
+    if (variant === 'sheet' && !esAncho()) {
       panel.animate([{ transform: 'translateY(110%)' }, { transform: 'none' }], { duration: dur(520), easing: EASE_SHEET })
     } else {
       panel.animate([{ opacity: 0, transform: 'scale(1.14)' }, { opacity: 1, transform: 'scale(1)' }], { duration: dur(420), easing: EASE_SPRING })
@@ -356,7 +363,7 @@ function dialog({ title, message = '', actions, variant = 'alert', cancelValue =
     const cerrar = async valor => {
       document.removeEventListener('keydown', onKey)
       root.style.pointerEvents = 'none'
-      const salida = variant === 'sheet'
+      const salida = variant === 'sheet' && !esAncho()
         ? panel.animate([{ transform: 'none' }, { transform: 'translateY(110%)' }], { duration: dur(320), easing: EASE_SHEET, fill: 'forwards' })
         : panel.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.94)' }], { duration: dur(200), easing: EASE, fill: 'forwards' })
       backdrop.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur(220), fill: 'forwards' })
