@@ -17,6 +17,7 @@ const PRECIO_VIAJE = 30
 const CAPACIDAD = 40
 const GAUGE_C = 339.292 // circunferencia del anillo (r = 54)
 const SESSION_KEY = 'camify.sesion'
+const DISPOSITIVO_KEY = 'camify.dispositivo'
 const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
 const DIAS_NOMBRE = { lunes: 'Lunes', martes: 'Martes', miercoles: 'Miércoles', jueves: 'Jueves', viernes: 'Viernes' }
 const DIAS_CORTO = { lunes: 'Lun', martes: 'Mar', miercoles: 'Mié', jueves: 'Jue', viernes: 'Vie' }
@@ -128,6 +129,19 @@ function guardarSesion(sesion) {
 
 function leerSesion() {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY)) } catch { return null }
+}
+
+// ID aleatorio de este navegador: si ya inició sesión aquí, los bloqueos por
+// intentos fallidos que provoque otra persona no le impiden entrar
+function idDispositivo() {
+  try {
+    let id = localStorage.getItem(DISPOSITIVO_KEY)
+    if (!id) {
+      id = crypto.randomUUID()
+      localStorage.setItem(DISPOSITIVO_KEY, id)
+    }
+    return id
+  } catch { return null }
 }
 
 function borrarSesion() {
@@ -338,7 +352,8 @@ loginForm.addEventListener('submit', async e => {
   const { data: sesion, error } = await supabase.rpc('login', {
     p_rol: currentRole,
     p_identificador: control,
-    p_password: password
+    p_password: password,
+    p_dispositivo: idDispositivo()
   })
   setLoading(btnLogin, false)
 
@@ -1425,6 +1440,21 @@ $('#form-edit-balance').addEventListener('submit', async e => {
 $('#form-edit-balance').addEventListener('input', e => e.target.closest('.field')?.classList.remove('is-invalid'))
 
 // Bitácora (pestaña Actividad)
+// Claves de bloqueo: ip:<red>, u:<rol>:<usuario>, ua:<rol>:<usuario>@<red>, dv:<rol>:<usuario>:<dispositivo>
+function detalleBloqueo(clave) {
+  const [, tipo, resto = ''] = /^(\w+):(.*)$/.exec(clave) || []
+  if (tipo === 'ip') return `Red ${resto} · todas las cuentas`
+  const [, rol = '', usuario = resto] = /^([^:]*):(.*)$/.exec(resto) || []
+  const quien = `${ROL_ETIQUETA[rol] || rol} · `
+  if (tipo === 'ua') {
+    const arroba = usuario.lastIndexOf('@')
+    return `${quien}${usuario.slice(0, arroba)} · solo desde la red ${usuario.slice(arroba + 1)}`
+  }
+  if (tipo === 'dv') return `${quien}${usuario.replace(/:[0-9a-f]+$/, '')} · su dispositivo`
+  if (tipo === 'u') return `${quien}${usuario} · desde cualquier red nueva`
+  return clave
+}
+
 const fmtDetalle = {
   pago_registrado: ['Pago registrado', 'i-wallet', 'is-money', d => `${d.matricula} · ${fmtMoney(d.monto)}${d.nota ? ` · ${d.nota}` : ''}`],
   saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.matricula} · ${fmtMoney(d.antes)} → ${fmtMoney(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
@@ -1433,7 +1463,7 @@ const fmtDetalle = {
   lista_vaciada: ['Lista vaciada sin cobrar', 'i-trash', 'is-alert', d => `Camión ${d.camion} · ${plural(d.alumnos || 0, 'alumno', 'alumnos')}`],
   alumno_quitado: ['Alumno quitado de la lista', 'i-minus', '', d => `Camión ${d.camion} · ${d.matricula}`],
   qr_rechazado: ['Código QR rechazado', 'i-alert', 'is-alert', d => `${{ formato: 'No es de CAMIFY', firma: 'Falsificado', vencido: 'Vencido' }[d.motivo] || d.motivo}${d.matricula ? ` · ${d.matricula}` : ''} · Camión ${d.camion}`],
-  login_bloqueado: ['Bloqueo por intentos fallidos', 'i-lock', 'is-alert', d => String(d.clave || '').startsWith('ip:') ? `Red ${String(d.clave).slice(3)}` : String(d.clave || '').replace(/^u:([^:]*):/, '$1 · ')],
+  login_bloqueado: ['Bloqueo por intentos fallidos', 'i-lock', 'is-alert', d => detalleBloqueo(String(d.clave || ''))],
   usuario_creado: ['Usuario creado', 'i-user-plus', '', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.nombre ? `${d.nombre} · ` : ''}${d.identificador}`],
   usuario_editado: ['Usuario editado', 'i-users', '', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.identificador}${d.password_restablecida ? ' · contraseña restablecida' : ''}`],
   usuario_eliminado: ['Usuario eliminado', 'i-trash', 'is-alert', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.nombre ? `${d.nombre} · ` : ''}${d.identificador}`],
