@@ -143,6 +143,8 @@ async function rpc(nombre, params = {}) {
     toast('Tu sesión expiró. Vuelve a entrar.', { type: 'warning' })
     cerrarSesion()
   }
+  // El servidor exige cambiar la contraseña antes de seguir
+  if (res.error?.code === 'CMF01') pedirCambioPassword({ obligatorio: true })
   return res
 }
 
@@ -156,6 +158,9 @@ function entrar(rol, perfil, transition = 'fade') {
 }
 
 function cerrarSesion() {
+  qrDatos = null
+  clearInterval(qrTimer)
+  try { localStorage.removeItem(QR_KEY) } catch { /* modo privado */ }
   // supabase-js solo envía la petición al consumir la promesa
   if (sessionToken) supabase.rpc('logout', { p_token: sessionToken }).then(() => {}, () => {})
   borrarSesion()
@@ -172,9 +177,99 @@ function cerrarSesion() {
 }
 
 $$('[data-logout]').forEach(btn => btn.addEventListener('click', async () => {
-  const ok = await confirm({ title: '¿Cerrar sesión?', message: 'Tendrás que volver a ingresar tus datos.', confirmLabel: 'Cerrar sesión', destructive: true })
-  if (ok) cerrarSesion()
+  const accion = await actionSheet({
+    title: 'Tu cuenta',
+    actions: [
+      { label: 'Cambiar contraseña', value: 'password' },
+      { label: 'Cerrar sesión', value: 'salir', style: 'destructive' }
+    ]
+  })
+  if (accion === 'password') pedirCambioPassword()
+  if (accion === 'salir') cerrarSesion()
 }))
+
+// --- CAMBIO DE CONTRASEÑA (obligatorio la primera vez) ---
+const formPassword = $('#form-password')
+let alTerminarPassword = null
+
+function reglasPassword() {
+  const nueva = $('#pw-nueva').value
+  const ok = {
+    len: [...nueva].length >= 8,
+    mix: /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(nueva) && /\d/.test(nueva),
+    match: nueva.length > 0 && nueva === $('#pw-confirmar').value
+  }
+  $$('#pw-rules li').forEach(li => li.classList.toggle('is-ok', ok[li.dataset.rule]))
+  return ok.len && ok.mix && ok.match
+}
+
+function pedirCambioPassword({ obligatorio = false, alTerminar = null } = {}) {
+  const sheet = $('#sheet-password')
+  if (alTerminar) alTerminarPassword = alTerminar
+  if (obligatorio) sheet.dataset.locked = '1'
+  if (sheet.classList.contains('is-open')) return
+  if (!obligatorio) delete sheet.dataset.locked
+  $('#sheet-password-title').textContent = obligatorio ? 'Crea tu contraseña' : 'Cambiar contraseña'
+  $('#password-lead').textContent = obligatorio
+    ? 'Por tu seguridad, cambia la contraseña temporal que te dio la administración. Solo tú la vas a conocer.'
+    : 'Elige una contraseña que solo tú conozcas. Se cerrará tu sesión en otros dispositivos.'
+  $('#btn-password-logout').hidden = !obligatorio
+  formPassword.reset()
+  $('#password-error').hidden = true
+  reglasPassword()
+  openSheet(sheet)
+}
+
+formPassword.addEventListener('input', () => {
+  reglasPassword()
+  $('#password-error').hidden = true
+  $$('.field', formPassword).forEach(f => f.classList.remove('is-invalid'))
+})
+
+formPassword.addEventListener('submit', async e => {
+  e.preventDefault()
+  const error = $('#password-error')
+  const mostrar = msg => {
+    error.innerHTML = `${icon('i-alert')}<span>${esc(msg)}</span>`
+    error.hidden = false
+    shake(formPassword)
+  }
+  if (!$('#pw-actual').value) return mostrar('Escribe tu contraseña actual.')
+  if (!reglasPassword()) return mostrar('Revisa que la nueva contraseña cumpla los tres puntos.')
+
+  const btn = $('#btn-password-save')
+  setLoading(btn, true)
+  const { error: err } = await supabase.rpc('cambiar_password', {
+    p_token: sessionToken,
+    p_actual: $('#pw-actual').value,
+    p_nueva: $('#pw-nueva').value
+  })
+  setLoading(btn, false)
+  if (err) {
+    if (err.code === '28000') { await closeSheet('sheet-password', { force: true }); cerrarSesion(); return }
+    return mostrar(err.message || 'No se pudo cambiar la contraseña.')
+  }
+
+  const sesion = leerSesion()
+  if (sesion) guardarSesion({ ...sesion, debe_cambiar: false })
+  const sheet = $('#sheet-password')
+  const eraObligatorio = !!sheet.dataset.locked
+  const siguiente = alTerminarPassword
+  alTerminarPassword = null
+  await closeSheet(sheet, { force: true })
+  delete sheet.dataset.locked
+  haptic([10, 40, 14])
+  toast('Contraseña actualizada', { type: 'success' })
+  if (siguiente) siguiente()
+  else if (eraObligatorio && sesion) entrar(sesion.rol, sesion.perfil || {})
+})
+
+$('#btn-password-logout').addEventListener('click', async () => {
+  await closeSheet('sheet-password', { force: true })
+  delete $('#sheet-password').dataset.locked
+  alTerminarPassword = null
+  cerrarSesion()
+})
 
 // --- 4. SELECCIÓN DE ROL Y LOGIN ---
 $$('.role-card').forEach(card => card.addEventListener('click', () => {
@@ -247,6 +342,12 @@ loginForm.addEventListener('submit', async e => {
   })
   setLoading(btnLogin, false)
 
+  if (sesion?.bloqueado) {
+    mostrarError(`Demasiados intentos fallidos. Espera ${sesion.minutos} min e inténtalo de nuevo.`)
+    shake($('#login-fields'))
+    return
+  }
+
   if (error || !sesion) {
     mostrarError(error ? 'No pudimos conectar. Intenta de nuevo.' : ROLES[currentRole].error)
     $$('.field', loginForm).forEach(f => f.classList.add('is-invalid'))
@@ -257,8 +358,13 @@ loginForm.addEventListener('submit', async e => {
   haptic([10, 40, 14])
   inputControl.blur()
   inputPassword.blur()
-  guardarSesion({ token: sesion.token, rol: currentRole, perfil: sesion.perfil })
-  entrar(currentRole, sesion.perfil)
+  const rol = currentRole
+  guardarSesion({ token: sesion.token, rol, perfil: sesion.perfil, debe_cambiar: !!sesion.debe_cambiar })
+  if (sesion.debe_cambiar) {
+    pedirCambioPassword({ obligatorio: true, alTerminar: () => entrar(rol, sesion.perfil) })
+    return
+  }
+  entrar(rol, sesion.perfil)
 })
 
 // --- 5. ALUMNO ---
@@ -309,33 +415,96 @@ async function refrescarAlumno() {
 }
 
 async function cargarHistorialAlumno() {
-  const { data: viajes, error } = await rpc('alumno_historial')
-  if (error) return
+  const { data: movimientos, error } = await rpc('alumno_historial')
+  if (error || !Array.isArray(movimientos)) return
 
-  $('#student-history-meta').textContent = viajes.length ? plural(viajes.length, 'viaje', 'viajes') : ''
-  patchList($('#student-history-list'), viajes, {
-    key: v => v.id,
-    render: v => {
-      const f = new Date(v.fecha_hora)
+  const viajes = movimientos.filter(m => m.tipo !== 'pago').length
+  $('#student-history-meta').textContent = viajes ? plural(viajes, 'viaje', 'viajes') : ''
+  patchList($('#student-history-list'), movimientos, {
+    key: m => m.id,
+    render: m => {
+      const f = new Date(m.fecha_hora)
+      const pago = m.tipo === 'pago'
       return `<div class="row">
-        <span class="row-icon">${icon('i-bus')}</span>
-        <span class="row-text"><span class="row-title">Viaje cobrado</span><span class="row-sub">${esc(fmtFecha(f))} · ${esc(fmtHora(f))}</span></span>
-        <span class="row-trailing">${fmtMoney(v.monto)}</span>
+        <span class="row-icon${pago ? ' is-money' : ''}">${icon(pago ? 'i-wallet' : 'i-bus')}</span>
+        <span class="row-text"><span class="row-title">${pago ? 'Pago registrado' : 'Viaje cobrado'}</span><span class="row-sub">${esc(fmtFecha(f))} · ${esc(fmtHora(f))}${pago && m.nota ? ` · ${esc(m.nota)}` : ''}</span></span>
+        <span class="row-trailing${pago ? ' is-positive' : ''}">${pago ? '−' : ''}${fmtMoney(m.monto)}</span>
       </div>`
     },
-    empty: emptyState('i-receipt', 'Sin viajes todavía', 'Tus viajes cobrados aparecerán aquí.')
+    empty: emptyState('i-receipt', 'Sin movimientos todavía', 'Tus viajes cobrados y tus pagos aparecerán aquí.')
   })
 }
 
-$('#btn-show-qr').addEventListener('click', () => {
+// QR dinámico: el servidor firma un código nuevo cada 30 s y entrega los
+// de los próximos 5 minutos, para aguantar una caída breve de señal.
+const QR_KEY = 'camify.qr'
+let qrDatos = null
+let qrTimer = null
+let qrMostrado = null
+let qrCargando = false
+
+async function cargarCodigosQR() {
+  qrCargando = true
+  const { data, error } = await rpc('alumno_qr')
+  qrCargando = false
+  if (error || !data?.codigos) return false
+  qrDatos = { offset: data.ahora - Date.now(), periodo: data.periodo * 1000, codigos: data.codigos, token: sessionToken }
+  try { localStorage.setItem(QR_KEY, JSON.stringify(qrDatos)) } catch { /* modo privado */ }
+  return true
+}
+
+function qrGuardado() {
+  try {
+    const d = JSON.parse(localStorage.getItem(QR_KEY))
+    return d?.token === sessionToken ? d : null
+  } catch { return null }
+}
+
+function codigoActual() {
+  if (!qrDatos) return null
+  const ahora = Date.now() + qrDatos.offset
+  const v = Math.floor(ahora / qrDatos.periodo)
+  const c = qrDatos.codigos.find(x => Number(x.v) === v)
+  if (!c) return null
+  return { codigo: c.codigo, restante: (v + 1) * qrDatos.periodo - ahora, quedan: qrDatos.codigos.filter(x => Number(x.v) > v).length }
+}
+
+function pintarQR({ cargando = false } = {}) {
+  const c = codigoActual()
+  const card = $('.qr-card')
+  card.classList.toggle('is-offline', !c)
+  if (!c) {
+    $('#qr-countdown').textContent = cargando ? 'Preparando tu código…' : 'Sin conexión: conéctate para generar tu código'
+    $('#qr-progress').style.setProperty('--p', 0)
+    return
+  }
+  if (qrMostrado !== c.codigo) {
+    const canvas = $('#qr-canvas')
+    const primero = qrMostrado === null
+    qrMostrado = c.codigo
+    QRCode.toCanvas(canvas, c.codigo, { width: 640, margin: 1, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } })
+    if (!primero) {
+      canvas.classList.remove('is-refresh')
+      void canvas.offsetWidth
+      canvas.classList.add('is-refresh')
+      haptic(6)
+    }
+  }
+  $('#qr-countdown').textContent = `Se renueva en ${Math.max(1, Math.ceil(c.restante / 1000))} s`
+  $('#qr-progress').style.setProperty('--p', (c.restante / qrDatos.periodo).toFixed(3))
+  if (c.quedan < 4 && !qrCargando) cargarCodigosQR()
+}
+
+$('#btn-show-qr').addEventListener('click', async () => {
   haptic(8)
-  QRCode.toCanvas($('#qr-canvas'), currentStudentMatricula, {
-    width: 640,
-    margin: 1,
-    errorCorrectionLevel: 'M',
-    color: { dark: '#000000', light: '#ffffff' }
-  })
-  openSheet('sheet-qr')
+  qrMostrado = null
+  if (!qrDatos || qrDatos.token !== sessionToken) qrDatos = qrGuardado()
+  openSheet('sheet-qr', { onClose: () => { clearInterval(qrTimer); qrTimer = null } })
+  pintarQR({ cargando: true })
+  clearInterval(qrTimer)
+  qrTimer = setInterval(pintarQR, 500)
+  await cargarCodigosQR()
+  pintarQR()
 })
 
 // Tarjeta de estado del viaje del alumno
@@ -837,9 +1006,11 @@ async function onScanSuccess(decodedText) {
     return liberarEscaner(1500)
   }
 
-  if (passengers.some(p => String(p.matricula).trim() === scannedId)) {
+  const matriculaQR = /^CMF1\.([^.]+)\./.exec(scannedId)?.[1]
+  const yaArriba = matriculaQR && passengers.find(p => String(p.matricula).trim() === matriculaQR)
+  if (yaArriba) {
     haptic([20, 40, 20])
-    setScanFeedback(`${scannedId} ya está a bordo`, 'warning', { volver: 2000 })
+    setScanFeedback(`${primerNombre(yaArriba.nombre)} ya está a bordo`, 'warning', { volver: 2000 })
     return liberarEscaner(1200)
   }
 
@@ -848,11 +1019,11 @@ async function onScanSuccess(decodedText) {
   // Supabase valida la matrícula, el límite de 40 y los duplicados (también en el otro camión)
   const { data, error } = await rpc('chofer_registrar_abordaje', { p_camion: camionActual, p_matricula: scannedId })
 
-  if (error) {
-    console.error('Error al registrar abordaje:', error)
+  if (error || data?.error) {
+    if (error) console.error('Error al registrar abordaje:', error)
     flash('error')
     haptic([30, 50, 30])
-    setScanFeedback(error.message, 'error', { volver: 2400 })
+    setScanFeedback(data?.error || error.message, 'error', { volver: 2600 })
     return liberarEscaner(1500)
   }
 
@@ -1124,6 +1295,7 @@ $('#form-edit-user').addEventListener('submit', async e => {
     shake($('#edit-user-name').closest('.field'))
     return
   }
+  const passwordNueva = $('#edit-user-password').value.trim()
   const btn = $('#btn-save-user')
   setLoading(btn, true)
   const { error } = await rpc('admin_editar_usuario', {
@@ -1138,7 +1310,7 @@ $('#form-edit-user').addEventListener('submit', async e => {
     return
   }
   await closeSheet('sheet-edit-user')
-  toast('Cambios guardados', { type: 'success' })
+  toast(passwordNueva ? 'Contraseña restablecida: se le pedirá cambiarla al entrar' : 'Cambios guardados', { type: 'success' })
   loadAdminData()
 })
 
@@ -1169,6 +1341,25 @@ function renderBalancesList() {
   })
 }
 
+// Saldos: registrar un pago (baja el saldo y queda en el historial) o corregirlo con motivo
+const balanceMode = initSegmented($('#balance-mode-seg'), aplicarModoSaldo)
+
+function aplicarModoSaldo(modo) {
+  const saldo = Number(editingAlumno?.saldo) || 0
+  const pago = modo === 'pago'
+  const input = $('#edit-balance-amount')
+  $('#edit-balance-label').textContent = pago ? 'Monto del pago ($)' : 'Saldo pendiente correcto ($)'
+  $('#edit-balance-note-label').textContent = pago ? 'Nota (opcional): efectivo, transferencia…' : 'Motivo de la corrección (obligatorio)'
+  $('#btn-save-balance').textContent = pago ? 'Registrar pago' : 'Guardar corrección'
+  input.value = pago ? '' : saldo.toFixed(2)
+  $('#edit-balance-note').value = ''
+  const rapidos = pago
+    ? [[30, '$30'], [60, '$60'], ['todo', `Todo (${fmtMoney(saldo)})`]]
+    : [[-30, '−$30'], [30, '+$30'], [0, 'En cero']]
+  $('#balance-quick').innerHTML = rapidos.map(([v, t]) => `<button type="button" class="btn ${v === 'todo' ? 'btn-tinted-green' : 'btn-secondary'}" data-quick="${v}">${esc(t)}</button>`).join('')
+  $$('.field', $('#form-edit-balance')).forEach(f => f.classList.remove('is-invalid'))
+}
+
 $('#admin-balances-ul').addEventListener('click', e => {
   const row = e.target.closest('.row[data-id]')
   if (!row) return
@@ -1176,17 +1367,25 @@ $('#admin-balances-ul').addEventListener('click', e => {
   if (!editingAlumno) return
   $('#sheet-edit-balance-title').textContent = 'Saldo'
   $('#edit-balance-person').innerHTML = personaHTML(editingAlumno.nombre, editingAlumno.matricula)
-  $('#edit-balance-amount').value = (Number(editingAlumno.saldo) || 0).toFixed(2)
+  $('#edit-balance-current').textContent = fmtMoney(editingAlumno.saldo)
+  const saldo = Number(editingAlumno.saldo) || 0
+  balanceMode.select(saldo > 0 ? 'pago' : 'ajuste', false)
+  aplicarModoSaldo(balanceMode.value)
   openSheet('sheet-edit-balance')
 })
 
 $('#form-edit-balance').addEventListener('click', e => {
-  const btn = e.target.closest('[data-adjust]')
+  const btn = e.target.closest('[data-quick]')
   if (!btn) return
   const input = $('#edit-balance-amount')
-  const actual = parseFloat(input.value) || 0
-  const nuevo = btn.dataset.adjust === 'paid' ? 0 : Math.max(0, actual + Number(btn.dataset.adjust))
-  input.value = nuevo.toFixed(2)
+  const saldo = Number(editingAlumno?.saldo) || 0
+  const v = btn.dataset.quick
+  if (balanceMode.value === 'pago') {
+    input.value = (v === 'todo' ? saldo : Math.min(saldo, Number(v))).toFixed(2)
+  } else {
+    const actual = parseFloat(input.value) || 0
+    input.value = (Number(v) === 0 ? 0 : Math.max(0, actual + Number(v))).toFixed(2)
+  }
   haptic(6)
   input.animate([{ transform: 'scale(1.03)' }, { transform: 'scale(1)' }], { duration: 300, easing: 'cubic-bezier(0.34, 1.4, 0.64, 1)' })
 })
@@ -1194,26 +1393,77 @@ $('#form-edit-balance').addEventListener('click', e => {
 $('#form-edit-balance').addEventListener('submit', async e => {
   e.preventDefault()
   const input = $('#edit-balance-amount')
-  const valor = input.value.trim()
-  if (valor === '' || isNaN(valor) || Number(valor) < 0) {
-    input.closest('.field').classList.add('is-invalid')
-    shake(input.closest('.field'))
-    return
+  const nota = $('#edit-balance-note')
+  const valor = Number(input.value)
+  const pago = balanceMode.value === 'pago'
+  const saldo = Number(editingAlumno.saldo) || 0
+  const invalido = (campo, msg) => {
+    campo.closest('.field').classList.add('is-invalid')
+    shake(campo.closest('.field'))
+    if (msg) toast(msg, { type: 'warning' })
   }
+  if (input.value.trim() === '' || !Number.isFinite(valor) || valor < 0) return invalido(input)
+  if (pago && (valor <= 0 || valor > saldo)) return invalido(input, `El pago debe ser mayor a $0 y no pasar de ${fmtMoney(saldo)}`)
+  if (!pago && !nota.value.trim()) return invalido(nota, 'Escribe el motivo de la corrección')
+
   const btn = $('#btn-save-balance')
   setLoading(btn, true)
-  const { error } = await rpc('admin_actualizar_saldo', { p_id: editingAlumno.id, p_saldo: parseFloat(valor) })
+  const { error } = pago
+    ? await rpc('admin_registrar_pago', { p_id: editingAlumno.id, p_monto: valor, p_nota: nota.value.trim() || null })
+    : await rpc('admin_actualizar_saldo', { p_id: editingAlumno.id, p_saldo: valor, p_motivo: nota.value.trim() })
   setLoading(btn, false)
   if (error) {
-    toast(`Error al actualizar saldo: ${error.message}`, { type: 'error' })
+    toast(error.message || 'No se pudo guardar', { type: 'error' })
     return
   }
   await closeSheet('sheet-edit-balance')
-  toast('Saldo actualizado', { type: 'success' })
+  haptic([10, 40, 14])
+  toast(pago ? `Pago de ${fmtMoney(valor)} registrado` : 'Saldo corregido', { type: 'success' })
   loadAdminData()
 })
 
 $('#form-edit-balance').addEventListener('input', e => e.target.closest('.field')?.classList.remove('is-invalid'))
+
+// Bitácora (pestaña Actividad)
+const fmtDetalle = {
+  pago_registrado: ['Pago registrado', 'i-wallet', 'is-money', d => `${d.matricula} · ${fmtMoney(d.monto)}${d.nota ? ` · ${d.nota}` : ''}`],
+  saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.matricula} · ${fmtMoney(d.antes)} → ${fmtMoney(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
+  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `Camión ${d.camion} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}`],
+  viaje_finalizado: ['Viaje finalizado', 'i-flag', '', d => `Camión ${d.camion}`],
+  lista_vaciada: ['Lista vaciada sin cobrar', 'i-trash', 'is-alert', d => `Camión ${d.camion} · ${plural(d.alumnos || 0, 'alumno', 'alumnos')}`],
+  alumno_quitado: ['Alumno quitado de la lista', 'i-minus', '', d => `Camión ${d.camion} · ${d.matricula}`],
+  qr_rechazado: ['Código QR rechazado', 'i-alert', 'is-alert', d => `${{ formato: 'No es de CAMIFY', firma: 'Falsificado', vencido: 'Vencido' }[d.motivo] || d.motivo}${d.matricula ? ` · ${d.matricula}` : ''} · Camión ${d.camion}`],
+  login_bloqueado: ['Bloqueo por intentos fallidos', 'i-lock', 'is-alert', d => String(d.clave || '').startsWith('ip:') ? `Red ${String(d.clave).slice(3)}` : String(d.clave || '').replace(/^u:([^:]*):/, '$1 · ')],
+  usuario_creado: ['Usuario creado', 'i-user-plus', '', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.nombre ? `${d.nombre} · ` : ''}${d.identificador}`],
+  usuario_editado: ['Usuario editado', 'i-users', '', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.identificador}${d.password_restablecida ? ' · contraseña restablecida' : ''}`],
+  usuario_eliminado: ['Usuario eliminado', 'i-trash', 'is-alert', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.nombre ? `${d.nombre} · ` : ''}${d.identificador}`],
+  cambio_password: ['Cambio de contraseña', 'i-lock', '', () => '']
+}
+
+async function cargarBitacora() {
+  const lista = $('#admin-log-ul')
+  if (!lista.children.length) lista.innerHTML = skeletonRows(5)
+  const { data, error } = await rpc('admin_bitacora', { p_limite: 150 })
+  if (error || !Array.isArray(data)) return
+  patchList(lista, data, {
+    key: r => r.id,
+    render: r => {
+      const [titulo, ico, cls, det] = fmtDetalle[r.accion] || [r.accion, 'i-info', '', () => '']
+      const f = new Date(r.creado_en)
+      const quien = r.actor ? `${ROL_ETIQUETA[r.actor_rol] || r.actor_rol || ''} ${r.actor}`.trim() : 'Sistema'
+      const detalle = det(r.detalle || {})
+      return `<div class="row log-row">
+        <span class="row-icon ${cls}">${icon(ico)}</span>
+        <span class="row-text"><span class="row-title">${esc(titulo)}</span><span class="row-sub">${detalle ? `${esc(detalle)}<br>` : ''}${esc(quien)} · ${esc(fmtFecha(f))} · ${esc(fmtHora(f))}</span></span>
+      </div>`
+    },
+    empty: emptyState('i-shield', 'Sin actividad todavía', 'Aquí verás pagos, cortes, cambios y alertas.')
+  })
+}
+
+$('#view-admin').addEventListener('tabchange', e => {
+  if (e.detail === 'admin-tab-log') cargarBitacora()
+})
 
 // --- 12. TIEMPO REAL ---
 supabase
@@ -1258,6 +1508,13 @@ function arrancar() {
   const sesion = leerSesion()
   if (sesion?.token && ROLES[sesion.rol]) {
     sessionToken = sesion.token
+    if (sesion.debe_cambiar) {
+      currentRole = sesion.rol
+      showScreen('view-roles')
+      revealWords(rolesTitle)
+      setTimeout(() => pedirCambioPassword({ obligatorio: true, alTerminar: () => entrar(sesion.rol, sesion.perfil || {}) }), 500)
+      return $('#view-roles .wordmark')
+    }
     entrar(sesion.rol, sesion.perfil || {})
     return null
   }

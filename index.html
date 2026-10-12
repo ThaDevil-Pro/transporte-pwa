@@ -114,7 +114,7 @@
               <svg class="icon chevron"><use href="#i-chevron-right"/></svg>
             </button>
           </div>
-          <p class="footnote" data-reveal style="--i:9">CAMIFY · Transporte escolar</p>
+          <p class="footnote" data-reveal style="--i:9">CAMIFY · Transporte escolar<br><a class="legal-link" href="/privacidad.html">Aviso de privacidad</a> · <a class="legal-link" href="/terminos.html">Términos de uso</a></p>
         </div>
       </div>
     </section>
@@ -151,7 +151,7 @@
           <p class="form-error" id="error-message" role="alert" hidden></p>
 
           <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-login" data-reveal style="--i:5">Continuar</button>
-          <p class="footnote" data-reveal style="--i:6">¿Olvidaste tu contraseña? Pide al administrador que la restablezca.</p>
+          <p class="footnote" data-reveal style="--i:6">¿Olvidaste tu contraseña? Pide al administrador que la restablezca.<br>Al entrar aceptas los <a class="legal-link" href="/terminos.html">Términos de uso</a> y el <a class="legal-link" href="/privacidad.html">Aviso de privacidad</a>.</p>
         </form>
       </div>
     </section>
@@ -399,9 +399,10 @@
             </div>
             <div class="field has-action">
               <input id="admin-new-password" type="password" placeholder=" " autocomplete="new-password">
-              <label for="admin-new-password">Contraseña</label>
+              <label for="admin-new-password">Contraseña temporal</label>
               <button type="button" class="field-action" data-toggle-password aria-label="Mostrar contraseña"><svg class="icon"><use href="#i-eye"/></svg></button>
             </div>
+            <p class="field-hint">Mínimo 8 caracteres, con letras y números. Al entrar por primera vez se le pedirá cambiarla.</p>
             <div class="collapsible" id="group-admin-initial-balance">
               <div class="collapsible-inner">
                 <div class="field">
@@ -438,6 +439,16 @@
         </div>
       </div>
 
+      <!-- Pestaña: Actividad (bitácora) -->
+      <div class="scroll tab-panel" id="admin-tab-log" data-title="Actividad">
+        <div class="page-header" data-reveal style="--i:0">
+          <p class="eyebrow">Administración</p>
+          <h1 class="large-title">Actividad</h1>
+          <p class="lead lead-sm">Pagos, cortes, cambios y alertas de seguridad. Nadie puede editar este registro.</p>
+        </div>
+        <div class="list" id="admin-log-ul" data-reveal style="--i:1"></div>
+      </div>
+
       <!-- Pestaña: Saldos -->
       <div class="scroll tab-panel" id="admin-tab-balance" data-title="Saldos">
         <div class="page-header" data-reveal style="--i:0">
@@ -455,11 +466,12 @@
       </div>
 
       <div class="dock">
-        <nav class="tabbar" style="--n:3" role="tablist" aria-label="Secciones de administración">
+        <nav class="tabbar" style="--n:4" role="tablist" aria-label="Secciones de administración">
           <span class="tabbar-thumb"></span>
           <button class="tab is-active" role="tab" data-tab="admin-tab-register"><svg class="icon"><use href="#i-user-plus"/></svg><span>Registrar</span></button>
           <button class="tab" role="tab" data-tab="admin-tab-users"><svg class="icon"><use href="#i-users"/></svg><span>Usuarios</span></button>
           <button class="tab" role="tab" data-tab="admin-tab-balance"><svg class="icon"><use href="#i-wallet"/></svg><span>Saldos</span></button>
+          <button class="tab" role="tab" data-tab="admin-tab-log"><svg class="icon"><use href="#i-shield"/></svg><span>Actividad</span></button>
         </nav>
       </div>
     </section>
@@ -486,7 +498,12 @@
             <p class="qr-id" id="modal-student-id"></p>
           </div>
         </div>
-        <p class="qr-hint"><svg class="icon"><use href="#i-sun"/></svg>Sube el brillo para que se lea más rápido.</p>
+        <div class="qr-timer" aria-live="off">
+            <div class="progress qr-progress" id="qr-progress"><span></span></div>
+            <p class="qr-countdown" id="qr-countdown">Preparando tu código…</p>
+          </div>
+          <p class="qr-hint"><svg class="icon"><use href="#i-lock"/></svg>Cambia cada 30 segundos: las capturas de pantalla no sirven.</p>
+          <p class="qr-hint qr-hint-sm"><svg class="icon"><use href="#i-sun"/></svg>Sube el brillo para que se lea más rápido.</p>
       </div>
     </div>
   </div>
@@ -561,7 +578,7 @@
           </div>
           <div class="field has-action">
             <input id="edit-user-password" type="password" placeholder=" " autocomplete="new-password">
-            <label for="edit-user-password">Nueva contraseña (opcional)</label>
+            <label for="edit-user-password">Contraseña temporal nueva (opcional)</label>
             <button type="button" class="field-action" data-toggle-password aria-label="Mostrar contraseña"><svg class="icon"><use href="#i-eye"/></svg></button>
           </div>
         </div>
@@ -583,16 +600,63 @@
       </div>
       <form class="sheet-body sheet-form" id="form-edit-balance" novalidate>
         <div class="sheet-person" id="edit-balance-person"></div>
+        <p class="balance-now">Saldo pendiente <b id="edit-balance-current">$0.00</b></p>
+        <div class="segmented" id="balance-mode-seg" style="--n:2">
+          <span class="segmented-thumb"></span>
+          <button type="button" data-value="pago">Registrar pago</button>
+          <button type="button" data-value="ajuste">Corregir saldo</button>
+        </div>
         <div class="field">
           <input id="edit-balance-amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder=" ">
-          <label for="edit-balance-amount">Saldo pendiente ($)</label>
+          <label for="edit-balance-amount" id="edit-balance-label">Monto del pago ($)</label>
         </div>
-        <div class="quick-actions">
-          <button type="button" class="btn btn-secondary" data-adjust="-30"><svg class="icon"><use href="#i-minus"/></svg>$30</button>
-          <button type="button" class="btn btn-secondary" data-adjust="30"><svg class="icon"><use href="#i-plus"/></svg>$30</button>
-          <button type="button" class="btn btn-tinted-green" data-adjust="paid"><svg class="icon"><use href="#i-check"/></svg>Pagado</button>
+        <div class="quick-actions" id="balance-quick"></div>
+        <div class="field">
+          <input id="edit-balance-note" type="text" maxlength="200" placeholder=" " autocomplete="off">
+          <label for="edit-balance-note" id="edit-balance-note-label">Nota (opcional)</label>
         </div>
-        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-save-balance">Guardar saldo</button>
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-save-balance">Registrar pago</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Cambiar contraseña (obligatorio la primera vez) -->
+  <div class="sheet" id="sheet-password" role="dialog" aria-modal="true" aria-labelledby="sheet-password-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-password-title">Cambiar contraseña</h2>
+          <button class="icon-btn" data-close id="btn-password-close" aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <form class="sheet-body sheet-form" id="form-password" novalidate>
+        <p class="sheet-lead" id="password-lead">Elige una contraseña que solo tú conozcas.</p>
+        <div class="field-stack">
+          <div class="field has-action">
+            <input id="pw-actual" type="password" placeholder=" " autocomplete="current-password">
+            <label for="pw-actual">Contraseña actual</label>
+            <button type="button" class="field-action" data-toggle-password aria-label="Mostrar contraseña"><svg class="icon"><use href="#i-eye"/></svg></button>
+          </div>
+          <div class="field has-action">
+            <input id="pw-nueva" type="password" placeholder=" " autocomplete="new-password">
+            <label for="pw-nueva">Nueva contraseña</label>
+            <button type="button" class="field-action" data-toggle-password aria-label="Mostrar contraseña"><svg class="icon"><use href="#i-eye"/></svg></button>
+          </div>
+          <div class="field">
+            <input id="pw-confirmar" type="password" placeholder=" " autocomplete="new-password">
+            <label for="pw-confirmar">Confirmar nueva contraseña</label>
+          </div>
+        </div>
+        <ul class="pw-rules" id="pw-rules">
+          <li data-rule="len"><svg class="icon"><use href="#i-check-circle"/></svg>8 caracteres o más</li>
+          <li data-rule="mix"><svg class="icon"><use href="#i-check-circle"/></svg>Letras y números</li>
+          <li data-rule="match"><svg class="icon"><use href="#i-check-circle"/></svg>Las dos coinciden</li>
+        </ul>
+        <p class="form-error" id="password-error" role="alert" hidden></p>
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-password-save">Guardar contraseña</button>
+        <button type="button" class="btn btn-plain btn-block" id="btn-password-logout" hidden>Cerrar sesión</button>
       </form>
     </div>
   </div>

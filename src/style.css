@@ -3528,3 +3528,142 @@ button.row:active {
     animation: none !important;
   }
 }
+
+/* =====================================================================
+   Seguridad y cuentas
+   ===================================================================== */
+.legal-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.field-hint {
+  margin: -2px 4px 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--label-3);
+}
+
+.sheet-lead {
+  margin: 0 0 4px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--label-2);
+}
+
+.sheet[data-locked] .sheet-grabber,
+.sheet[data-locked] [data-close].icon-btn {
+  visibility: hidden;
+}
+
+.pw-rules {
+  display: grid;
+  gap: 6px;
+  margin: 2px 4px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--label-3);
+}
+
+.pw-rules li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.3s var(--ease);
+}
+
+.pw-rules .icon {
+  width: 18px;
+  height: 18px;
+  opacity: 0.45;
+  transition: opacity 0.3s var(--ease), color 0.3s var(--ease);
+}
+
+.pw-rules li.is-ok {
+  color: var(--green-text);
+}
+
+.pw-rules li.is-ok .icon {
+  opacity: 1;
+  color: var(--green);
+}
+
+/* QR dinámico */
+.qr-timer {
+  width: min(100%, 320px);
+  margin: 16px auto 0;
+  display: grid;
+  gap: 8px;
+}
+
+.qr-progress {
+  height: 4px;
+}
+
+.qr-progress > span {
+  transition: width 1s linear;
+}
+
+.qr-countdown {
+  text-align: center;
+  font-size: 13px;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.qr-hint-sm {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--label-3);
+}
+
+.qr-card canvas.is-refresh {
+  animation: qr-refresh 0.5s var(--ease);
+}
+
+@keyframes qr-refresh {
+  from { opacity: 0.25; filter: blur(3px); transform: scale(0.98); }
+  to { opacity: 1; filter: none; transform: none; }
+}
+
+.qr-card.is-offline canvas {
+  opacity: 0.25;
+}
+
+/* Saldos: pagos y correcciones */
+.balance-now {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 4px;
+  font-size: 15px;
+  color: var(--label-2);
+}
+
+.balance-now b {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--label);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bitácora */
+.row-icon.is-alert {
+  color: var(--red);
+}
+
+.row-icon.is-money {
+  color: var(--green);
+}
+
+.log-row .row-sub {
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.row-trailing.is-positive {
+  color: var(--green-text);
+}

@@ -221,9 +221,11 @@ export function openSheet(id, { onClose } = {}) {
   return anim.finished.catch(() => {})
 }
 
-export async function closeSheet(id) {
+export async function closeSheet(id, { force = false } = {}) {
   const sheet = typeof id === 'string' ? document.getElementById(id) : id
   if (!sheet?.classList.contains('is-open') || sheet._closing) return
+  // Una hoja bloqueada (p. ej. cambio de contraseña obligatorio) solo se cierra por código
+  if (sheet.dataset.locked && !force) return
   sheet._closing = true
   const panel = $('.sheet-panel', sheet)
   const backdrop = $('.sheet-backdrop', sheet)
@@ -261,7 +263,7 @@ function enableDrag(sheet) {
   let arrastrando = false
 
   handle.addEventListener('pointerdown', e => {
-    if (e.target.closest('button, input, a')) return
+    if (e.target.closest('button, input, a') || sheet.dataset.locked) return
     arrastrando = true
     startY = lastY = e.clientY
     lastT = performance.now()

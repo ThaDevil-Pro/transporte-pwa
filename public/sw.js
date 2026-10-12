@@ -3,7 +3,7 @@
 // - Archivos estáticos (JS/CSS/imágenes/video): caché primero
 // - Supabase y otros orígenes: nunca se cachean (datos en vivo)
 
-const CACHE = 'camify-v2'
+const CACHE = 'camify-v3'
 const PRECACHE = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/favicon.svg']
 
 self.addEventListener('install', (event) => {
@@ -28,11 +28,15 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then(res => {
-          const copia = res.clone()
-          caches.open(CACHE).then(cache => cache.put('/', copia))
+          // Cada página se guarda con su propia dirección (sin mezclar la app con las páginas legales)
+          if (res.ok) {
+            const copia = res.clone()
+            const clave = url.pathname === '/' || url.pathname === '/index.html' ? '/' : url.pathname
+            caches.open(CACHE).then(cache => cache.put(clave, copia))
+          }
           return res
         })
-        .catch(() => caches.match('/'))
+        .catch(() => caches.match(url.pathname).then(r => r || caches.match('/')))
     )
     return
   }
