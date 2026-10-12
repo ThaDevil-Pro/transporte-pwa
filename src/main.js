@@ -4,6 +4,8 @@ import { supabase } from './supabase.js'
 import { runIntro } from './intro.js'
 import { initAsientos } from './asientos.js'
 import { initChoferAsientos } from './chofer-asientos.js'
+import { initChoferManual } from './chofer-manual.js'
+import { initImportar } from './importar.js'
 import {
   $, $$, esc, icon, avatar, emptyState, skeletonRows, haptic,
   initScreens, showScreen, initTabs, selectTab, initSegmented,
@@ -112,6 +114,14 @@ const asientos = initAsientos({
   }
 })
 const asientosChofer = initChoferAsientos({ rpc, supabase, camion: () => camionActual })
+
+// Registro manual (alumno sin código) e importación de usuarios (admin)
+const manualChofer = initChoferManual({ rpc, camion: () => camionActual, alRegistrar: () => fetchPassengers() })
+initImportar({
+  rpc,
+  usuariosExistentes: () => new Set(allUsersCache.filter(u => u.rol !== 'Admin').map(u => `${u.rol}:${u.idStr}`)),
+  alTerminar: () => loadAdminData()
+})
 
 const rolesTitle = $('#roles-title')
 const loginForm = $('#login-form')
@@ -442,7 +452,7 @@ async function cargarHistorialAlumno() {
       const pago = m.tipo === 'pago'
       return `<div class="row">
         <span class="row-icon${pago ? ' is-money' : ''}">${icon(pago ? 'i-wallet' : 'i-bus')}</span>
-        <span class="row-text"><span class="row-title">${pago ? 'Pago registrado' : 'Viaje cobrado'}</span><span class="row-sub">${esc(fmtFecha(f))} · ${esc(fmtHora(f))}${pago && m.nota ? ` · ${esc(m.nota)}` : ''}</span></span>
+        <span class="row-text"><span class="row-title">${pago ? 'Pago registrado' : 'Viaje cobrado'}</span><span class="row-sub">${esc(fmtFecha(f))} · ${esc(fmtHora(f))}${pago && m.nota ? ` · ${esc(m.nota)}` : ''}${m.manual ? ' · Registrado a mano por el chofer' : ''}</span></span>
         <span class="row-trailing${pago ? ' is-positive' : ''}">${pago ? '−' : ''}${fmtMoney(m.monto)}</span>
       </div>`
     },
@@ -813,9 +823,10 @@ function renderPassengersUI() {
     render: p => `<div class="row">
       ${avatar(p.nombre)}
       <span class="row-text"><span class="row-title">${esc(p.nombre)}</span><span class="row-sub">${esc(p.matricula)}</span></span>
+      ${p.manual ? '<span class="badge badge-manual" title="Registrado a mano, sin código QR">A mano</span>' : ''}
       <button class="icon-btn icon-btn-sm icon-btn-danger btn-remove-student" data-id="${esc(p.id)}" aria-label="Quitar a ${esc(p.nombre)}">${icon('i-minus')}</button>
     </div>`,
-    empty: emptyState('i-users', 'Nadie a bordo', 'Toca Escanear para registrar a cada alumno al subir.')
+    empty: emptyState('i-users', 'Nadie a bordo', 'Toca Escanear para registrar a cada alumno al subir, o Buscar alumno si no trae su código.')
   })
 
   renderDriverTrip()
@@ -991,6 +1002,18 @@ $('#btn-open-scanner').addEventListener('click', async () => {
   } catch {
     setScanFeedback('No pudimos abrir la cámara. Revisa los permisos.', 'error')
   }
+})
+
+// Registro manual: desde la lista o desde el escáner (cierra la cámara primero)
+$('#btn-open-manual').addEventListener('click', () => {
+  haptic(8)
+  manualChofer.abrir()
+})
+
+$('#btn-scanner-manual').addEventListener('click', async () => {
+  haptic(8)
+  await closeSheet('sheet-scanner')
+  manualChofer.abrir()
 })
 
 async function stopScanner() {
@@ -1458,7 +1481,13 @@ function detalleBloqueo(clave) {
 const fmtDetalle = {
   pago_registrado: ['Pago registrado', 'i-wallet', 'is-money', d => `${d.matricula} · ${fmtMoney(d.monto)}${d.nota ? ` · ${d.nota}` : ''}`],
   saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.matricula} · ${fmtMoney(d.antes)} → ${fmtMoney(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
-  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `Camión ${d.camion} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}`],
+  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `Camión ${d.camion} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}`],
+  abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `Camión ${d.camion} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}`],
+  usuarios_importados: ['Usuarios importados', 'i-sheet', '', d => [
+    d.alumnos && plural(d.alumnos, 'alumno', 'alumnos'),
+    d.choferes && plural(d.choferes, 'chofer', 'choferes'),
+    d.fallidos && `${d.fallidos} con error`
+  ].filter(Boolean).join(' · ') || 'Ningún usuario creado'],
   viaje_finalizado: ['Viaje finalizado', 'i-flag', '', d => `Camión ${d.camion}`],
   lista_vaciada: ['Lista vaciada sin cobrar', 'i-trash', 'is-alert', d => `Camión ${d.camion} · ${plural(d.alumnos || 0, 'alumno', 'alumnos')}`],
   alumno_quitado: ['Alumno quitado de la lista', 'i-minus', '', d => `Camión ${d.camion} · ${d.matricula}`],

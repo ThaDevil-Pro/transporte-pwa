@@ -3667,3 +3667,204 @@ button.row:active {
 .row-trailing.is-positive {
   color: var(--green-text);
 }
+
+/* --- 17. ABORDAJE MANUAL E IMPORTACIÓN --- */
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-sm {
+  height: 34px;
+  padding: 0 14px;
+  gap: 6px;
+  font-size: 15px;
+}
+
+.btn-sm .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-scanner-manual {
+  --btn-bg: rgba(255, 255, 255, 0.12);
+  --btn-fg: #fff;
+  display: flex;
+  height: 42px;
+  margin: 16px auto 0;
+  font-size: 15px;
+}
+
+.badge-manual {
+  --tint: var(--orange-text);
+  flex: none;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+/* Búsqueda del registro manual */
+.manual-body {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.manual-status {
+  min-height: 20px;
+  padding: 0 4px;
+  font-size: 14px;
+  color: var(--label-2);
+}
+
+.manual-results .row[aria-selected="true"] {
+  background: var(--fill-2);
+}
+
+.manual-results .row[aria-disabled="true"] {
+  cursor: default;
+}
+
+.manual-results .row[aria-disabled="true"] .row-title,
+.manual-results .row[aria-disabled="true"] .avatar {
+  opacity: 0.5;
+}
+
+.manual-results .row-trailing {
+  color: var(--blue);
+}
+
+.manual-results .row-trailing .icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* Importación de usuarios */
+.import-card {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.import-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.import-head-text {
+  min-width: 0;
+}
+
+.import-title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+}
+
+.import-text {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--label-2);
+}
+
+.import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.import-body {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.import-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.import-file .row-text {
+  min-width: 0;
+}
+
+.import-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.import-stat {
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--fill);
+}
+
+.import-stat b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.import-stat span {
+  font-size: 13px;
+  color: var(--label-2);
+}
+
+.import-stat.is-ok b { color: var(--green-text); }
+.import-stat.is-bad b { color: var(--red-text); }
+
+.import-note {
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--label);
+}
+
+.import-note.is-info {
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+}
+
+.import-subtitle {
+  margin: 4px 4px -8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label-2);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.import-body .row {
+  min-height: 52px;
+}
+
+.import-body .row-sub {
+  white-space: normal;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.import-row-num {
+  flex: none;
+  min-width: 44px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.import-progress-label {
+  font-size: 15px;
+  color: var(--label-2);
+  font-variant-numeric: tabular-nums;
+}

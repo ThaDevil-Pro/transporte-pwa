@@ -59,6 +59,10 @@
     <symbol id="i-swap" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></symbol>
     <symbol id="i-send" viewBox="0 0 24 24"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></symbol>
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-sheet" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M12 11v8"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v6"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></symbol>
   </svg>
 
   <!-- INTRO ANIMADA DEL LOGOTIPO (toca para saltar) -->
@@ -290,7 +294,10 @@
         <section class="section" data-reveal style="--i:3">
           <div class="section-header">
             <h2>A bordo</h2>
-            <button class="btn btn-plain" id="btn-clear-list">Vaciar</button>
+            <div class="section-actions">
+              <button class="btn btn-plain" id="btn-clear-list">Vaciar</button>
+              <button class="btn btn-tinted btn-sm" id="btn-open-manual"><svg class="icon"><use href="#i-search"/></svg>Buscar alumno</button>
+            </div>
           </div>
           <div class="list" id="students-ul"></div>
         </section>
@@ -415,6 +422,21 @@
 
           <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-create-user">Crear usuario</button>
         </form>
+
+        <article class="card import-card" data-reveal style="--i:2">
+          <div class="import-head">
+            <span class="row-icon tint-green"><svg class="icon"><use href="#i-sheet"/></svg></span>
+            <div class="import-head-text">
+              <h2 class="import-title">Importar desde Excel o CSV</h2>
+              <p class="import-text">Da de alta a todos los alumnos o choferes de una sola vez. Necesitas las columnas <b>Nombre</b> y <b>Matrícula</b> (o Licencia); la contraseña, el saldo y el rol son opcionales.</p>
+            </div>
+          </div>
+          <div class="import-actions">
+            <button type="button" class="btn btn-tinted" id="btn-import-pick"><svg class="icon"><use href="#i-upload"/></svg>Elegir archivo</button>
+            <button type="button" class="btn btn-plain" id="btn-import-template"><svg class="icon"><use href="#i-download"/></svg>Descargar plantilla</button>
+          </div>
+          <input type="file" id="import-file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        </article>
       </div>
 
       <!-- Pestaña: Usuarios -->
@@ -528,6 +550,49 @@
         </div>
         <p class="scan-feedback" id="scan-feedback" data-type="info" role="status" aria-live="polite">Iniciando cámara…</p>
         <p class="scanner-count" id="scanner-count">0 de 40 a bordo</p>
+        <button class="btn btn-scanner-manual" id="btn-scanner-manual"><svg class="icon"><use href="#i-hand"/></svg>¿No trae su código? Buscar alumno</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registro manual del chofer -->
+  <div class="sheet" id="sheet-manual" role="dialog" aria-modal="true" aria-labelledby="sheet-manual-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-manual-title">Registrar a mano</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <div class="sheet-body manual-body">
+        <p class="sheet-lead">Para quien no trae su código. El registro queda marcado como manual y el alumno lo verá en su historial.</p>
+        <div class="search">
+          <svg class="icon"><use href="#i-search"/></svg>
+          <input type="search" id="manual-search" placeholder="Nombre o número de control" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"
+                 role="combobox" aria-expanded="false" aria-controls="manual-results" aria-autocomplete="list" aria-label="Buscar alumno por nombre o número de control">
+        </div>
+        <p class="manual-status" id="manual-status" role="status" aria-live="polite">Escribe al menos 2 letras o números.</p>
+        <div class="list manual-results" id="manual-results" role="listbox" aria-label="Alumnos encontrados" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Importar usuarios (admin) -->
+  <div class="sheet" id="sheet-import" role="dialog" aria-modal="true" aria-labelledby="sheet-import-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-import-title">Importar usuarios</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <div class="sheet-body import-body" id="import-body"></div>
+      <div class="sheet-footer">
+        <button class="btn btn-primary btn-lg btn-block" id="btn-import-run">Importar</button>
       </div>
     </div>
   </div>
