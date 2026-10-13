@@ -1563,8 +1563,9 @@ document.addEventListener('screenchange', e => {
   if (!document.getElementById('splash')) actualizarThemeColor()
 })
 
-// Fondo vivo de la bienvenida
-initAmbiente($('#view-roles'))
+// Fondo vivo de la bienvenida y del inicio de sesión
+initAmbiente(document.getElementById('view-roles'))
+initAmbiente(document.getElementById('view-login'))
 
 // Al terminar la intro se abre la sesión guardada o la bienvenida.
 // Regresa dónde debe aterrizar el logotipo (solo en la bienvenida).

@@ -1595,6 +1595,139 @@ button.row:active {
   }
 }
 
+/* --- 13c. INICIO DE SESIÓN CON EL ESTILO DE LA INTRO ---
+   Cada perfil tiñe su luz: azul (alumno), naranja (chofer), violeta (admin). */
+#view-login { --luz: #2997ff; }
+#view-login[data-tint="orange"] { --luz: #ff9f0a; }
+#view-login[data-tint="indigo"] { --luz: #7d7aff; }
+
+#view-login .ambient span:nth-child(2) { --c: #bf5af2; }
+#view-login .ambient span:nth-child(3) { --c: #ff375f; opacity: 0.45; }
+
+/* Icono del perfil retroiluminado */
+#login-icon {
+  position: relative;
+  isolation: isolate;
+}
+
+#login-icon::before {
+  content: "";
+  position: absolute;
+  inset: -16px;
+  z-index: -1;
+  border-radius: 34px;
+  background: conic-gradient(from var(--giro), var(--luz), #bf5af2, #ff375f, var(--luz), #2997ff, var(--luz));
+  filter: blur(20px);
+  opacity: 0.6;
+  animation: giro-borde 6s linear infinite, respira 3.4s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+/* Campos de cristal; al enfocarlos, un borde de luz los recorre */
+#view-login .field input {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.055);
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  color: var(--label);
+  caret-color: var(--luz);
+}
+
+#view-login .field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1.5px;
+  border-radius: var(--r-md);
+  background: conic-gradient(from var(--giro), transparent 0deg, var(--luz) 50deg, #bf5af2 110deg, #ff375f 165deg, transparent 225deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  animation: giro-borde 3.2s linear infinite;
+  transition: opacity 0.35s var(--ease);
+  pointer-events: none;
+}
+
+#view-login .field:focus-within::before {
+  opacity: 1;
+}
+
+#view-login .field input:focus {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.085);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--luz) 14%, transparent), 0 12px 40px -10px color-mix(in srgb, var(--luz) 55%, transparent);
+}
+
+#view-login .field input:focus + label {
+  color: var(--luz);
+}
+
+#view-login .field.is-invalid::before {
+  opacity: 1;
+  background: var(--red);
+  animation: none;
+}
+
+#view-login .field.is-invalid input {
+  border-color: transparent;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 15%, transparent), 0 12px 40px -10px color-mix(in srgb, var(--red) 50%, transparent);
+}
+
+#view-login .field.is-invalid input + label {
+  color: var(--red-text);
+}
+
+/* El autocompletado del navegador no pinta los campos de amarillo o azul */
+#view-login .field input:-webkit-autofill,
+#view-login .field input:-webkit-autofill:hover,
+#view-login .field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--label);
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+
+/* Botón con resplandor de color y un reflejo que lo cruza */
+#btn-login {
+  background:
+    linear-gradient(100deg, transparent 38%, color-mix(in srgb, var(--luz) 30%, transparent) 46%, rgba(191, 90, 242, 0.26) 54%, transparent 62%) no-repeat,
+    var(--btn-bg);
+  background-size: 320% 100%, auto;
+  background-position: 130% 0, 0 0;
+  box-shadow:
+    -16px 12px 32px -14px var(--luz),
+    0 12px 32px -14px #bf5af2,
+    16px 12px 32px -14px #ff375f;
+  animation: reflejo 5.5s var(--ease) 1.6s infinite;
+  transition: transform 0.3s var(--ease), box-shadow 0.35s var(--ease), opacity 0.25s var(--ease);
+}
+
+#btn-login:active:not(:disabled) {
+  box-shadow:
+    -18px 14px 40px -10px var(--luz),
+    0 14px 40px -10px #bf5af2,
+    18px 14px 40px -10px #ff375f;
+}
+
+@keyframes respira {
+  from { opacity: 0.4; transform: scale(0.92); }
+  to { opacity: 0.75; transform: scale(1.06); }
+}
+
+@keyframes reflejo {
+  0% { background-position: 130% 0, 0 0; }
+  45%, 100% { background-position: -30% 0, 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #login-icon::before,
+  #view-login .field::before,
+  #btn-login {
+    animation: none;
+  }
+}
+
 .login {
   display: flex;
   flex-direction: column;
@@ -4975,6 +5108,7 @@ button.row:active {
   }
 
   #view-login .login {
+    position: relative;
     width: 100%;
     max-width: 460px;
     padding: 40px 40px 32px;
@@ -4983,6 +5117,21 @@ button.row:active {
     -webkit-backdrop-filter: saturate(180%) blur(30px);
     backdrop-filter: saturate(180%) blur(30px);
     box-shadow: var(--shadow-3);
+  }
+
+  #view-login .login::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: conic-gradient(from var(--giro), transparent 0deg, var(--luz) 45deg, #bf5af2 95deg, #ff375f 140deg, transparent 200deg, transparent 360deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.7;
+    animation: giro-borde 9s linear infinite;
+    pointer-events: none;
   }
 
   #view-login .nav {
