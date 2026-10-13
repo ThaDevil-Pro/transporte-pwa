@@ -94,6 +94,7 @@ export function showScreen(id, transition = 'fade') {
   $$('.screen').forEach(s => s.getAnimations().forEach(an => an.cancel()))
 
   next.classList.add('is-active')
+  document.dispatchEvent(new CustomEvent('screenchange', { detail: { id } }))
   $$('.scroll', next).forEach(sc => { sc.scrollTop = 0 })
   syncNav(next)
   if (transition !== 'pop') replayReveal(next)

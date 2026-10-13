@@ -7,6 +7,7 @@ import { initChoferAsientos } from './chofer-asientos.js'
 import { initChoferManual } from './chofer-manual.js'
 import { initImportar } from './importar.js'
 import { initReportes } from './reportes.js'
+import { initAmbiente } from './ambiente.js'
 import {
   $, $$, esc, icon, avatar, emptyState, skeletonRows, haptic,
   initScreens, showScreen, initTabs, selectTab, initSegmented,
@@ -1548,11 +1549,22 @@ document.addEventListener('visibilitychange', () => {
 })
 
 // --- 13. INTRO Y ARRANQUE ---
+// El color de la barra del sistema sigue a la pantalla visible
+// (la bienvenida y el inicio de sesión son siempre oscuros)
+let pantallaVisible = null
 function actualizarThemeColor() {
-  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()
+  const bg = getComputedStyle(pantallaVisible || document.documentElement).getPropertyValue('--bg').trim()
   $('meta[name="theme-color"]').setAttribute('content', bg || '#000000')
 }
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', actualizarThemeColor)
+document.addEventListener('screenchange', e => {
+  pantallaVisible = document.getElementById(e.detail.id)
+  // Durante la intro la barra se queda negra; al terminar se actualiza
+  if (!document.getElementById('splash')) actualizarThemeColor()
+})
+
+// Fondo vivo de la bienvenida
+initAmbiente($('#view-roles'))
 
 // Al terminar la intro se abre la sesión guardada o la bienvenida.
 // Regresa dónde debe aterrizar el logotipo (solo en la bienvenida).

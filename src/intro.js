@@ -139,7 +139,9 @@ void main() {
   if (a_info.y > 1.5) {
     // Chispa: núcleo que respira y destello horizontal de lente; estallan y se apagan
     float t = u_t;
-    float destello = exp(-pow((t - 0.5) / 0.09, 2.0));
+    // (pow con base negativa no está definido: en iPhone da NaN)
+    float q = (t - 0.5) / 0.09;
+    float destello = exp(-q * q);
     alpha = smoothstep(0.0, 0.35, t) * (1.0 - smoothstep(0.58, 0.95, t)) * a_time.z * u_fade;
     if (a_info.y < 2.5) {
       w = a_info.x * (0.55 + 0.45 * smoothstep(0.0, 0.42, t)) * (1.0 + 0.07 * sin(t * 12.0)) * (1.0 + 1.3 * destello);
@@ -241,7 +243,22 @@ function compilar(gl, tipo, fuente) {
   return s
 }
 
-function crearEscena({ canvas, img, rect, velocidad }) {
+// Mide el lienzo tal como se ve y el logotipo respecto a él. No se usa
+// window.innerHeight: en iPhone llega mal al abrir la app y aplastaba la escena.
+function medir(canvas, logo) {
+  const c = canvas.getBoundingClientRect()
+  const l = logo.getBoundingClientRect()
+  return {
+    W: c.width || window.innerWidth,
+    H: c.height || window.innerHeight,
+    cx: l.left - c.left + l.width / 2,
+    cy: l.top - c.top + l.height / 2,
+    lw: l.width,
+    lh: l.height
+  }
+}
+
+function crearEscena({ canvas, img, logo, velocidad }) {
   let gl
   try {
     gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false, powerPreference: 'high-performance' })
@@ -262,11 +279,9 @@ function crearEscena({ canvas, img, rect, velocidad }) {
     return null
   }
 
-  const W = window.innerWidth
-  const H = window.innerHeight
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  canvas.width = Math.round(W * dpr)
-  canvas.height = Math.round(H * dpr)
+  let m = medir(canvas, logo)
+  const rect = { width: m.lw, height: m.lh }
 
   // Menos partículas en equipos modestos
   const modesto = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3
@@ -280,7 +295,7 @@ function crearEscena({ canvas, img, rect, velocidad }) {
   const total = nLogo + nPolvo + 3
 
   const persp = 600
-  const radio = 0.55 * Math.hypot(W, H)
+  const radio = 0.55 * Math.hypot(m.W, m.H)
   const datos = new Float32Array(total * 6 * POR_VERTICE)
   let o = 0
   const escribir = (target, start, tiempo, info, color) => {
@@ -349,10 +364,23 @@ function crearEscena({ canvas, img, rect, velocidad }) {
   const u = nombre => gl.getUniformLocation(prog, nombre)
   const uT = u('u_t')
   const uFade = u('u_fade')
-  gl.uniform2f(u('u_res'), W, H)
-  gl.uniform2f(u('u_center'), rect.left + rect.width / 2, rect.top + rect.height / 2)
+  const uRes = u('u_res')
+  const uCenter = u('u_center')
   gl.uniform1f(u('u_persp'), persp)
-  gl.viewport(0, 0, canvas.width, canvas.height)
+
+  // Tamaño del lienzo y centro del logotipo; se recalcula si la pantalla cambia
+  const ajustar = () => {
+    canvas.width = Math.max(1, Math.round(m.W * dpr))
+    canvas.height = Math.max(1, Math.round(m.H * dpr))
+    gl.viewport(0, 0, canvas.width, canvas.height)
+    gl.uniform2f(uRes, m.W, m.H)
+    gl.uniform2f(uCenter, m.cx, m.cy)
+  }
+  ajustar()
+  const observador = typeof ResizeObserver === 'function'
+    ? new ResizeObserver(() => { m = medir(canvas, logo); ajustar() })
+    : null
+  observador?.observe(canvas)
   gl.disable(gl.DEPTH_TEST)
   gl.enable(gl.BLEND)
   gl.blendFunc(gl.ONE, gl.ONE) // luz aditiva
@@ -394,6 +422,7 @@ function crearEscena({ canvas, img, rect, velocidad }) {
     },
     destruir() {
       cancelAnimationFrame(raf)
+      observador?.disconnect()
       gl.getExtension('WEBGL_lose_context')?.loseContext()
     }
   }
@@ -523,7 +552,7 @@ export async function runIntro({ alSalir, alTerminar }) {
 
   if (img) {
     try {
-      escena = crearEscena({ canvas, img, rect: logo.getBoundingClientRect(), velocidad })
+      escena = crearEscena({ canvas, img, logo, velocidad })
     } catch (err) {
       console.warn('Intro: sin WebGL', err)
       escena = null
