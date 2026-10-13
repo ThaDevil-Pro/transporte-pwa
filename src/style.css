@@ -195,11 +195,22 @@ button {
 
 .splash-glow {
   position: absolute;
-  width: 160vmin;
-  height: 160vmin;
+  width: 170vmin;
+  height: 170vmin;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(41, 151, 255, 0.3), rgba(125, 122, 255, 0.16) 42%, rgba(191, 90, 242, 0.07) 68%, transparent);
+  background:
+    radial-gradient(closest-side, rgba(94, 92, 230, 0.32), rgba(41, 151, 255, 0.16) 38%, rgba(191, 90, 242, 0.08) 62%, transparent),
+    radial-gradient(closest-side at 62% 58%, rgba(255, 55, 95, 0.12), transparent 70%);
   opacity: 0;
+  pointer-events: none;
+}
+
+/* Lienzo de la escena de luz (WebGL) */
+.splash-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 
@@ -207,7 +218,7 @@ button {
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 22px;
+  gap: 24px;
 }
 
 .splash-logo {
@@ -217,41 +228,83 @@ button {
   will-change: transform;
 }
 
-.splash-glyph,
-.splash-full,
-.splash-sheen {
+/* Línea de luz que se abre al inicio */
+.splash-line {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 150%;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #2997ff 18%, #5e5ce6 36%, #ffffff 50%, #bf5af2 64%, #ff375f 82%, transparent);
+  box-shadow: 0 0 18px 2px rgba(120, 140, 255, 0.55);
+  opacity: 0;
+  transform: translate(-50%, -50%) scaleX(0);
+  pointer-events: none;
+}
+
+/* Onda expansiva cuando la luz se vuelve logotipo */
+.splash-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1.5px solid rgba(222, 226, 255, 0.85);
+  box-shadow: 0 0 22px 3px rgba(94, 92, 230, 0.55), 0 0 60px 6px rgba(191, 90, 242, 0.22), inset 0 0 26px 3px rgba(41, 151, 255, 0.35);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.25);
+  pointer-events: none;
+}
+
+/* Retroiluminación: el color gira dentro de la forma del logotipo y se
+   difumina hacia afuera. El desenfoque va en el elemento exterior para
+   que se aplique después de la máscara. */
+.splash-halo {
   position: absolute;
   inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splash-halo.is-wide {
+  filter: blur(22px) saturate(1.3);
+}
+
+.splash-halo.is-rim {
+  filter: blur(4px) saturate(1.4) brightness(1.15);
+}
+
+.splash-halo-mask {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
   -webkit-mask: url("/brand/camify-wordmark.png") center / contain no-repeat;
   mask: url("/brand/camify-wordmark.png") center / contain no-repeat;
 }
 
-.splash-glyph,
-.splash-full {
-  background: #fff;
+.splash-halo-color {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 140%;
+  aspect-ratio: 1;
+  background: conic-gradient(from 0deg, #2997ff, #5e5ce6, #bf5af2, #ff375f, #ff9f0a, #ff375f, #bf5af2, #5e5ce6, #2997ff);
+  transform: translate(-50%, -50%);
 }
 
-.splash-piece {
+/* Cara del logotipo: empieza apagada (silueta) y se enciende de izquierda
+   a derecha recorriendo este degradado */
+.splash-full {
   position: absolute;
   inset: 0;
+  background: linear-gradient(90deg, #fff 0%, #fff 38%, #e4ecff 44%, #9fb4ff 47%, #0a0a0c 56%, #0a0a0c 100%);
+  background-size: 260% 100%;
+  background-position: 100% 0;
   opacity: 0;
-  will-change: transform, opacity, filter;
-}
-
-.splash-full {
-  opacity: 0;
-}
-
-.splash-sheen {
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.splash-sheen > span {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(100deg, transparent 8%, #2997ff 32%, #bf5af2 48%, #ff6482 62%, #ffb340 76%, transparent 92%);
-  transform: translateX(-110%);
+  -webkit-mask: url("/brand/camify-wordmark.png") center / contain no-repeat;
+  mask: url("/brand/camify-wordmark.png") center / contain no-repeat;
 }
 
 .splash-tagline {

@@ -1,43 +1,407 @@
 // =====================================================================
-// Intro animada del logotipo (reemplaza al video).
-// Las letras se materializan una por una, un barrido de luz recorre el
-// logotipo y al final vuela a su lugar en la pantalla de bienvenida.
+// Intro del logotipo.
+//
+// Escena principal (WebGL): en la oscuridad respira una chispa de luz,
+// estalla hacia la cámara en miles de trazos de color con perspectiva
+// (algunos pasan de largo, como un salto al hiperespacio), los trazos
+// giran en espiral y aterrizan sobre la forma exacta del logotipo, que
+// se solidifica con un pulso, una onda expansiva y retroiluminación.
+// Al final el logotipo vuela a su lugar en la pantalla de bienvenida.
+//
+// Todo el movimiento se calcula en la GPU (el procesador solo envía el
+// tiempo en cada cuadro). Sin WebGL se usa la versión retroiluminada.
+// La primera vez del día va completa; las siguientes, más rápida.
 // =====================================================================
 import { $, $$ } from './ui.js'
 
 const LOGO_URL = '/brand/camify-wordmark.png'
+const VISTA_KEY = 'camify.intro'
 const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)'
 const EASE_MOVE = 'cubic-bezier(0.32, 0.72, 0, 1)'
-const EASE_POP = 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+const EASE_IN_OUT = 'cubic-bezier(0.65, 0, 0.35, 1)'
 
-// Piezas del logotipo medidas sobre el PNG (1200 × 233 px).
-// La "IF" va junta para que el autobús nunca se parta.
-const PIEZAS = [
-  { clip: 'inset(0 84.17% 0 0)', origen: '7.9% 50%' }, // C
-  { clip: 'inset(0 63.58% 0 15.83%)', origen: '26.1% 50%' }, // A
-  { clip: 'inset(0 45.83% 0 36.42%)', origen: '45.3% 50%' }, // M
-  { clip: 'inset(0 20.42% 0 54.17%)', origen: '66.9% 50%' }, // IF + autobús
-  { clip: 'polygon(79.58% 0, 100% 0, 100% 64.38%, 94.17% 64.38%, 94.17% 100%, 79.58% 100%)', origen: '89.8% 50%' }, // Y
-  { clip: 'inset(64.38% 0 0 94.17%)', origen: '97.4% 84.5%', punto: true } // .
+// Escena de partículas (ms)
+const PARTICULAS = {
+  halo: 1900,
+  solido: 2200,
+  onda: 2250,
+  desvanecer: 2300,
+  frase: 2450,
+  salida: 3400
+}
+
+// Versión retroiluminada, sin WebGL (ms)
+const RETRO = {
+  linea: 120,
+  halo: 520,
+  encendido: 1300,
+  frase: 1750,
+  salida: 3000
+}
+
+// Colores de la marca a lo largo del logotipo (azul → violeta → rosa → naranja)
+const PALETA = [
+  [0.16, 0.59, 1.0],
+  [0.37, 0.36, 0.9],
+  [0.75, 0.35, 0.95],
+  [1.0, 0.22, 0.37],
+  [1.0, 0.62, 0.04]
 ]
 
-const TIEMPOS = {
-  inicioLetras: 150,
-  pasoLetra: 80,
-  duracionLetra: 950,
-  inicioPunto: 800,
-  barrido: 1250,
-  frase: 1350,
-  salida: 2350
+function colorEn(u) {
+  const x = Math.min(0.9999, Math.max(0, u)) * (PALETA.length - 1)
+  const i = Math.floor(x)
+  const f = x - i
+  return PALETA[i].map((c, k) => c + (PALETA[i + 1][k] - c) * f)
 }
 
 function cargarLogo() {
   const img = new Image()
   img.src = LOGO_URL
-  const decodificado = img.decode ? img.decode() : new Promise(r => { img.onload = r })
-  // Si la imagen tarda, la intro arranca de todos modos
-  return Promise.race([decodificado.catch(() => {}), new Promise(r => setTimeout(r, 900))])
+  const decodificado = (img.decode ? img.decode() : new Promise((r, e) => { img.onload = r; img.onerror = e }))
+    .then(() => img, () => null)
+  // Si la imagen tarda, la intro arranca de todos modos (sin partículas)
+  return Promise.race([decodificado, new Promise(r => setTimeout(() => r(null), 900))])
 }
+
+// Primera vez del día: intro completa. Después, más rápida.
+function velocidadIntro() {
+  const hoy = new Date().toDateString()
+  try {
+    const vista = localStorage.getItem(VISTA_KEY) === hoy
+    localStorage.setItem(VISTA_KEY, hoy)
+    return vista ? 1.55 : 1
+  } catch {
+    return 1
+  }
+}
+
+// =====================================================================
+// Escena WebGL
+// =====================================================================
+const VERTEX = `
+attribute vec2 a_target;
+attribute vec3 a_start;
+attribute vec3 a_time;   // retraso, duración, giro
+attribute vec3 a_info;   // grosor, tipo (0 logotipo, 1 polvo), estela
+attribute vec3 a_color;
+attribute vec2 a_corner; // (0 cola · 1 cabeza, lado -1 · 1)
+
+uniform float u_t;
+uniform vec2 u_res;
+uniform vec2 u_center;
+uniform float u_persp;
+uniform float u_fade;
+
+varying vec2 v_local;
+varying float v_len;
+varying float v_w;
+varying vec3 v_color;
+varying float v_alpha;
+varying float v_cola;
+
+vec2 rot(vec2 p, float a) {
+  float c = cos(a);
+  float s = sin(a);
+  return vec2(c * p.x - s * p.y, s * p.x + c * p.y);
+}
+
+float quintica(float k) {
+  return k * k * k * (k * (k * 6.0 - 15.0) + 10.0);
+}
+
+// xy: posición en pantalla respecto al centro del logotipo · z: escala · w: avance
+vec4 estado(float t) {
+  vec2 s = rot(a_start.xy, 0.55 * t);
+  float k = clamp((t - a_time.x) / a_time.y, 0.0, 1.0);
+  if (a_info.y < 0.5) {
+    float e = quintica(k);
+    float kz = clamp(k / 0.55, 0.0, 1.0);
+    float ez = 1.0 - pow(1.0 - kz, 3.0);
+    vec2 xy = a_target + rot(s - a_target, a_time.z * (1.0 - e)) * (1.0 - e);
+    float z = a_start.z * (1.0 - ez) * (1.0 - ez);
+    float sc = u_persp / (u_persp + z);
+    return vec4(xy * sc, sc, k);
+  }
+  float e = k * k;
+  float z = mix(a_start.z, -0.86 * u_persp, e);
+  float sc = u_persp / (u_persp + z);
+  return vec4(s * sc, sc, k);
+}
+
+void main() {
+  vec2 cola;
+  vec2 cabeza;
+  float w;
+  float alpha;
+  vec3 color = a_color;
+
+  if (a_info.y > 1.5) {
+    // Chispa: núcleo que respira y destello horizontal de lente; estallan y se apagan
+    float t = u_t;
+    float destello = exp(-pow((t - 0.5) / 0.09, 2.0));
+    alpha = smoothstep(0.0, 0.35, t) * (1.0 - smoothstep(0.58, 0.95, t)) * a_time.z * u_fade;
+    if (a_info.y < 2.5) {
+      w = a_info.x * (0.55 + 0.45 * smoothstep(0.0, 0.42, t)) * (1.0 + 0.07 * sin(t * 12.0)) * (1.0 + 1.3 * destello);
+      cola = vec2(0.0);
+      cabeza = vec2(0.0);
+    } else {
+      float largo = a_info.x * smoothstep(0.08, 0.42, t) * (0.3 + 2.6 * destello);
+      w = 1.1 + 1.6 * destello;
+      cola = vec2(-largo, 0.0);
+      cabeza = vec2(largo, 0.0);
+    }
+  } else {
+    vec4 h = estado(u_t);
+    vec4 c = estado(u_t - a_info.z);
+    cabeza = h.xy;
+    cola = c.xy;
+    w = a_info.x * clamp(h.z, 0.3, 7.0);
+    float k = h.w;
+    float asentado = a_info.y < 0.5 ? smoothstep(0.8, 1.0, k) : 0.0;
+    color = mix(a_color, vec3(1.0), asentado * 0.7);
+    alpha = smoothstep(0.0, 0.5, u_t) * u_fade;
+    // La nube de la chispa (todas juntas) es más suave para no quemarse en blanco
+    alpha *= mix(0.22, 1.0, smoothstep(0.0, 0.12, k));
+    if (a_info.y > 0.5) alpha *= 1.0 - smoothstep(0.6, 1.0, k);
+  }
+
+  vec2 d = cabeza - cola;
+  float len = length(d);
+  vec2 dir = len > 0.001 ? d / len : vec2(1.0, 0.0);
+  vec2 nor = vec2(-dir.y, dir.x);
+  vec2 p = mix(cola, cabeza, a_corner.x) + dir * (a_corner.x * 2.0 - 1.0) * w + nor * a_corner.y * w;
+  v_local = vec2(mix(-w, len + w, a_corner.x), a_corner.y * w);
+  v_len = len;
+  v_w = w;
+  v_color = color;
+  v_alpha = alpha;
+  v_cola = a_info.y > 1.5 ? 1.0 : 0.2;
+
+  vec2 pos = (u_center + p) / u_res * 2.0 - 1.0;
+  gl_Position = vec4(pos.x, -pos.y, 0.0, 1.0);
+}
+`
+
+const FRAGMENT = `
+precision mediump float;
+varying vec2 v_local;
+varying float v_len;
+varying float v_w;
+varying vec3 v_color;
+varying float v_alpha;
+varying float v_cola;
+
+void main() {
+  float x = clamp(v_local.x, 0.0, v_len);
+  float d = length(vec2(v_local.x - x, v_local.y)) / v_w;
+  float halo = exp(-d * d * 3.5);
+  float nucleo = exp(-d * d * 14.0);
+  float largo = v_len > 0.0001 ? mix(v_cola, 1.0, x / v_len) : 1.0;
+  float a = (halo * 0.5 + nucleo * 0.85) * largo * v_alpha;
+  gl_FragColor = vec4(v_color * a, a);
+}
+`
+
+const POR_VERTICE = 16
+const ESQUINAS = [[0, -1], [1, -1], [1, 1], [0, -1], [1, 1], [0, 1]]
+
+function puntosDelLogo(img, ancho, alto, cantidad) {
+  const c = document.createElement('canvas')
+  c.width = Math.max(1, Math.round(ancho))
+  c.height = Math.max(1, Math.round(alto))
+  const ctx = c.getContext('2d', { willReadFrequently: true })
+  ctx.drawImage(img, 0, 0, c.width, c.height)
+  const { data } = ctx.getImageData(0, 0, c.width, c.height)
+  const llenos = []
+  for (let y = 0; y < c.height; y++) {
+    for (let x = 0; x < c.width; x++) {
+      if (data[(y * c.width + x) * 4 + 3] > 140) llenos.push(x, y)
+    }
+  }
+  const total = llenos.length / 2
+  if (!total) return []
+  const n = Math.min(cantidad, total)
+  const puntos = []
+  for (let i = 0; i < n; i++) {
+    const j = (Math.random() * total) | 0
+    puntos.push(llenos[j * 2] + Math.random() - c.width / 2, llenos[j * 2 + 1] + Math.random() - c.height / 2)
+  }
+  return puntos
+}
+
+function compilar(gl, tipo, fuente) {
+  const s = gl.createShader(tipo)
+  gl.shaderSource(s, fuente)
+  gl.compileShader(s)
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    console.warn('Intro: shader', gl.getShaderInfoLog(s))
+    return null
+  }
+  return s
+}
+
+function crearEscena({ canvas, img, rect, velocidad }) {
+  let gl
+  try {
+    gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false, powerPreference: 'high-performance' })
+  } catch {
+    gl = null
+  }
+  if (!gl) return null
+
+  const vs = compilar(gl, gl.VERTEX_SHADER, VERTEX)
+  const fs = compilar(gl, gl.FRAGMENT_SHADER, FRAGMENT)
+  if (!vs || !fs) return null
+  const prog = gl.createProgram()
+  gl.attachShader(prog, vs)
+  gl.attachShader(prog, fs)
+  gl.linkProgram(prog)
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.warn('Intro: programa', gl.getProgramInfoLog(prog))
+    return null
+  }
+
+  const W = window.innerWidth
+  const H = window.innerHeight
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  canvas.width = Math.round(W * dpr)
+  canvas.height = Math.round(H * dpr)
+
+  // Menos partículas en equipos modestos
+  const modesto = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3
+  const objetivos = puntosDelLogo(img, rect.width, rect.height, modesto ? 800 : 1500)
+  if (!objetivos.length) {
+    console.warn('Intro: el logotipo no tiene puntos')
+    return null
+  }
+  const nLogo = objetivos.length / 2
+  const nPolvo = modesto ? 450 : 1000
+  const total = nLogo + nPolvo + 3
+
+  const persp = 600
+  const radio = 0.55 * Math.hypot(W, H)
+  const datos = new Float32Array(total * 6 * POR_VERTICE)
+  let o = 0
+  const escribir = (target, start, tiempo, info, color) => {
+    for (const [a, l] of ESQUINAS) {
+      datos.set(target, o)
+      datos.set(start, o + 2)
+      datos.set(tiempo, o + 5)
+      datos.set(info, o + 8)
+      datos.set(color, o + 11)
+      datos[o + 14] = a
+      datos[o + 15] = l
+      o += POR_VERTICE
+    }
+  }
+
+  for (let i = 0; i < nLogo; i++) {
+    const tx = objetivos[i * 2]
+    const ty = objetivos[i * 2 + 1]
+    const u = tx / rect.width + 0.5
+    const ang = Math.random() * Math.PI * 2
+    const r = radio * (0.35 + 0.65 * Math.sqrt(Math.random()))
+    escribir(
+      [tx, ty],
+      [Math.cos(ang) * r, Math.sin(ang) * r, persp * (18 + Math.random() * 16)],
+      [0.42 + Math.random() * 0.25 + u * 0.12, 1.3 + Math.random() * 0.25, 2.2 + Math.random() * 1.6],
+      [0.7 + Math.random() * 0.7, 0, 0.05],
+      colorEn(u + (Math.random() - 0.5) * 0.12)
+    )
+  }
+
+  for (let i = 0; i < nPolvo; i++) {
+    const ang = Math.random() * Math.PI * 2
+    const r = radio * (0.08 + 0.92 * Math.random())
+    const blanco = Math.random() < 0.25
+    escribir(
+      [0, 0],
+      [Math.cos(ang) * r, Math.sin(ang) * r, persp * (10 + Math.random() * 25)],
+      [0.38 + Math.random() * 0.5, 0.9 + Math.random() * 0.6, 0],
+      [0.55 + Math.random() * 0.75, 1, 0.08],
+      blanco ? [1, 1, 1] : colorEn(Math.random())
+    )
+  }
+
+  // Chispa inicial: halo suave, núcleo blanco y destello horizontal de lente
+  escribir([0, 0], [0, 0, 0], [0, 1, 0.55], [46, 2, 0], [0.42, 0.45, 1.0])
+  escribir([0, 0], [0, 0, 0], [0, 1, 1.0], [7, 2, 0], [1, 1, 1])
+  escribir([0, 0], [0, 0, 0], [0, 1, 0.9], [120, 3, 0], [0.6, 0.7, 1.0])
+
+  const buf = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf)
+  gl.bufferData(gl.ARRAY_BUFFER, datos, gl.STATIC_DRAW)
+  gl.useProgram(prog)
+  const atributo = (nombre, tam, desfase) => {
+    const loc = gl.getAttribLocation(prog, nombre)
+    if (loc < 0) return
+    gl.enableVertexAttribArray(loc)
+    gl.vertexAttribPointer(loc, tam, gl.FLOAT, false, POR_VERTICE * 4, desfase * 4)
+  }
+  atributo('a_target', 2, 0)
+  atributo('a_start', 3, 2)
+  atributo('a_time', 3, 5)
+  atributo('a_info', 3, 8)
+  atributo('a_color', 3, 11)
+  atributo('a_corner', 2, 14)
+
+  const u = nombre => gl.getUniformLocation(prog, nombre)
+  const uT = u('u_t')
+  const uFade = u('u_fade')
+  gl.uniform2f(u('u_res'), W, H)
+  gl.uniform2f(u('u_center'), rect.left + rect.width / 2, rect.top + rect.height / 2)
+  gl.uniform1f(u('u_persp'), persp)
+  gl.viewport(0, 0, canvas.width, canvas.height)
+  gl.disable(gl.DEPTH_TEST)
+  gl.enable(gl.BLEND)
+  gl.blendFunc(gl.ONE, gl.ONE) // luz aditiva
+  gl.clearColor(0, 0, 0, 0)
+
+  const vertices = total * 6
+  let raf = 0
+  let inicio = 0
+  let corte = null // { en, dur }: desvanecido rápido al saltar la intro
+  const desvanecerEn = PARTICULAS.desvanecer / 1000
+  const desvanecerDur = 0.6
+
+  function cuadro(ahora) {
+    const t = ((ahora - inicio) / 1000) * velocidad
+    let fade = 1 - Math.min(1, Math.max(0, (t - desvanecerEn) / desvanecerDur))
+    if (corte) fade *= 1 - Math.min(1, (ahora - corte.en) / corte.dur)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    if (fade > 0.001) {
+      gl.uniform1f(uT, t)
+      gl.uniform1f(uFade, fade * fade * (3 - 2 * fade))
+      gl.drawArrays(gl.TRIANGLES, 0, vertices)
+      raf = requestAnimationFrame(cuadro)
+    }
+  }
+
+  return {
+    iniciar() {
+      inicio = performance.now()
+      raf = requestAnimationFrame(cuadro)
+    },
+    // Al tocar para saltar: las partículas se apagan rápido
+    apagar(ms = 200) {
+      corte = { en: performance.now(), dur: ms }
+      // Por si el navegador deja de pedir cuadros: se borra al terminar
+      setTimeout(() => {
+        cancelAnimationFrame(raf)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+      }, ms + 40)
+    },
+    destruir() {
+      cancelAnimationFrame(raf)
+      gl.getExtension('WEBGL_lose_context')?.loseContext()
+    }
+  }
+}
+
+// =====================================================================
+// Intro
+// =====================================================================
 
 // alSalir() muestra la pantalla de destino y regresa el elemento donde debe
 // aterrizar el logotipo (o null para desvanecerlo en su lugar).
@@ -51,27 +415,19 @@ export async function runIntro({ alSalir, alTerminar }) {
 
   const logo = $('.splash-logo', splash)
   const full = $('.splash-full', splash)
-  const sheen = $('.splash-sheen', splash)
+  const linea = $('.splash-line', splash)
+  const anillo = $('.splash-ring', splash)
+  const canvas = $('.splash-canvas', splash)
+  const halos = $$('.splash-halo', splash)
+  const colores = $$('.splash-halo-color', splash)
   const glow = $('.splash-glow', splash)
   const frase = $('.splash-tagline', splash)
   const fondo = $('.splash-bg', splash)
   const reducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const velocidad = reducido ? 1 : velocidadIntro()
+  const ms = x => x / velocidad
 
-  // Construye las piezas del logotipo. El recorte y la máscara van en el
-  // elemento interior para que el desenfoque del exterior afecte a la letra.
-  const piezas = PIEZAS.map(p => {
-    const el = document.createElement('span')
-    el.className = 'splash-piece'
-    el.style.transformOrigin = p.origen
-    const glifo = document.createElement('span')
-    glifo.className = 'splash-glyph'
-    glifo.style.clipPath = p.clip
-    glifo.style.webkitClipPath = p.clip
-    el.appendChild(glifo)
-    logo.insertBefore(el, full)
-    return el
-  })
-
+  // Animaciones con final (se completan al instante si se toca la pantalla)
   const anims = []
   const play = (el, frames, opts) => {
     const a = el.animate(frames, { fill: 'both', ...opts })
@@ -81,10 +437,18 @@ export async function runIntro({ alSalir, alTerminar }) {
 
   let saliendo = false
   let timer = null
+  let escena = null
 
-  const mostrarCompleto = () => {
+  // El color del halo gira sin parar (fuera de "anims": no tiene final)
+  const giros = colores.map((el, i) => el.animate(
+    [{ transform: 'translate(-50%, -50%) rotate(0turn)' }, { transform: 'translate(-50%, -50%) rotate(1turn)' }],
+    { duration: 7000, iterations: Infinity, delay: i * -900 }
+  ))
+
+  const logoEncendido = () => {
+    full.getAnimations().forEach(a => a.cancel())
+    full.style.background = '#fff'
     full.style.opacity = '1'
-    piezas.forEach(p => { p.style.visibility = 'hidden' })
   }
 
   async function salir() {
@@ -93,16 +457,20 @@ export async function runIntro({ alSalir, alTerminar }) {
     clearTimeout(timer)
     splash.style.pointerEvents = 'none'
 
-    // Si se saltó la intro, completa el logotipo al instante
+    // Si se saltó la intro, todo llega a su estado final al instante
     anims.forEach(a => { if (a.playState !== 'finished') a.finish() })
-    mostrarCompleto()
-    sheen.style.visibility = 'hidden'
+    logoEncendido()
+    escena?.apagar()
 
     const destino = alSalir()
     const dur = reducido ? 260 : 900
 
     fondo.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.85, easing: EASE_OUT, fill: 'forwards' })
+    canvas.animate([{ opacity: getComputedStyle(canvas).opacity }, { opacity: 0 }], { duration: 220, easing: EASE_OUT, fill: 'forwards' })
     glow.animate([{ opacity: getComputedStyle(glow).opacity }, { opacity: 0 }], { duration: dur * 0.6, fill: 'forwards' })
+    halos.forEach(h => h.animate([{ opacity: getComputedStyle(h).opacity }, { opacity: 0 }], { duration: dur * 0.55, easing: EASE_OUT, fill: 'forwards' }))
+    linea.style.visibility = 'hidden'
+    anillo.style.visibility = 'hidden'
     frase.animate([{ opacity: getComputedStyle(frase).opacity, transform: 'none' }, { opacity: 0, transform: 'translateY(8px)' }], { duration: dur * 0.4, easing: EASE_OUT, fill: 'forwards' })
 
     let vuelo
@@ -133,52 +501,139 @@ export async function runIntro({ alSalir, alTerminar }) {
       await vuelo.finished.catch(() => {})
     }
 
+    giros.forEach(a => a.cancel())
+    escena?.destruir()
     splash.remove()
     alTerminar?.()
   }
 
   splash.addEventListener('pointerdown', salir)
 
-  await cargarLogo()
+  const img = await cargarLogo()
   if (saliendo) return
 
   if (reducido) {
-    mostrarCompleto()
+    logoEncendido()
+    giros.forEach(a => a.pause())
+    halos.forEach(h => { h.style.opacity = '0.6' })
     frase.style.opacity = '1'
     timer = setTimeout(salir, 900)
     return
   }
 
-  // 1. Resplandor de fondo
-  play(glow, [{ opacity: 0, transform: 'scale(0.6)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 1600, delay: 100, easing: EASE_OUT })
-
-  // 2. Letras que se materializan una por una
-  piezas.forEach((el, i) => {
-    if (PIEZAS[i].punto) {
-      play(el, [
-        { opacity: 0, transform: 'translateY(-60%) scale(0.4)', filter: 'blur(6px)' },
-        { opacity: 1, transform: 'translateY(0) scale(1.18)', filter: 'blur(0)', offset: 0.55 },
-        { opacity: 1, transform: 'translateY(0) scale(1)', filter: 'blur(0)' }
-      ], { duration: 720, delay: TIEMPOS.inicioPunto, easing: EASE_POP })
-      return
+  if (img) {
+    try {
+      escena = crearEscena({ canvas, img, rect: logo.getBoundingClientRect(), velocidad })
+    } catch (err) {
+      console.warn('Intro: sin WebGL', err)
+      escena = null
     }
-    play(el, [
-      { opacity: 0, transform: 'translateY(26%) scale(1.06)', filter: 'blur(16px)' },
-      { opacity: 1, transform: 'translateY(0) scale(1)', filter: 'blur(0)' }
-    ], { duration: TIEMPOS.duracionLetra, delay: TIEMPOS.inicioLetras + i * TIEMPOS.pasoLetra, easing: EASE_OUT })
-  })
+  }
 
-  // 3. Barrido de luz de color a través del logotipo
-  play($('span', sheen), [{ transform: 'translateX(-110%)' }, { transform: 'translateX(110%)' }], { duration: 1050, delay: TIEMPOS.barrido, easing: 'cubic-bezier(0.45, 0, 0.25, 1)' })
-  play(glow, [{ filter: 'saturate(1) brightness(1)' }, { filter: 'saturate(1.4) brightness(1.35)' }, { filter: 'saturate(1) brightness(1)' }], { duration: 1100, delay: TIEMPOS.barrido, easing: 'ease-in-out', fill: 'none' })
+  if (escena) secuenciaParticulas()
+  else secuenciaRetroiluminada()
 
-  // 4. Frase
-  play(frase, [{ opacity: 0, letterSpacing: '0.4em', filter: 'blur(4px)' }, { opacity: 1, letterSpacing: '0.04em', filter: 'blur(0)' }], { duration: 1000, delay: TIEMPOS.frase, easing: EASE_OUT })
+  // --- Escena de partículas: la luz se vuelve logotipo ---
+  function secuenciaParticulas() {
+    linea.hidden = true
+    full.style.background = '#fff'
+    escena.iniciar()
 
-  // Cuando todas las piezas llegaron, se usa el logotipo completo (sin uniones visibles)
-  Promise.all(anims.slice(1, 1 + piezas.length).map(a => a.finished)).then(() => {
-    if (!saliendo) mostrarCompleto()
-  }, () => {})
+    // Luz ambiental que crece con la explosión
+    play(glow, [
+      { opacity: 0, transform: 'scale(0.3)' },
+      { opacity: 0.85, transform: 'scale(1)', offset: 0.5 },
+      { opacity: 1, transform: 'scale(1.05)' }
+    ], { duration: ms(2400), delay: ms(350), easing: EASE_OUT })
 
-  timer = setTimeout(salir, TIEMPOS.salida)
+    // Retroiluminación detrás del logotipo mientras aterrizan los trazos
+    halos.forEach((h, i) => {
+      play(h, [
+        { opacity: 0, transform: 'scale(0.92)' },
+        { opacity: 1, transform: 'scale(1)', offset: 0.55 },
+        { opacity: i === 0 ? 0.75 : 0.9, transform: 'scale(1)' }
+      ], { duration: ms(1300), delay: ms(PARTICULAS.halo + i * 120), easing: EASE_OUT })
+    })
+
+    // La luz se solidifica: aparece el logotipo
+    play(full, [
+      { opacity: 0, transform: 'scale(1.025)' },
+      { opacity: 1, transform: 'scale(1)' }
+    ], { duration: ms(520), delay: ms(PARTICULAS.solido), easing: EASE_OUT })
+
+    // Pulso del logotipo y onda expansiva al anclarse
+    play(logo, [
+      { transform: 'scale(1)' },
+      { transform: 'scale(1.045)', offset: 0.28 },
+      { transform: 'scale(1)' }
+    ], { duration: ms(700), delay: ms(PARTICULAS.onda - 40), easing: EASE_OUT })
+    play(anillo, [
+      { opacity: 0, transform: 'translate(-50%, -50%) scale(0.25)' },
+      { opacity: 0.95, transform: 'translate(-50%, -50%) scale(0.6)', offset: 0.08 },
+      { opacity: 0, transform: 'translate(-50%, -50%) scale(5.5)' }
+    ], { duration: ms(1150), delay: ms(PARTICULAS.onda), easing: 'cubic-bezier(0.16, 1, 0.3, 1)' })
+    play(glow, [
+      { filter: 'brightness(1) saturate(1)' },
+      { filter: 'brightness(1.7) saturate(1.35)', offset: 0.25 },
+      { filter: 'brightness(1) saturate(1)' }
+    ], { duration: ms(1200), delay: ms(PARTICULAS.onda), easing: 'ease-out', fill: 'none' })
+
+    play(frase, [
+      { opacity: 0, letterSpacing: '0.42em', filter: 'blur(4px)' },
+      { opacity: 1, letterSpacing: '0.06em', filter: 'blur(0)' }
+    ], { duration: ms(1000), delay: ms(PARTICULAS.frase), easing: EASE_OUT })
+
+    timer = setTimeout(salir, ms(PARTICULAS.salida))
+  }
+
+  // --- Sin WebGL: línea de luz, silueta retroiluminada y encendido ---
+  function secuenciaRetroiluminada() {
+    canvas.hidden = true
+    full.style.opacity = '1'
+
+    play(linea, [
+      { opacity: 0, transform: 'translate(-50%, -50%) scaleX(0) scaleY(1)' },
+      { opacity: 1, transform: 'translate(-50%, -50%) scaleX(1) scaleY(1)', offset: 0.45 },
+      { opacity: 1, transform: 'translate(-50%, -50%) scaleX(1.05) scaleY(1.6)', offset: 0.62 },
+      { opacity: 0, transform: 'translate(-50%, -50%) scaleX(1.25) scaleY(28)' }
+    ], { duration: ms(1250), delay: ms(RETRO.linea), easing: EASE_IN_OUT })
+
+    play(glow, [
+      { opacity: 0, transform: 'scale(0.4)' },
+      { opacity: 1, transform: 'scale(1)' }
+    ], { duration: ms(1800), delay: ms(RETRO.halo), easing: EASE_OUT })
+
+    halos.forEach((h, i) => {
+      play(h, [
+        { opacity: 0, transform: 'scale(0.9)' },
+        { opacity: 1, transform: 'scale(1)', offset: 0.6 },
+        { opacity: i === 0 ? 0.75 : 0.9, transform: 'scale(1)' }
+      ], { duration: ms(1700), delay: ms(RETRO.halo + i * 140), easing: EASE_OUT })
+    })
+
+    // La silueta aparece apenas, recortada contra el halo
+    play(full, [
+      { opacity: 0, transform: 'scale(0.97)' },
+      { opacity: 1, transform: 'scale(1)' }
+    ], { duration: ms(1400), delay: ms(RETRO.halo), easing: EASE_OUT })
+
+    // Las letras se encienden de izquierda a derecha
+    play(full, [
+      { backgroundPosition: '100% 0' },
+      { backgroundPosition: '0% 0' }
+    ], { duration: ms(1100), delay: ms(RETRO.encendido), easing: EASE_IN_OUT })
+
+    play(glow, [
+      { filter: 'brightness(1) saturate(1)' },
+      { filter: 'brightness(1.5) saturate(1.3)', offset: 0.4 },
+      { filter: 'brightness(1) saturate(1)' }
+    ], { duration: ms(1300), delay: ms(RETRO.encendido + 500), easing: 'ease-in-out', fill: 'none' })
+
+    play(frase, [
+      { opacity: 0, letterSpacing: '0.42em', filter: 'blur(4px)' },
+      { opacity: 1, letterSpacing: '0.06em', filter: 'blur(0)' }
+    ], { duration: ms(1100), delay: ms(RETRO.frase), easing: EASE_OUT })
+
+    timer = setTimeout(salir, ms(RETRO.salida))
+  }
 }
