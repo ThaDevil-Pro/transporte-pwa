@@ -25,6 +25,9 @@
   <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
     <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
     <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
     <symbol id="i-bus" viewBox="0 0 24 24"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></symbol>
     <symbol id="i-student" viewBox="0 0 24 24"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></symbol>
     <symbol id="i-wheel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.2"/><path d="M12 14.2V21"/><path d="M9.8 12H3.2"/><path d="M14.2 12h6.6"/></symbol>
@@ -226,7 +229,13 @@
         </section>
 
         <section class="section" id="student-history-section" data-reveal style="--i:6">
-          <div class="section-header"><h2>Historial</h2><span class="section-meta" id="student-history-meta"></span></div>
+          <div class="section-header">
+            <h2>Historial</h2>
+            <div class="section-actions">
+              <span class="section-meta" id="student-history-meta"></span>
+              <button class="btn btn-tinted btn-sm" id="btn-student-report"><svg class="icon"><use href="#i-file"/></svg>Reporte PDF</button>
+            </div>
+          </div>
           <div class="list" id="student-history-list"></div>
         </section>
       </div>
@@ -318,6 +327,7 @@
             <span class="corte-detail" id="corte-detail">0 × $30</span>
           </div>
           <button class="btn btn-primary btn-lg btn-block" id="btn-iniciar-viaje" disabled>Hacer corte</button>
+          <button class="btn btn-plain btn-block corte-report" id="btn-driver-report"><svg class="icon"><use href="#i-chart"/></svg>Ver mis reportes</button>
         </article>
       </div>
 
@@ -495,6 +505,10 @@
             <div class="card-label"><svg class="icon"><use href="#i-wallet"/></svg>Total por cobrar</div>
             <div class="amount"><span class="amount-currency">$</span><span class="amount-value" id="admin-total-balance">0.00</span></div>
             <p class="card-foot" id="admin-balance-meta">Sin adeudos</p>
+            <div class="report-actions">
+              <button class="btn btn-tinted" id="btn-admin-report-gastos"><svg class="icon"><use href="#i-chart"/></svg>Informe de gastos</button>
+              <button class="btn btn-secondary" id="btn-admin-report-chofer"><svg class="icon"><use href="#i-wheel"/></svg>Reportes de choferes</button>
+            </div>
           </article>
           <div class="list" id="admin-balances-ul" data-reveal style="--i:2"></div>
         </div>
@@ -812,6 +826,47 @@
         </div>
         <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-invite-send"><svg class="icon"><use href="#i-send"/></svg>Enviar invitación</button>
       </form>
+    </div>
+  </div>
+
+  <!-- Reportes en PDF (alumno, chofer y administración) -->
+  <div class="sheet" id="sheet-report" role="dialog" aria-modal="true" aria-labelledby="sheet-report-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-report-title">Reportes</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <div class="sheet-body report-body">
+        <div class="report-controls">
+          <div class="segmented" id="report-kind" style="--n:2" hidden>
+            <span class="segmented-thumb"></span>
+            <button type="button" data-value="gastos">Gastos</button>
+            <button type="button" data-value="chofer">Por chofer</button>
+          </div>
+          <label class="report-select" id="report-chofer-field" hidden>
+            <svg class="icon"><use href="#i-wheel"/></svg>
+            <select id="report-chofer" aria-label="Chofer"></select>
+            <svg class="icon report-select-chevron"><use href="#i-chevron-right"/></svg>
+          </label>
+          <div class="segmented" id="report-period" style="--n:3"></div>
+          <div class="report-nav">
+            <button type="button" class="icon-btn" id="report-prev" aria-label="Periodo anterior"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
+            <div class="report-range" aria-live="polite">
+              <span class="report-range-title" id="report-range-title">—</span>
+              <span class="report-range-sub" id="report-range-sub"></span>
+            </div>
+            <button type="button" class="icon-btn" id="report-next" aria-label="Periodo siguiente"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
+          </div>
+        </div>
+        <div class="report-preview" id="report-preview"></div>
+      </div>
+      <div class="sheet-footer">
+        <button class="btn btn-primary btn-lg btn-block" id="btn-report-pdf" disabled><svg class="icon"><use href="#i-download"/></svg>Descargar PDF</button>
+      </div>
     </div>
   </div>
 

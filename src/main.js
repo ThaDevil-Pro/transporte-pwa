@@ -6,6 +6,7 @@ import { initAsientos } from './asientos.js'
 import { initChoferAsientos } from './chofer-asientos.js'
 import { initChoferManual } from './chofer-manual.js'
 import { initImportar } from './importar.js'
+import { initReportes } from './reportes.js'
 import {
   $, $$, esc, icon, avatar, emptyState, skeletonRows, haptic,
   initScreens, showScreen, initTabs, selectTab, initSegmented,
@@ -32,6 +33,7 @@ const ROLES = {
 const ROL_ETIQUETA = { Estudiante: 'Alumno', Chofer: 'Chofer', Admin: 'Admin' }
 
 let currentRole = ''
+let perfilActual = {}
 let sessionToken = null
 let sesionExpirada = false
 let passengers = []
@@ -123,6 +125,13 @@ initImportar({
   alTerminar: () => loadAdminData()
 })
 
+// Reportes en PDF: el alumno, el chofer y la administración
+const reportes = initReportes({ rpc })
+$('#btn-student-report').addEventListener('click', () => reportes.abrir({ rol: 'Estudiante', perfil: perfilActual }))
+$('#btn-driver-report').addEventListener('click', () => reportes.abrir({ rol: 'Chofer', perfil: perfilActual }))
+$('#btn-admin-report-gastos').addEventListener('click', () => reportes.abrir({ rol: 'Admin', perfil: perfilActual, tipo: 'gastos' }))
+$('#btn-admin-report-chofer').addEventListener('click', () => reportes.abrir({ rol: 'Admin', perfil: perfilActual, tipo: 'chofer' }))
+
 const rolesTitle = $('#roles-title')
 const loginForm = $('#login-form')
 const inputControl = $('#input-control')
@@ -174,6 +183,7 @@ async function rpc(nombre, params = {}) {
 
 function entrar(rol, perfil, transition = 'fade') {
   currentRole = rol
+  perfilActual = perfil || {}
   sesionExpirada = false
   pintarCuentaLateral(rol, perfil)
   if (rol === 'Estudiante') iniciarAlumno(perfil)
