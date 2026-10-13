@@ -13,7 +13,7 @@ import {
   initScreens, showScreen, initTabs, selectTab, initSegmented,
   initSheets, openSheet, closeSheet, closeAllSheets,
   confirm, actionSheet, toast, setLoading, shake, collapse,
-  animateNumber, setDigits, revealWords, patchList, initPasswordToggles
+  animateNumber, setDigits, revealWords, patchList, initPasswordToggles, ocultarPasswords
 } from './ui.js'
 
 // --- 0. CONFIGURACIÓN Y ESTADO GLOBAL ---
@@ -43,7 +43,6 @@ let html5QrcodeScanner = null
 let allUsersCache = []
 let alumnosCache = []
 let currentFilter = 'Todos'
-let currentStudentMatricula = null
 let estadoViaje = 'ESPERANDO'
 let isTripActive = false
 let scheduleRows = []
@@ -211,13 +210,20 @@ function cerrarSesion() {
   if (sessionToken) supabase.rpc('logout', { p_token: sessionToken }).then(() => {}, () => {})
   borrarSesion()
   stopScanner()
-  closeAllSheets()
+  closeAllSheets({ force: true })
   asientos.limpiar()
   asientosChofer.limpiar()
   passengers = []
-  currentStudentMatricula = null
+  copyPassengers = []
+  currentRole = ''
+  perfilActual = {}
+  camionAlumno = 1
   allUsersCache = []
+  alumnosCache = []
+  editingUser = null
+  editingAlumno = null
   loginForm.reset()
+  ocultarPasswords()
   showScreen('view-roles', 'fade')
   revealWords(rolesTitle)
 }
@@ -261,6 +267,7 @@ function pedirCambioPassword({ obligatorio = false, alTerminar = null } = {}) {
     : 'Elige una contraseña que solo tú conozcas. Se cerrará tu sesión en otros dispositivos.'
   $('#btn-password-logout').hidden = !obligatorio
   formPassword.reset()
+  ocultarPasswords(formPassword)
   $('#password-error').hidden = true
   reglasPassword()
   openSheet(sheet)
@@ -333,6 +340,7 @@ function abrirLogin(rol) {
   $('#login-icon use').setAttribute('href', `#${cfg.icon}`)
   $('#view-login').dataset.tint = cfg.tint
   loginForm.reset()
+  ocultarPasswords(loginForm)
   ocultarError()
   showScreen('view-login', 'push')
 }
@@ -368,7 +376,7 @@ loginForm.addEventListener('submit', async e => {
   ocultarError()
 
   const control = inputControl.value.trim()
-  const password = inputPassword.value.trim()
+  const password = inputPassword.value
 
   if (!control || !password) {
     const vacio = !control ? inputControl : inputPassword
@@ -421,7 +429,6 @@ const studentDays = initSegmented($('#student-days'), () => {
 })
 
 function iniciarAlumno(perfil) {
-  currentStudentMatricula = perfil.matricula
   $('#student-greeting').textContent = saludo()
   $('#student-balance').dataset.value = '0'
   renderPerfilAlumno(perfil)
@@ -691,17 +698,36 @@ const driverScheduleList = $('#driver-schedule-list')
 driverScheduleList.addEventListener('focusin', e => {
   if (!e.target.classList.contains('schedule-time-input')) return
   isEditingSchedule = true
+  delete e.target.dataset.propuesta
+  delete e.target.dataset.tocada
   if (e.target.value) return
 
   const inputs = $$('.schedule-time-input', e.target.closest('.schedule-card'))
   const idx = inputs.indexOf(e.target)
   const vecino = [...inputs.slice(0, idx).reverse(), ...inputs.slice(idx + 1)].find(i => i.value)
-  if (vecino) e.target.value = vecino.value
+  if (vecino) {
+    e.target.value = vecino.value
+    e.target.dataset.propuesta = vecino.value
+  }
+})
+
+// Solo cuenta como cambio si el chofer eligió o escribió una hora
+driverScheduleList.addEventListener('input', e => {
+  if (e.target.classList.contains('schedule-time-input')) e.target.dataset.tocada = '1'
+})
+driverScheduleList.addEventListener('change', e => {
+  if (e.target.classList.contains('schedule-time-input')) e.target.dataset.tocada = '1'
 })
 
 driverScheduleList.addEventListener('focusout', e => {
   if (!e.target.classList.contains('schedule-time-input')) return
   isEditingSchedule = false
+  // Tocar un día vacío y salir sin elegir no crea una salida
+  if (e.target.dataset.propuesta && !e.target.dataset.tocada) {
+    e.target.value = e.target.dataset.saved
+    delete e.target.dataset.propuesta
+    return
+  }
   if (e.target.value !== e.target.dataset.saved) guardarDia(e.target.closest('.schedule-card'), e.target.dataset.dia)
 })
 
@@ -1229,6 +1255,7 @@ formCreateUser.addEventListener('submit', async e => {
   haptic([10, 40, 14])
   toast(`${ROL_ETIQUETA[role]} creado`, { type: 'success' })
   formCreateUser.reset()
+  ocultarPasswords(formCreateUser)
   $('#admin-new-balance').value = '0'
   loadAdminData()
 })
@@ -1253,7 +1280,7 @@ async function loadAdminData() {
   renderBalancesList()
 }
 
-const adminFilter = initSegmented($('#admin-filter-seg'), valor => {
+initSegmented($('#admin-filter-seg'), valor => {
   currentFilter = valor
   renderUsersList()
 })
@@ -1316,6 +1343,8 @@ function abrirEditarUsuario(user) {
   $('#edit-user-name-label').textContent = user.rol === 'Admin' ? 'Usuario' : 'Nombre completo'
   $('#edit-user-name').value = user.nombre
   $('#edit-user-password').value = ''
+  ocultarPasswords($('#form-edit-user'))
+  $$('.field', $('#form-edit-user')).forEach(f => f.classList.remove('is-invalid'))
   openSheet('sheet-edit-user')
 }
 
@@ -1334,7 +1363,7 @@ $('#form-edit-user').addEventListener('submit', async e => {
     p_rol: editingUser.rol,
     p_id: String(editingUser.id),
     p_nombre: nombre,
-    p_password: $('#edit-user-password').value.trim() || null
+    p_password: passwordNueva || null
   })
   setLoading(btn, false)
   if (error) {
@@ -1523,8 +1552,11 @@ supabase
   .channel('estado_viaje_channel')
   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'estado_viaje' }, ({ new: row }) => {
     const cambio = aplicarEstadoViaje(row)
+    if (!cambio || !sessionToken) return
     // El corte cambia el estado a EN_CAMINO: refrescar saldo e historial del alumno
-    if (cambio && currentStudentMatricula && sessionToken) refrescarAlumno()
+    if (currentRole === 'Estudiante') refrescarAlumno()
+    // Otro teléfono hizo el corte o finalizó este camión: la lista cambió
+    if (currentRole === 'Chofer' && row.id === camionActual) fetchPassengers()
   })
   .subscribe()
 

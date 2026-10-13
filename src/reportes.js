@@ -106,7 +106,6 @@ export function initReportes({ rpc }) {
 
   let estado = null // { rol, perfil, tipo: 'propio'|'gastos'|'chofer', periodo, ref, licencia, datos }
   let peticion = 0
-  let periodos = null
   let choferes = []
 
   const kind = initSegmented(kindSeg, valor => {
@@ -150,7 +149,7 @@ export function initReportes({ rpc }) {
     periodSeg.innerHTML = '<span class="segmented-thumb"></span>' +
       cfg.periodos.map(p => `<button type="button" data-value="${p}">${PERIODOS[p].etiqueta}</button>`).join('')
     periodSeg.dataset.value = cfg.inicial
-    periodos = initSegmented(periodSeg, valor => {
+    initSegmented(periodSeg, valor => {
       estado.periodo = valor
       estado.ref = ajustarRef(valor, estado.ref)
       pintarRango()
@@ -404,11 +403,14 @@ export function initReportes({ rpc }) {
     setLoading(btnPdf, true)
     try {
       const pdf = await import('./pdf.js')
-      if (estado.rol === 'Estudiante') await pdf.pdfAlumno(datos, p)
-      else if (estado.tipo === 'gastos') await pdf.pdfGastos(datos, p, { admin: estado.perfil?.usuario })
-      else await pdf.pdfChofer(datos, p)
-      haptic([10, 40, 14])
-      toast('Reporte descargado', { type: 'success' })
+      let resultado
+      if (estado.rol === 'Estudiante') resultado = await pdf.pdfAlumno(datos, p)
+      else if (estado.tipo === 'gastos') resultado = await pdf.pdfGastos(datos, p, { admin: estado.perfil?.usuario })
+      else resultado = await pdf.pdfChofer(datos, p)
+      if (resultado !== 'cancelado') {
+        haptic([10, 40, 14])
+        toast(resultado === 'compartido' ? 'Reporte listo' : 'Reporte descargado', { type: 'success' })
+      }
     } catch (err) {
       console.error('Error al generar el PDF:', err)
       toast('No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo.', { type: 'error', duration: 4000 })

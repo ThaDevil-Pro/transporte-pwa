@@ -255,8 +255,8 @@ export async function closeSheet(id, { force = false } = {}) {
   sheet._returnFocus?.focus?.({ preventScroll: true })
 }
 
-export function closeAllSheets() {
-  return Promise.all([...openSheets].map(s => closeSheet(s)))
+export function closeAllSheets({ force = false } = {}) {
+  return Promise.all([...openSheets].map(s => closeSheet(s, { force })))
 }
 
 function enableDrag(sheet) {
@@ -326,7 +326,7 @@ function dialog({ title, message = '', actions, variant = 'alert', cancelValue =
         <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="${tituloId}" tabindex="-1">
           <div class="action-group">
             ${title ? `<div class="action-head"><p class="dialog-title" id="${tituloId}">${esc(title)}</p>${message ? `<p class="dialog-message">${esc(message)}</p>` : ''}</div>` : ''}
-            ${principales.map((a, i) => `<button class="action-item${a.style === 'destructive' ? ' is-destructive' : ''}" data-i="${actions.indexOf(a)}">${esc(a.label)}</button>`).join('')}
+            ${principales.map(a => `<button class="action-item${a.style === 'destructive' ? ' is-destructive' : ''}" data-i="${actions.indexOf(a)}">${esc(a.label)}</button>`).join('')}
           </div>
           ${cancelar ? `<button class="action-group action-item action-cancel" data-i="${actions.indexOf(cancelar)}">${esc(cancelar.label)}</button>` : ''}
         </div>`
@@ -584,6 +584,16 @@ export function patchList(container, items, { key, render, empty }) {
 }
 
 // --- CAMPOS ---
+// Vuelve a ocultar las contraseñas que se mostraron con el ojo
+export function ocultarPasswords(root = document) {
+  $$('[data-toggle-password]', root).forEach(btn => {
+    const input = btn.parentElement.querySelector('input')
+    if (input) input.type = 'password'
+    btn.setAttribute('aria-label', 'Mostrar contraseña')
+    btn.querySelector('use')?.setAttribute('href', '#i-eye')
+  })
+}
+
 export function initPasswordToggles(root = document) {
   $$('[data-toggle-password]', root).forEach(btn => btn.addEventListener('click', () => {
     const input = btn.parentElement.querySelector('input')

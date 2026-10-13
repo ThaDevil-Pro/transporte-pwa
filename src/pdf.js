@@ -267,8 +267,13 @@ function escalaBonita(max) {
   return base * 10
 }
 
-// Pie en todas las páginas y descarga
-function terminar(ctx, nombreArchivo) {
+// En iPhone y iPad la descarga directa falla en la app instalada: se usa la
+// hoja de compartir (Guardar en Archivos, WhatsApp, correo…)
+const esIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+
+// Pie en todas las páginas y entrega del archivo.
+// Regresa 'compartido', 'cancelado' o 'descargado'.
+async function terminar(ctx, nombreArchivo) {
   const { doc } = ctx
   const total = doc.getNumberOfPages()
   for (let i = 1; i <= total; i++) {
@@ -280,7 +285,21 @@ function terminar(ctx, nombreArchivo) {
     texto(ctx, 'CAMIFY · Transporte escolar', M, y, { size: 8, color: C.gris })
     texto(ctx, `Página ${i} de ${total}`, ctx.ancho - M, y, { size: 8, color: C.gris, align: 'right' })
   }
+
+  if (esIOS() && typeof File === 'function' && navigator.canShare) {
+    const archivo = new File([doc.output('blob')], nombreArchivo, { type: 'application/pdf' })
+    if (navigator.canShare({ files: [archivo] })) {
+      try {
+        await navigator.share({ files: [archivo], title: nombreArchivo })
+        return 'compartido'
+      } catch (err) {
+        if (err?.name === 'AbortError') return 'cancelado'
+        // Sin permiso para compartir (p. ej. tardó demasiado): se descarga
+      }
+    }
+  }
   doc.save(nombreArchivo)
+  return 'descargado'
 }
 
 const registro = manual => (manual ? 'A mano' : 'Código QR')
@@ -327,7 +346,7 @@ export async function pdfAlumno(datos, periodo) {
   }
 
   parrafo(ctx, 'Cada viaje se cobra al hacer el corte de la salida. "A mano" significa que el chofer te registró sin tu código QR.', { size: 8.5 })
-  terminar(ctx, `camify-viajes-${alumno.matricula}-${periodo.archivo}.pdf`)
+  return terminar(ctx, `camify-viajes-${alumno.matricula}-${periodo.archivo}.pdf`)
 }
 
 // =====================================================================
@@ -360,8 +379,7 @@ export async function pdfChofer(datos, periodo) {
 
   if (!cortes.length) {
     parrafo(ctx, 'No hay cortes en este periodo.')
-    terminar(ctx, `camify-chofer-${chofer.licencia}-${periodo.archivo}.pdf`)
-    return
+    return terminar(ctx, `camify-chofer-${chofer.licencia}-${periodo.archivo}.pdf`)
   }
 
   // Por día (semana o mes)
@@ -412,7 +430,7 @@ export async function pdfChofer(datos, periodo) {
     })
   }
 
-  terminar(ctx, `camify-chofer-${chofer.licencia}-${periodo.archivo}.pdf`)
+  return terminar(ctx, `camify-chofer-${chofer.licencia}-${periodo.archivo}.pdf`)
 }
 
 // =====================================================================
@@ -488,7 +506,7 @@ export async function pdfGastos(datos, periodo, { admin } = {}) {
   }
 
   parrafo(ctx, 'Cobrado: viajes cargados al saldo de los alumnos en los cortes del periodo. Pagos: abonos registrados por la administración. El adeudo y el saldo son los de hoy, no los del cierre del periodo.', { size: 8.5 })
-  terminar(ctx, `camify-gastos-${periodo.archivo}.pdf`)
+  return terminar(ctx, `camify-gastos-${periodo.archivo}.pdf`)
 }
 
 function porDia(dias, periodo) {
