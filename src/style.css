@@ -2677,16 +2677,6 @@ button.row:active {
 
 .legend-seat.is-boarded { background: color-mix(in srgb, var(--green) 45%, transparent); box-shadow: none; }
 
-/* Camión de cada salida en el editor de horarios */
-.schedule-bus {
-  padding: 0 0 12px;
-}
-
-.segmented-mini button {
-  height: 30px;
-  font-size: 13px;
-}
-
 @keyframes seat-pulse {
   0% { transform: scale(1); }
   35% { transform: scale(1.18); }

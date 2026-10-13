@@ -626,8 +626,11 @@ function renderStudentSchedule() {
 }
 
 function renderDriverSchedule() {
-  // Agrupadas por camión, en el orden en que se crearon
-  const filas = [...scheduleRows].sort((a, b) => (a.camion || 1) - (b.camion || 1) || a.created_at.localeCompare(b.created_at))
+  // Solo las salidas del camión que maneja el chofer, en el orden en que se crearon
+  const filas = scheduleRows
+    .filter(r => (r.camion || 1) === camionActual)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+  $('#driver-schedule-eyebrow').textContent = `Camión ${camionActual} · Semana`
   patchList($('#driver-schedule-list'), filas, {
     key: r => r.id,
     render: (r, i) => `<article class="card schedule-card" data-id="${esc(r.id)}">
@@ -636,12 +639,6 @@ function renderDriverSchedule() {
         <span class="saved-tag">${icon('i-check')}Guardado</span>
         <button type="button" class="icon-btn icon-btn-sm icon-btn-danger btn-delete-row" data-id="${esc(r.id)}" aria-label="Eliminar salida ${i + 1}">${icon('i-trash')}</button>
       </header>
-      <div class="schedule-bus">
-        <div class="segmented segmented-mini" role="tablist" aria-label="Camión de esta salida" style="--n:${CAMIONES.length};--i:${CAMIONES.indexOf(r.camion || 1)}">
-          <span class="segmented-thumb"></span>
-          ${CAMIONES.map(n => `<button type="button" role="tab" data-camion="${n}" aria-selected="${n === (r.camion || 1)}">Camión ${n}</button>`).join('')}
-        </div>
-      </div>
       ${DIAS.map(dia => {
         const c = r[dia] || {}
         const tipo = c.tipo === 'REGRESO' ? 'REGRESO' : 'IDA'
@@ -652,7 +649,7 @@ function renderDriverSchedule() {
         </div>`
       }).join('')}
     </article>`,
-    empty: emptyState('i-calendar', 'Sin horarios', 'Agrega la primera salida de la semana.')
+    empty: emptyState('i-calendar', 'Sin horarios', `Agrega la primera salida del camión ${camionActual}.`)
   })
 }
 
@@ -662,7 +659,7 @@ async function guardarDia(card, dia) {
   const valor = { hora: input.value, tipo: btn.dataset.tipo }
   const id = Number(card.dataset.id)
 
-  const { error } = await rpc('chofer_horario_actualizar', { p_id: id, p_dia: dia, p_valor: valor })
+  const { error } = await rpc('chofer_horario_actualizar', { p_id: id, p_dia: dia, p_valor: valor, p_camion: camionActual })
   if (error) {
     toast('No se guardó el cambio', { type: 'error' })
     return
@@ -698,32 +695,6 @@ driverScheduleList.addEventListener('focusout', e => {
 })
 
 driverScheduleList.addEventListener('click', async e => {
-  // Cambiar el camión de una salida
-  const bus = e.target.closest('[data-camion]')
-  if (bus && bus.getAttribute('aria-selected') !== 'true') {
-    const card = bus.closest('.schedule-card')
-    const seg = bus.parentElement
-    const camion = Number(bus.dataset.camion)
-    seg.style.setProperty('--i', CAMIONES.indexOf(camion))
-    $$('[data-camion]', seg).forEach(b => b.setAttribute('aria-selected', String(b === bus)))
-    haptic(6)
-    const id = Number(card.dataset.id)
-    const { error } = await rpc('chofer_horario_camion', { p_id: id, p_camion: camion })
-    if (error) {
-      toast('No se pudo cambiar el camión', { type: 'error' })
-      fetchScheduleMatrix()
-      return
-    }
-    const fila = scheduleRows.find(r => r.id === id)
-    if (fila) fila.camion = camion
-    card.classList.add('is-saved')
-    setTimeout(() => {
-      renderDriverSchedule()
-      renderStudentSchedule()
-    }, 500)
-    return
-  }
-
   const toggle = e.target.closest('.type-toggle')
   if (toggle) {
     const nuevo = toggle.dataset.tipo === 'IDA' ? 'REGRESO' : 'IDA'
@@ -740,7 +711,7 @@ driverScheduleList.addEventListener('click', async e => {
   if (borrar) {
     const ok = await confirm({ title: 'Eliminar salida', message: 'Se quitará esta salida de todos los días.', confirmLabel: 'Eliminar', destructive: true })
     if (!ok) return
-    const { error } = await rpc('chofer_horario_eliminar', { p_id: Number(borrar.dataset.id) })
+    const { error } = await rpc('chofer_horario_eliminar', { p_id: Number(borrar.dataset.id), p_camion: camionActual })
     if (error) toast('No se pudo eliminar', { type: 'error' })
     else fetchScheduleMatrix()
   }
@@ -783,6 +754,7 @@ function aplicarCamion() {
   sincronizarViaje()
   fetchPassengers()
   asientosChofer.cargar()
+  renderDriverSchedule()
 }
 
 async function elegirCamion({ primeraVez = false } = {}) {
