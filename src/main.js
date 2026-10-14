@@ -623,6 +623,7 @@ async function fetchScheduleMatrix() {
     .from('horarios_matriz')
     .select('*')
     .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
 
   if (error || !data) return
   scheduleRows = data
@@ -663,7 +664,7 @@ function renderDriverSchedule() {
   // Solo las salidas del camión que maneja el chofer, en el orden en que se crearon
   const filas = scheduleRows
     .filter(r => (r.camion || 1) === camionActual)
-    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id)
   $('#driver-schedule-eyebrow').textContent = `Camión ${camionCorto(camionActual)} · Semana`
   patchList($('#driver-schedule-list'), filas, {
     key: r => r.id,

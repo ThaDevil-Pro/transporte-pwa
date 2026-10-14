@@ -4373,8 +4373,9 @@ button.row:active {
   transition: max-width 0.3s var(--ease);
 }
 
+/* Acercada no se centra: si no, la parte izquierda quedaría fuera de alcance */
 .ticket-viewer.is-zoom .ticket-viewer-scroll {
-  place-items: start center;
+  place-items: start;
 }
 
 .ticket-viewer.is-zoom img {

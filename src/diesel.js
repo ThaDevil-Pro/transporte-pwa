@@ -540,7 +540,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
         ${datoCelda('Precio por litro', fmtPesos(c.precio_litro), '', alertas.includes('precio') ? 'orange' : '')}
         ${datoCelda('Tablero', fmtKm(c.odometro), c.odo_prev != null ? `Antes: ${fmtKm(c.odo_prev)}` : 'Primera carga', alertas.includes('odometro') ? 'orange' : '')}
         ${datoCelda('Recorrido', c.km != null ? fmtKm(c.km) : '—', 'Desde la anterior', alertas.includes('carga_faltante') ? 'orange' : '')}
-        ${datoCelda('Rendimiento', fmtRend(c.rendimiento), c.rendimiento_normal ? `Normal: ${fmtRend(c.rendimiento_normal)}` : c.lleno ? 'Falta otro llenado' : 'Se calcula al llenar', rendBajo ? 'orange' : '')}
+        ${datoCelda('Rendimiento', fmtRend(c.rendimiento), c.rendimiento_normal ? `Normal: ${fmtRend(c.rendimiento_normal)}` : c.rendimiento != null ? 'Aún sin promedio' : c.lleno ? 'Falta otro llenado' : 'Se calcula al llenar', rendBajo ? 'orange' : '')}
       </div>
       <p class="inbox-detail-meta">${icon('i-info')}${esc(extra)}</p>
       ${alertas.length ? `<ul class="diesel-alertas">${alertas.map(a => `<li>${icon('i-alert')}<span><b>${esc(ALERTAS[a]?.texto || a)}</b>${esc(ALERTAS[a]?.detalle || '')}</span></li>`).join('')}</ul>` : ''}
