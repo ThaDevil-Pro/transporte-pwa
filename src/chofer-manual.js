@@ -4,7 +4,7 @@
 // El servidor marca el abordaje como manual y lo anota en la bitácora.
 // =====================================================================
 import { camionCorto } from './camiones.js'
-import { $, esc, icon, avatar, haptic, toast, confirm, openSheet } from './ui.js'
+import { $, $$, esc, icon, avatar, initials, haptic, toast, confirm, openSheet, closeSheet } from './ui.js'
 
 const MINIMO = 2
 const ESPERA_MS = 220
@@ -129,18 +129,32 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
       return
     }
     const bus = camion()
-    const ok = await confirm({
-      title: `¿Subir a ${a.nombre}?`,
-      message: `${a.matricula} · Camión ${camionCorto(bus)}. Quedará registrado a mano y se le cobrará en el corte.`,
-      confirmLabel: 'Subir'
-    })
-    if (!ok) {
-      input.focus({ preventScroll: true })
-      return
+    registrando = true
+    const { data: mapa } = await rpc('chofer_mapa_actual', { p_camion: bus })
+    registrando = false
+    let asiento = null
+    if (mapa) {
+      // undefined = cerró la hoja sin elegir
+      asiento = await elegirAsiento(a, bus, mapa)
+      if (asiento === undefined) {
+        input.focus({ preventScroll: true })
+        return
+      }
+    } else {
+      // Sin salida programada no hay mapa de asientos: sube sin asiento
+      const ok = await confirm({
+        title: `¿Subir a ${a.nombre}?`,
+        message: `${a.matricula} · Camión ${camionCorto(bus)}. No hay una salida programada, así que sube sin asiento. Se le cobrará en el corte.`,
+        confirmLabel: 'Subir'
+      })
+      if (!ok) {
+        input.focus({ preventScroll: true })
+        return
+      }
     }
 
     registrando = true
-    const { data, error } = await rpc('chofer_abordar_manual', { p_camion: bus, p_matricula: a.matricula })
+    const { data, error } = await rpc('chofer_abordar_manual', { p_camion: bus, p_matricula: a.matricula, p_asiento: asiento })
     registrando = false
     if (error) {
       haptic([30, 50, 30])
@@ -150,11 +164,66 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
     }
 
     haptic(30)
-    toast(`${primerNombre(data.nombre)} está a bordo${data.asiento ? ` · Asiento ${data.asiento}` : ''}`, { type: 'success' })
+    toast(data.de_pie
+      ? `Camión lleno: ${primerNombre(data.nombre)} irá de pie`
+      : `${primerNombre(data.nombre)} está a bordo${data.asiento ? ` · Asiento ${data.asiento}` : ''}`, { type: data.de_pie ? 'warning' : 'success' })
     // Lista lista para el siguiente alumno sin código
     limpiar()
     input.focus({ preventScroll: true })
     alRegistrar()
+  }
+
+  // Mapa de la salida en curso para elegir asiento. Resuelve con el número,
+  // null si va de pie (no queda ninguno libre) o undefined si se cancela.
+  const grid = $('#manual-seat-grid')
+  const btnOk = $('#btn-manual-seat-ok')
+
+  function elegirAsiento(a, bus, mapa) {
+    return new Promise(resolve => {
+      let elegido = mapa.asientos.find(x => x.matricula === a.matricula)?.n ?? null
+      const libres = mapa.asientos.filter(x => !x.nombre).length
+      const dePie = !libres && elegido == null
+      const seat = x => {
+        const mio = x.matricula === a.matricula
+        const estado = mio ? 'mio' : x.nombre ? 'ocupado' : 'libre'
+        return `<button type="button" class="seat${mio ? ' is-selected' : ''}" data-n="${x.n}" data-estado="${estado}"${estado === 'ocupado' ? ' disabled' : ''} aria-label="Asiento ${x.n}${estado === 'ocupado' ? `, ocupado por ${esc(x.nombre)}` : ''}">${estado === 'ocupado' ? esc(initials(x.nombre)) : x.n}</button>`
+      }
+      const celdas = []
+      for (let r = 0; r < 10; r++) {
+        const fila = mapa.asientos.slice(r * 4, r * 4 + 4)
+        celdas.push(seat(fila[0]), seat(fila[1]), `<span class="bus-row-label" aria-hidden="true">${r + 1}</span>`, seat(fila[2]), seat(fila[3]))
+      }
+      grid.innerHTML = celdas.join('')
+      $('#manual-seat-bus-name').textContent = `Camión ${camionCorto(bus)}`
+      $('#manual-seat-lead').textContent = dePie
+        ? `${a.nombre} · El camión va lleno: no queda ningún asiento libre, irá de pie.`
+        : `${a.nombre} · Salida de las ${mapa.hora} (${mapa.tipo === 'REGRESO' ? 'regreso' : 'ida'}). Toca un asiento libre.`
+      btnOk.textContent = dePie ? 'Subir de pie' : elegido ? `Subir · Asiento ${elegido}` : 'Subir'
+      btnOk.disabled = !dePie && elegido == null
+
+      let listo = false
+      const terminar = v => {
+        if (listo) return
+        listo = true
+        grid.onclick = null
+        btnOk.onclick = null
+        resolve(v)
+      }
+      grid.onclick = e => {
+        const b = e.target.closest('.seat:not(:disabled)')
+        if (!b) return
+        haptic(6)
+        elegido = Number(b.dataset.n)
+        $$('.seat', grid).forEach(x => x.classList.toggle('is-selected', x === b))
+        btnOk.textContent = `Subir · Asiento ${elegido}`
+        btnOk.disabled = false
+      }
+      btnOk.onclick = () => {
+        terminar(dePie ? null : elegido)
+        closeSheet('sheet-manual-seat')
+      }
+      openSheet('sheet-manual-seat', { onClose: () => terminar(undefined) })
+    })
   }
 
   return { abrir }

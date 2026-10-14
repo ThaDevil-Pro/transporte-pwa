@@ -4452,6 +4452,27 @@ button.row:active {
   height: 12px;
 }
 
+/* --- 16h. EMERGENCIA, PASAJEROS DE PIE Y SALDO A FAVOR --- */
+.tint-red { --tint: var(--red); }
+
+.btn-danger-solid { --btn-bg: var(--red); --btn-fg: #fff; }
+
+.emergency-btn {
+  margin-top: 4px;
+}
+
+.badge-standing {
+  --tint: var(--red-text);
+  flex: none;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.manual-seat-bus {
+  margin-top: 4px;
+}
+
 /* --- 17. DOCK: TAB BAR FLOTANTE + ACCIÓN --- */
 .dock {
   position: absolute;

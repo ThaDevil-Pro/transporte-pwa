@@ -8,7 +8,7 @@
 // =====================================================================
 import {
   $, $$, esc, icon, avatar, haptic, toast, openSheet, closeSheet, setLoading, shake, patchList,
-  emptyState, skeletonRows, initSegmented, opciones, contador
+  emptyState, skeletonRows, initSegmented, opciones, contador, confirm
 } from './ui.js'
 import { camionCorto, selectorCamion } from './camiones.js'
 
@@ -271,6 +271,55 @@ export function initBuzon({ rpc, supabase, camion }) {
     toast('Reporte enviado a la administración', { type: 'success' })
     vistaChofer.select('fallas')
     cargarChofer()
+  })
+
+  // --- Emergencia: el camión se descompuso o no estará disponible ---
+  const formEmergencia = $('#form-emergencia')
+  const mensajeEmergencia = $('#emergencia-mensaje')
+  const pintarContadorEmergencia = contador(mensajeEmergencia, $('#emergencia-contador'), 300)
+  const motivo = opciones($('#emergencia-motivo'), [
+    { value: 'descompuesto', label: 'Se descompuso', icon: 'i-wrench', tono: 'red' },
+    { value: 'no_disponible', label: 'No estará disponible', icon: 'i-bus', tono: 'orange' }
+  ])
+
+  $('#btn-emergencia').addEventListener('click', () => {
+    haptic([20, 40, 20])
+    formEmergencia.reset()
+    motivo.reset()
+    pintarContadorEmergencia()
+    $('#emergencia-lead').textContent = `Camión ${camionCorto(camion())}. Se avisará a todos los alumnos en su panel y la administración lo verá como falla urgente.`
+    openSheet('sheet-emergencia')
+  })
+
+  formEmergencia.addEventListener('submit', async e => {
+    e.preventDefault()
+    if (!motivo.value) {
+      const grupo = $('#emergencia-motivo')
+      grupo.classList.add('is-invalid')
+      shake(grupo)
+      toast('Elige qué pasó', { type: 'warning' })
+      return
+    }
+    const bus = camion()
+    const ok = await confirm({
+      title: '¿Avisar a todos los alumnos?',
+      message: `Todos verán que el camión ${camionCorto(bus)} ${motivo.value === 'descompuesto' ? 'se descompuso' : 'no estará disponible'}.`,
+      confirmLabel: 'Avisar',
+      destructive: true
+    })
+    if (!ok) return
+    const btn = $('#btn-emergencia-send')
+    setLoading(btn, true)
+    const { data, error } = await rpc('chofer_emergencia', { p_camion: bus, p_motivo: motivo.value, p_mensaje: mensajeEmergencia.value })
+    setLoading(btn, false)
+    if (error) {
+      toast(error.message || 'No se pudo enviar el aviso', { type: 'error', duration: 4500 })
+      return
+    }
+    mensajeEmergencia.blur()
+    await closeSheet('sheet-emergencia')
+    haptic([10, 40, 14])
+    toast(`Se avisó a ${data.avisados} ${data.avisados === 1 ? 'alumno' : 'alumnos'}`, { type: 'success' })
   })
 
   // ===================================================================

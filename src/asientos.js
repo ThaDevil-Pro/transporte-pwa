@@ -21,7 +21,8 @@ const AVISO_UI = {
   pareja_rechazada: { titulo: 'Invitación no aceptada', icono: 'i-link', tint: 'gray' },
   pareja_terminada: { titulo: 'Pareja de viaje terminada', icono: 'i-link', tint: 'gray' },
   queja_respondida: { titulo: 'Respondieron tu queja', icono: 'i-inbox', tint: 'blue' },
-  queja_atendida: { titulo: 'Tu queja fue atendida', icono: 'i-inbox', tint: 'green' }
+  queja_atendida: { titulo: 'Tu queja fue atendida', icono: 'i-inbox', tint: 'green' },
+  emergencia: { titulo: 'Aviso de emergencia del camión', icono: 'i-alert', tint: 'red' }
 }
 
 // --- FORMATO ---

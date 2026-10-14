@@ -229,7 +229,7 @@
           </article>
 
           <article class="card balance-card" id="student-balance-card" data-state="clear" data-reveal style="--i:4">
-            <div class="card-label"><svg class="icon"><use href="#i-wallet"/></svg>Saldo pendiente</div>
+            <div class="card-label"><svg class="icon"><use href="#i-wallet"/></svg><span id="student-balance-label">Saldo pendiente</span></div>
             <div class="amount"><span class="amount-currency">$</span><span class="amount-value" id="student-balance">0.00</span></div>
             <p class="card-foot"><span class="status-dot"></span><span id="student-balance-status">Estás al corriente</span></p>
           </article>
@@ -344,13 +344,15 @@
               <p class="card-label" id="corte-label">Total del corte</p>
               <p class="corte-total"><span id="corte-total">$0.00</span></p>
             </div>
-            <span class="corte-detail" id="corte-detail">0 × $30</span>
+            <span class="corte-detail" id="corte-detail">0 × $60</span>
           </div>
           <button class="btn btn-primary btn-lg btn-block" id="btn-iniciar-viaje" disabled>Hacer corte</button>
           <button class="btn btn-plain btn-block corte-report" id="btn-driver-report"><svg class="icon"><use href="#i-chart"/></svg>Ver mis reportes</button>
         </article>
 
-        <article class="card diesel-card" id="driver-diesel-card" data-reveal style="--i:5">
+        <button class="btn btn-danger btn-lg btn-block emergency-btn" id="btn-emergencia" data-reveal style="--i:5"><svg class="icon"><use href="#i-alert"/></svg>Emergencia del camión</button>
+
+        <article class="card diesel-card" id="driver-diesel-card" data-reveal style="--i:6">
           <div class="diesel-card-head">
             <span class="row-icon tono-orange"><svg class="icon"><use href="#i-fuel"/></svg></span>
             <div class="diesel-card-text">
@@ -700,6 +702,34 @@
     </div>
   </div>
 
+  <!-- Asiento del alumno registrado a mano -->
+  <div class="sheet" id="sheet-manual-seat" role="dialog" aria-modal="true" aria-labelledby="sheet-manual-seat-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-manual-seat-title">Elige su asiento</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <div class="sheet-body manual-body">
+        <p class="sheet-lead" id="manual-seat-lead"></p>
+        <div class="bus bus-driver-view manual-seat-bus">
+          <div class="bus-front" aria-hidden="true">
+            <span class="bus-driver"><svg class="icon"><use href="#i-wheel"/></svg></span>
+            <span class="bus-name" id="manual-seat-bus-name"></span>
+            <span class="bus-door">Puerta<i></i></span>
+          </div>
+          <div class="bus-seats" id="manual-seat-grid" role="group" aria-label="Asientos del camión"></div>
+        </div>
+      </div>
+      <div class="sheet-footer">
+        <button class="btn btn-primary btn-lg btn-block" id="btn-manual-seat-ok" disabled>Subir</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Importar usuarios (admin) -->
   <div class="sheet" id="sheet-import" role="dialog" aria-modal="true" aria-labelledby="sheet-import-title">
     <div class="sheet-backdrop" data-close></div>
@@ -1025,6 +1055,34 @@
           <span class="field-count" id="falla-contador">0/600</span>
         </div>
         <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-falla-send"><svg class="icon"><use href="#i-send"/></svg>Enviar reporte</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Emergencia del chofer -->
+  <div class="sheet" id="sheet-emergencia" role="dialog" aria-modal="true" aria-labelledby="sheet-emergencia-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-emergencia-title">Emergencia</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <form class="sheet-body sheet-form inbox-form" id="form-emergencia" novalidate>
+        <p class="sheet-lead" id="emergencia-lead">Se avisará a todos los alumnos en su panel y la administración lo verá como falla urgente.</p>
+        <div class="form-group">
+          <p class="form-label">¿Qué pasó?</p>
+          <div class="choices choices-2" id="emergencia-motivo" role="radiogroup" aria-label="Qué pasó"></div>
+        </div>
+        <div class="field field-area">
+          <textarea id="emergencia-mensaje" rows="3" maxlength="300" placeholder=" "></textarea>
+          <label for="emergencia-mensaje">Mensaje para los alumnos (opcional)</label>
+          <span class="field-count" id="emergencia-contador">0/300</span>
+        </div>
+        <p class="field-hint">Por ejemplo: "Vamos en el camión Gris, sale a la misma hora".</p>
+        <button type="submit" class="btn btn-danger-solid btn-lg btn-block" id="btn-emergencia-send"><svg class="icon"><use href="#i-alert"/></svg>Avisar a todos</button>
       </form>
     </div>
   </div>

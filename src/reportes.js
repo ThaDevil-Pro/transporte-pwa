@@ -311,7 +311,8 @@ export function initReportes({ rpc, abrirCarga }) {
         { etiqueta: 'Viajes', valor: String(d.viajes.length), numero: d.viajes.length },
         { etiqueta: 'Cobrado', valor: fmtDinero(cobrado), numero: cobrado, dinero: true },
         { etiqueta: 'Pagado', valor: fmtDinero(pagado), numero: pagado, dinero: true, tono: pagado ? 'green' : '' },
-        { etiqueta: 'Saldo hoy', valor: fmtDinero(d.alumno.saldo), numero: Number(d.alumno.saldo), dinero: true, tono: Number(d.alumno.saldo) > 0 ? 'orange' : '' }
+        // Saldo negativo = a favor del alumno
+        { etiqueta: Number(d.alumno.saldo) < 0 ? 'A favor hoy' : 'Saldo hoy', valor: fmtDinero(Math.abs(d.alumno.saldo)), numero: Math.abs(Number(d.alumno.saldo)), dinero: true, tono: Number(d.alumno.saldo) > 0 ? 'orange' : Number(d.alumno.saldo) < 0 ? 'green' : '' }
       ])
       const movs = [
         ...d.viajes.map(v => ({ f: v.fecha_hora, pago: false, ...v })),
@@ -345,7 +346,7 @@ export function initReportes({ rpc, abrirCarga }) {
         ? `<div class="list">${d.choferes.map(c => fila({
             iconId: 'i-wheel',
             titulo: c.nombre,
-            sub: `${plural(c.cortes, 'corte', 'cortes')} · ${plural(c.alumnos, 'pasajero', 'pasajeros')}`,
+            sub: `${plural(c.cortes, 'corte', 'cortes')} · ${plural(c.alumnos, 'pasajero', 'pasajeros')}${Number(c.de_pie) ? ` · ${c.de_pie} de pie` : ''}`,
             monto: fmtDinero(c.total),
             data: ` data-licencia="${esc(c.licencia)}" role="button" tabindex="0"`
           })).join('')}</div>`
@@ -360,8 +361,8 @@ export function initReportes({ rpc, abrirCarga }) {
             iconId: 'i-student',
             titulo: a.nombre,
             sub: `${a.matricula} · ${plural(a.viajes, 'viaje', 'viajes')} · pagó ${fmtDinero(a.pagado)}`,
-            monto: fmtDinero(a.saldo),
-            montoTono: Number(a.saldo) > 0 ? 'is-warning' : 'is-muted'
+            monto: Number(a.saldo) < 0 ? `${fmtDinero(-a.saldo)} a favor` : fmtDinero(a.saldo),
+            montoTono: Number(a.saldo) > 0 ? 'is-warning' : Number(a.saldo) < 0 ? 'is-positive' : 'is-muted'
           })).join('')}</div>${resto(d.alumnos.length - MAX_FILAS)}<p class="report-more">La cantidad a la derecha es el saldo pendiente de hoy.</p>`
         : `<p class="report-empty">Sin movimientos en este periodo.</p>`
     } else {
@@ -380,11 +381,11 @@ export function initReportes({ rpc, abrirCarga }) {
         ? `<div class="list">${[...cortes].reverse().slice(0, MAX_FILAS).map(c => fila({
             iconId: 'i-receipt',
             titulo: `Corte · Camión ${camionCorto(c.camion)}`,
-            sub: `${estado.periodo === 'dia' ? fmtHora(c.creado_en) : fmtFechaHora(c.creado_en)} · ${plural(c.alumnos, 'pasajero', 'pasajeros')}${c.manuales ? ` (${c.manuales} a mano)` : ''}`,
+            sub: `${estado.periodo === 'dia' ? fmtHora(c.creado_en) : fmtFechaHora(c.creado_en)} · ${plural(c.alumnos, 'pasajero', 'pasajeros')}${c.manuales ? ` (${c.manuales} a mano)` : ''}${c.de_pie ? ` · ${c.de_pie} de pie` : ''}`,
             monto: fmtDinero(c.total),
             data: ` data-corte="${c.id}" role="button" tabindex="0" aria-expanded="false"`
           }) + `<ol class="report-detail" data-detalle="${c.id}" hidden>${c.pasajeros.length
-            ? c.pasajeros.map(x => `<li><span>${esc(x.nombre)}</span><span class="report-detail-meta">${esc(x.matricula)}${x.manual ? ' · A mano' : ''}</span></li>`).join('')
+            ? c.pasajeros.map(x => `<li><span>${esc(x.nombre)}</span><span class="report-detail-meta">${esc(x.matricula)}${x.manual ? ' · A mano' : ''}${x.de_pie ? ' · De pie' : ''}${x.monto != null && !Number(x.monto) ? ' · Regreso' : ''}</span></li>`).join('')
             : '<li><span>Sin detalle de pasajeros</span></li>'}</ol>`).join('')}</div>${resto(cortes.length - MAX_FILAS)}`
         : emptyState('i-receipt', 'Sin cortes', estado.periodo === 'dia' ? 'No hay cortes este día.' : 'No hay cortes en este periodo.')
     }

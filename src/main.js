@@ -20,7 +20,9 @@ import {
 } from './ui.js'
 
 // --- 0. CONFIGURACIÓN Y ESTADO GLOBAL ---
-const PRECIO_VIAJE = 30
+// $60 por viaje redondo: el regreso del mismo día va incluido (lo calcula el servidor)
+const PRECIO_VIAJE = 60
+const ADEUDO_MAXIMO = 600
 const CAPACIDAD = 40
 const GAUGE_C = 339.292 // circunferencia del anillo (r = 54)
 const SESSION_KEY = 'camify.sesion'
@@ -73,6 +75,8 @@ function leerCamion() {
 // --- 1. FORMATO ---
 const money = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtMoney = n => `$${money.format(Number(n) || 0)}`
+// Saldo negativo = dinero a favor del alumno
+const fmtSaldo = n => (Number(n) < 0 ? `${fmtMoney(-n)} a favor` : fmtMoney(n))
 const fmtFecha = d => d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
 const fmtFechaLarga = d => d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
 const fmtHora = d => d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true })
@@ -469,12 +473,17 @@ function renderPerfilAlumno(perfil) {
   $('#modal-student-id').textContent = perfil.matricula
 
   const saldo = Number(perfil.saldo) || 0
-  animateNumber($('#student-balance'), saldo, { decimals: 2 })
+  animateNumber($('#student-balance'), Math.abs(saldo), { decimals: 2 })
   $('#student-balance-card').dataset.state = saldo > 0 ? 'due' : 'clear'
+  $('#student-balance-label').textContent = saldo < 0 ? 'Saldo a favor' : 'Saldo pendiente'
   const viajes = saldo / PRECIO_VIAJE
-  $('#student-balance-status').textContent = saldo <= 0
-    ? 'Estás al corriente'
-    : Number.isInteger(viajes) ? `${plural(viajes, 'viaje', 'viajes')} por pagar` : 'Pendiente de pago'
+  $('#student-balance-status').textContent = saldo < 0
+    ? 'Se descuenta de tus próximos viajes'
+    : saldo === 0
+      ? 'Estás al corriente'
+      : saldo > ADEUDO_MAXIMO
+        ? `Pasaste el máximo de ${fmtMoney(ADEUDO_MAXIMO)}: paga para poder subir`
+        : Number.isInteger(viajes) ? `${plural(viajes, 'viaje redondo', 'viajes redondos')} por pagar` : 'Pendiente de pago'
 }
 
 // Refresca saldo e historial del alumno (por ejemplo, después de un corte)
@@ -497,7 +506,7 @@ async function cargarHistorialAlumno() {
       const pago = m.tipo === 'pago'
       return `<div class="row">
         <span class="row-icon${pago ? ' is-money' : ''}">${icon(pago ? 'i-wallet' : 'i-bus')}</span>
-        <span class="row-text"><span class="row-title">${pago ? 'Pago registrado' : 'Viaje cobrado'}</span><span class="row-sub">${esc(fmtFecha(f))} · ${esc(fmtHora(f))}${pago && m.nota ? ` · ${esc(m.nota)}` : ''}${m.manual ? ' · Registrado a mano por el chofer' : ''}</span></span>
+        <span class="row-text"><span class="row-title">${pago ? 'Pago registrado' : Number(m.monto) ? 'Viaje cobrado' : 'Regreso incluido'}</span><span class="row-sub">${esc(fmtFecha(f))} · ${esc(fmtHora(f))}${pago && m.nota ? ` · ${esc(m.nota)}` : ''}${m.manual ? ' · Registrado a mano por el chofer' : ''}</span></span>
         <span class="row-trailing${pago ? ' is-positive' : ''}">${pago ? '−' : ''}${fmtMoney(m.monto)}</span>
       </div>`
     },
@@ -512,11 +521,18 @@ let qrDatos = null
 let qrTimer = null
 let qrMostrado = null
 let qrCargando = false
+let qrBloqueo = null // mensaje del servidor cuando el adeudo pasa del máximo
 
 async function cargarCodigosQR() {
   qrCargando = true
   const { data, error } = await rpc('alumno_qr')
   qrCargando = false
+  qrBloqueo = error?.code === 'CMF02' ? error.message : null
+  if (qrBloqueo) {
+    // Los códigos guardados tampoco sirven: el chofer no lo dejaría subir
+    qrDatos = null
+    try { localStorage.removeItem(QR_KEY) } catch { /* modo privado */ }
+  }
   if (error || !data?.codigos) return false
   qrDatos = { offset: data.ahora - Date.now(), periodo: data.periodo * 1000, codigos: data.codigos, token: sessionToken }
   try { localStorage.setItem(QR_KEY, JSON.stringify(qrDatos)) } catch { /* modo privado */ }
@@ -544,7 +560,7 @@ function pintarQR({ cargando = false } = {}) {
   const card = $('.qr-card')
   card.classList.toggle('is-offline', !c)
   if (!c) {
-    $('#qr-countdown').textContent = cargando ? 'Preparando tu código…' : 'Sin conexión: conéctate para generar tu código'
+    $('#qr-countdown').textContent = qrBloqueo || (cargando ? 'Preparando tu código…' : 'Sin conexión: conéctate para generar tu código')
     $('#qr-progress').style.setProperty('--p', 0)
     return
   }
@@ -863,6 +879,7 @@ function renderPassengersUI() {
     render: p => `<div class="row">
       ${avatar(p.nombre)}
       <span class="row-text"><span class="row-title">${esc(p.nombre)}</span><span class="row-sub">${esc(p.matricula)}</span></span>
+      ${p.de_pie ? '<span class="badge badge-standing">De pie</span>' : ''}
       ${p.manual ? '<span class="badge badge-manual" title="Registrado a mano, sin código QR">A mano</span>' : ''}
       <button class="icon-btn icon-btn-sm icon-btn-danger btn-remove-student" data-id="${esc(p.id)}" aria-label="Quitar a ${esc(p.nombre)}">${icon('i-minus')}</button>
     </div>`,
@@ -872,8 +889,13 @@ function renderPassengersUI() {
   renderDriverTrip()
 }
 
+// Cobro de cada pasajero en el corte: $60 o $0 si es su regreso del día
+const totalCorte = lista => lista.reduce((s, p) => s + (Number(p.cobro) || 0), 0)
+const regresos = lista => lista.filter(p => Number(p.cobro) === 0).length
+
 function renderDriverTrip() {
   const n = passengers.length
+  const dePie = passengers.filter(p => p.de_pie).length
   const hero = $('#driver-hero')
   hero.dataset.state = isTripActive ? 'enroute' : 'boarding'
   hero.classList.toggle('is-live', isTripActive)
@@ -881,13 +903,15 @@ function renderDriverTrip() {
   $('#driver-trip-headline').textContent = isTripActive ? 'Viaje en curso' : n >= CAPACIDAD ? 'Unidad llena' : 'Lista abierta'
   $('#driver-trip-sub').textContent = isTripActive
     ? 'Corte realizado. Finaliza el viaje al llegar.'
-    : n ? `Quedan ${CAPACIDAD - n} lugares disponibles.` : 'Escanea el código de cada alumno al subir.'
+    : dePie ? `${plural(dePie, 'alumno va', 'alumnos van')} de pie.`
+      : n ? `Quedan ${Math.max(0, CAPACIDAD - n)} lugares disponibles.` : 'Escanea el código de cada alumno al subir.'
 
   const corte = $('#corte-card')
   corte.dataset.state = isTripActive ? 'active' : 'idle'
   $('#corte-label').textContent = isTripActive ? 'Cobrado en este viaje' : 'Total del corte'
-  $('#corte-total').textContent = fmtMoney(n * PRECIO_VIAJE)
-  $('#corte-detail').textContent = `${n} × ${fmtMoney(PRECIO_VIAJE)}`
+  const libres = regresos(passengers)
+  $('#corte-total').textContent = fmtMoney(totalCorte(passengers))
+  $('#corte-detail').textContent = libres ? `${n - libres} × ${fmtMoney(PRECIO_VIAJE)} · ${libres} de regreso` : `${n} × ${fmtMoney(PRECIO_VIAJE)}`
   if (!btnIniciarViaje.classList.contains('is-loading')) {
     btnIniciarViaje.textContent = isTripActive ? 'Finalizar viaje' : 'Hacer corte'
     btnIniciarViaje.disabled = !isTripActive && n === 0
@@ -945,8 +969,10 @@ btnIniciarViaje.addEventListener('click', async () => {
   if (!n) return
   const ok = await confirm({
     title: 'Hacer corte',
-    message: `Se cobrarán ${fmtMoney(PRECIO_VIAJE)} a cada uno de los ${plural(n, 'alumno', 'alumnos')} a bordo.`,
-    confirmLabel: `Cobrar ${fmtMoney(n * PRECIO_VIAJE)}`
+    message: regresos(passengers)
+      ? `Se cobrarán ${fmtMoney(PRECIO_VIAJE)} a ${plural(n - regresos(passengers), 'alumno', 'alumnos')}. ${plural(regresos(passengers), 'va', 'van')} de regreso y ya ${regresos(passengers) === 1 ? 'pagó' : 'pagaron'} su viaje redondo hoy.`
+      : `Se cobrarán ${fmtMoney(PRECIO_VIAJE)} a cada uno de los ${plural(n, 'alumno', 'alumnos')} a bordo.`,
+    confirmLabel: `Cobrar ${fmtMoney(totalCorte(passengers))}`
   })
   if (!ok) return
 
@@ -974,13 +1000,13 @@ function renderComprobante() {
   const ahora = new Date()
   const n = copyPassengers.length
   $('#comprobante-fecha-hora').textContent = `Camión ${camionCorto(camionActual)} · ${fmtFechaLarga(ahora)} · ${fmtHora(ahora)}`
-  $('#comprobante-total').textContent = fmtMoney(n * PRECIO_VIAJE)
-  $('#comprobante-detalle').textContent = `${plural(n, 'alumno', 'alumnos')} × ${fmtMoney(PRECIO_VIAJE)}`
+  $('#comprobante-total').textContent = fmtMoney(totalCorte(copyPassengers))
+  $('#comprobante-detalle').textContent = plural(n, 'alumno', 'alumnos')
   $('#tbody-comprobante').innerHTML = n
     ? copyPassengers.map((p, i) => `<div class="row receipt-row">
         <span class="receipt-index">${i + 1}</span>
         <span class="row-text"><span class="row-title">${esc(p.nombre || 'Alumno')}</span><span class="row-sub">${esc(p.matricula)}</span></span>
-        <span class="row-trailing">${fmtMoney(PRECIO_VIAJE)}</span>
+        <span class="row-trailing${Number(p.cobro) ? '' : ' is-muted'}">${Number(p.cobro) ? fmtMoney(p.cobro) : 'Regreso'}</span>
       </div>`).join('')
     : emptyState('i-users', 'Sin pasajeros', 'La lista se vació antes de finalizar.')
 }
@@ -1077,13 +1103,6 @@ async function onScanSuccess(decodedText) {
   isProcessingScan = true
   ultimoEscaneo = { texto: scannedId, en: ahora }
 
-  if (passengers.length >= CAPACIDAD) {
-    flash('error')
-    haptic([30, 50, 30])
-    setScanFeedback(`Unidad llena (máximo ${CAPACIDAD} pasajeros)`, 'error', { volver: 2200 })
-    return liberarEscaner(1500)
-  }
-
   const matriculaQR = /^CMF1\.([^.]+)\./.exec(scannedId)?.[1]
   const yaArriba = matriculaQR && passengers.find(p => String(p.matricula).trim() === matriculaQR)
   if (yaArriba) {
@@ -1094,7 +1113,7 @@ async function onScanSuccess(decodedText) {
 
   setScanFeedback('Validando…')
 
-  // Supabase valida la matrícula, el límite de 40 y los duplicados (también en el otro camión)
+  // Supabase valida la matrícula, el adeudo, los duplicados y si ya no hay asientos (va de pie)
   const { data, error } = await rpc('chofer_registrar_abordaje', { p_camion: camionActual, p_matricula: scannedId })
 
   if (error || data?.error) {
@@ -1105,11 +1124,17 @@ async function onScanSuccess(decodedText) {
     return liberarEscaner(1500)
   }
 
-  flash('success')
-  haptic(30)
-  // Si apartó lugar para esta salida, el chofer ve a qué asiento va
-  const asiento = data.asiento ? ` · Asiento ${data.asiento}` : ''
-  setScanFeedback(`${primerNombre(data.nombre)} está a bordo${asiento}`, 'success', { volver: 2200 })
+  if (data.de_pie) {
+    flash('success')
+    haptic([20, 60, 20, 60, 20])
+    setScanFeedback(`Camión lleno: ${primerNombre(data.nombre)} irá de pie`, 'warning', { volver: 3200 })
+  } else {
+    flash('success')
+    haptic(30)
+    // Si apartó lugar para esta salida, el chofer ve a qué asiento va
+    const asiento = data.asiento ? ` · Asiento ${data.asiento}` : ''
+    setScanFeedback(`${primerNombre(data.nombre)} está a bordo${asiento}`, 'success', { volver: 2200 })
+  }
   await fetchPassengers()
   liberarEscaner(1100)
 }
@@ -1402,13 +1427,15 @@ $('#form-edit-user').addEventListener('input', e => e.target.closest('.field')?.
 
 function renderBalancesList() {
   const ordenados = [...alumnosCache].sort((a, b) => (Number(b.saldo) || 0) - (Number(a.saldo) || 0) || a.nombre.localeCompare(b.nombre))
-  const total = ordenados.reduce((s, a) => s + (Number(a.saldo) || 0), 0)
+  const total = ordenados.reduce((s, a) => s + Math.max(0, Number(a.saldo) || 0), 0)
   const conAdeudo = ordenados.filter(a => Number(a.saldo) > 0).length
+  const aFavor = ordenados.filter(a => Number(a.saldo) < 0).length
 
   animateNumber($('#admin-total-balance'), total, { decimals: 2 })
   $('#admin-balance-meta').textContent = conAdeudo
     ? `${plural(conAdeudo, 'alumno', 'alumnos')} con saldo pendiente`
     : 'Todos los alumnos están al corriente'
+  if (aFavor) $('#admin-balance-meta').textContent += ` · ${plural(aFavor, 'con saldo', 'con saldo')} a favor`
 
   patchList($('#admin-balances-ul'), ordenados, {
     key: a => a.id,
@@ -1417,7 +1444,7 @@ function renderBalancesList() {
       return `<button class="row" data-id="${esc(a.id)}">
         ${avatar(a.nombre)}
         <span class="row-text"><span class="row-title">${esc(a.nombre)}</span><span class="row-sub">${esc(a.matricula)}</span></span>
-        <span class="row-trailing${saldo > 0 ? '' : ' is-muted'}">${fmtMoney(saldo)}</span>
+        <span class="row-trailing${saldo > ADEUDO_MAXIMO ? ' is-warning' : saldo < 0 ? ' is-positive' : saldo > 0 ? '' : ' is-muted'}">${fmtSaldo(saldo)}</span>
         ${icon('i-chevron-right', 'chevron')}
       </button>`
     },
@@ -1432,14 +1459,16 @@ function aplicarModoSaldo(modo) {
   const saldo = Number(editingAlumno?.saldo) || 0
   const pago = modo === 'pago'
   const input = $('#edit-balance-amount')
-  $('#edit-balance-label').textContent = pago ? 'Monto del pago ($)' : 'Saldo pendiente correcto ($)'
+  $('#edit-balance-label').textContent = pago ? 'Monto del pago ($)' : 'Saldo correcto ($, negativo si es a favor)'
+  // El teclado decimal del iPhone no tiene signo menos
+  input.inputMode = pago ? 'decimal' : 'text'
   $('#edit-balance-note-label').textContent = pago ? 'Nota (opcional): efectivo, transferencia…' : 'Motivo de la corrección (obligatorio)'
   $('#btn-save-balance').textContent = pago ? 'Registrar pago' : 'Guardar corrección'
   input.value = pago ? '' : saldo.toFixed(2)
   $('#edit-balance-note').value = ''
   const rapidos = pago
-    ? [[30, '$30'], [60, '$60'], ['todo', `Todo (${fmtMoney(saldo)})`]]
-    : [[-30, '−$30'], [30, '+$30'], [0, 'En cero']]
+    ? [[60, '$60'], [300, '$300'], ...(saldo > 0 ? [['todo', `Todo (${fmtMoney(saldo)})`]] : [])]
+    : [[-60, '−$60'], [60, '+$60'], [0, 'En cero']]
   $('#balance-quick').innerHTML = rapidos.map(([v, t]) => `<button type="button" class="btn ${v === 'todo' ? 'btn-tinted-green' : 'btn-secondary'}" data-quick="${v}">${esc(t)}</button>`).join('')
   $$('.field', $('#form-edit-balance')).forEach(f => f.classList.remove('is-invalid'))
 }
@@ -1451,7 +1480,7 @@ $('#admin-balances-ul').addEventListener('click', e => {
   if (!editingAlumno) return
   $('#sheet-edit-balance-title').textContent = 'Saldo'
   $('#edit-balance-person').innerHTML = personaHTML(editingAlumno.nombre, editingAlumno.matricula)
-  $('#edit-balance-current').textContent = fmtMoney(editingAlumno.saldo)
+  $('#edit-balance-current').textContent = fmtSaldo(editingAlumno.saldo)
   const saldo = Number(editingAlumno.saldo) || 0
   balanceMode.select(saldo > 0 ? 'pago' : 'ajuste', false)
   aplicarModoSaldo(balanceMode.value)
@@ -1465,10 +1494,10 @@ $('#form-edit-balance').addEventListener('click', e => {
   const saldo = Number(editingAlumno?.saldo) || 0
   const v = btn.dataset.quick
   if (balanceMode.value === 'pago') {
-    input.value = (v === 'todo' ? saldo : Math.min(saldo, Number(v))).toFixed(2)
+    input.value = (v === 'todo' ? saldo : Number(v)).toFixed(2)
   } else {
     const actual = parseFloat(input.value) || 0
-    input.value = (Number(v) === 0 ? 0 : Math.max(0, actual + Number(v))).toFixed(2)
+    input.value = (Number(v) === 0 ? 0 : actual + Number(v)).toFixed(2)
   }
   haptic(6)
   input.animate([{ transform: 'scale(1.03)' }, { transform: 'scale(1)' }], { duration: 300, easing: 'cubic-bezier(0.34, 1.4, 0.64, 1)' })
@@ -1480,14 +1509,13 @@ $('#form-edit-balance').addEventListener('submit', async e => {
   const nota = $('#edit-balance-note')
   const valor = Number(input.value)
   const pago = balanceMode.value === 'pago'
-  const saldo = Number(editingAlumno.saldo) || 0
   const invalido = (campo, msg) => {
     campo.closest('.field').classList.add('is-invalid')
     shake(campo.closest('.field'))
     if (msg) toast(msg, { type: 'warning' })
   }
-  if (input.value.trim() === '' || !Number.isFinite(valor) || valor < 0) return invalido(input)
-  if (pago && (valor <= 0 || valor > saldo)) return invalido(input, `El pago debe ser mayor a $0 y no pasar de ${fmtMoney(saldo)}`)
+  if (input.value.trim() === '' || !Number.isFinite(valor)) return invalido(input)
+  if (pago && valor <= 0) return invalido(input, 'El pago debe ser mayor a $0')
   if (!pago && !nota.value.trim()) return invalido(nota, 'Escribe el motivo de la corrección')
 
   const btn = $('#btn-save-balance')
@@ -1526,8 +1554,9 @@ function detalleBloqueo(clave) {
 
 const fmtDetalle = {
   pago_registrado: ['Pago registrado', 'i-wallet', 'is-money', d => `${d.matricula} · ${fmtMoney(d.monto)}${d.nota ? ` · ${d.nota}` : ''}`],
-  saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.matricula} · ${fmtMoney(d.antes)} → ${fmtMoney(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
-  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `Camión ${camionCorto(d.camion)} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}`],
+  saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.matricula} · ${fmtSaldo(d.antes)} → ${fmtSaldo(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
+  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `Camión ${camionCorto(d.camion)} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}${d.de_pie ? ` · ${d.de_pie} de pie` : ''}`],
+  emergencia: ['Emergencia del camión', 'i-alert', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${d.motivo === 'descompuesto' ? 'Se descompuso' : 'No estará disponible'} · avisó a ${plural(d.avisados || 0, 'alumno', 'alumnos')}`],
   abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}`],
   usuarios_importados: ['Usuarios importados', 'i-sheet', '', d => [
     d.alumnos && plural(d.alumnos, 'alumno', 'alumnos'),

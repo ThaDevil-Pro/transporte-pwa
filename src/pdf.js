@@ -332,7 +332,7 @@ export async function pdfAlumno(datos, periodo) {
     { etiqueta: 'Viajes', valor: String(viajes.length) },
     { etiqueta: 'Cobrado', valor: fmtDinero(cobrado) },
     { etiqueta: 'Pagado', valor: fmtDinero(pagado), color: pagado ? C.verde : C.tinta },
-    { etiqueta: 'Saldo pendiente', valor: fmtDinero(alumno.saldo), nota: 'Al día de hoy', color: Number(alumno.saldo) > 0 ? C.naranja : C.tinta }
+    { etiqueta: Number(alumno.saldo) < 0 ? 'Saldo a favor' : 'Saldo pendiente', valor: fmtDinero(Math.abs(alumno.saldo)), nota: 'Al día de hoy', color: Number(alumno.saldo) > 0 ? C.naranja : Number(alumno.saldo) < 0 ? C.verde : C.tinta }
   ])
 
   seccion(ctx, 'Viajes', viajes.length ? `${viajes.length} en el periodo` : '')
@@ -355,7 +355,7 @@ export async function pdfAlumno(datos, periodo) {
     )
   }
 
-  parrafo(ctx, 'Cada viaje se cobra al hacer el corte de la salida. "A mano" significa que el chofer te registró sin tu código QR.', { size: 8.5 })
+  parrafo(ctx, 'Cada viaje redondo cuesta $60 y se cobra en el corte de la salida: el primer viaje del día se cobra y el regreso va incluido (aparece en $0). "A mano" significa que el chofer te registró sin tu código QR.', { size: 8.5 })
   return terminar(ctx, `camify-viajes-${alumno.matricula}-${periodo.archivo}.pdf`)
 }
 
@@ -367,6 +367,7 @@ export function resumenChofer(cortes) {
     cortes: cortes.length,
     pasajeros: cortes.reduce((s, c) => s + c.alumnos, 0),
     manuales: cortes.reduce((s, c) => s + c.manuales, 0),
+    dePie: cortes.reduce((s, c) => s + (Number(c.de_pie) || 0), 0),
     total: cortes.reduce((s, c) => s + Number(c.total), 0)
   }
 }
@@ -382,7 +383,7 @@ export async function pdfChofer(datos, periodo) {
 
   tarjetas(ctx, [
     { etiqueta: 'Cortes', valor: String(r.cortes) },
-    { etiqueta: 'Pasajeros', valor: String(r.pasajeros) },
+    { etiqueta: 'Pasajeros', valor: String(r.pasajeros), nota: r.dePie ? `${r.dePie} de pie` : '' },
     { etiqueta: 'Total cobrado', valor: fmtDinero(r.total) },
     { etiqueta: 'Registros a mano', valor: String(r.manuales), nota: r.pasajeros ? `${Math.round((r.manuales / r.pasajeros) * 100)}% del total` : '' }
   ])
@@ -413,9 +414,9 @@ export async function pdfChofer(datos, periodo) {
 
   seccion(ctx, 'Cortes', `${cortes.length} en el periodo`)
   tabla(ctx,
-    [{ titulo: '#', ancho: 26 }, { titulo: 'Fecha' }, { titulo: 'Hora' }, { titulo: 'Camión', alinear: 'center' }, { titulo: 'Pasajeros', alinear: 'center' }, { titulo: 'A mano', alinear: 'center' }, { titulo: 'Total', alinear: 'right' }],
-    cortes.map((c, i) => [i + 1, mayus(fecha(c.creado_en, { weekday: 'short', day: 'numeric', month: 'short' })), hora(c.creado_en), camionCorto(c.camion), c.alumnos, c.manuales, fmtDinero(c.total)]),
-    { pie: ['', 'Total', '', '', r.pasajeros, r.manuales, fmtDinero(r.total)] }
+    [{ titulo: '#', ancho: 26 }, { titulo: 'Fecha' }, { titulo: 'Hora' }, { titulo: 'Camión', alinear: 'center' }, { titulo: 'Pasajeros', alinear: 'center' }, { titulo: 'De pie', alinear: 'center' }, { titulo: 'A mano', alinear: 'center' }, { titulo: 'Total', alinear: 'right' }],
+    cortes.map((c, i) => [i + 1, mayus(fecha(c.creado_en, { weekday: 'short', day: 'numeric', month: 'short' })), hora(c.creado_en), camionCorto(c.camion), c.alumnos, Number(c.de_pie) || 0, c.manuales, fmtDinero(c.total)]),
+    { pie: ['', 'Total', '', '', r.pasajeros, r.dePie, r.manuales, fmtDinero(r.total)] }
   )
 
   // Lista de pasajeros de cada corte (día y semana; en el mes sería demasiado largo)
@@ -432,7 +433,7 @@ export async function pdfChofer(datos, periodo) {
       if (c.pasajeros.length) {
         tabla(ctx,
           [{ titulo: '#', ancho: 26 }, { titulo: 'Nombre' }, { titulo: 'Matrícula' }, { titulo: 'Registro', alinear: 'right' }],
-          c.pasajeros.map((p, j) => [j + 1, p.nombre, p.matricula, registro(p.manual)])
+          c.pasajeros.map((p, j) => [j + 1, p.nombre, p.matricula, [registro(p.manual), p.de_pie && 'De pie', p.monto != null && !Number(p.monto) && 'Regreso'].filter(Boolean).join(' · ')])
         )
       } else {
         parrafo(ctx, 'Sin detalle de pasajeros para este corte.')
@@ -477,11 +478,11 @@ export async function pdfGastos(datos, periodo, { admin } = {}) {
 
   if (datos.choferes.length) {
     seccion(ctx, 'Por chofer')
-    const t = datos.choferes.reduce((s, c) => ({ cortes: s.cortes + c.cortes, alumnos: s.alumnos + c.alumnos, total: s.total + Number(c.total) }), { cortes: 0, alumnos: 0, total: 0 })
+    const t = datos.choferes.reduce((s, c) => ({ cortes: s.cortes + c.cortes, alumnos: s.alumnos + c.alumnos, dePie: s.dePie + (Number(c.de_pie) || 0), total: s.total + Number(c.total) }), { cortes: 0, alumnos: 0, dePie: 0, total: 0 })
     tabla(ctx,
-      [{ titulo: 'Chofer' }, { titulo: 'Licencia' }, { titulo: 'Cortes', alinear: 'center' }, { titulo: 'Pasajeros', alinear: 'center' }, { titulo: 'Total', alinear: 'right' }],
-      datos.choferes.map(c => [c.nombre, c.licencia, c.cortes, c.alumnos, fmtDinero(c.total)]),
-      { pie: ['Total', '', t.cortes, t.alumnos, fmtDinero(t.total)] }
+      [{ titulo: 'Chofer' }, { titulo: 'Licencia' }, { titulo: 'Cortes', alinear: 'center' }, { titulo: 'Pasajeros', alinear: 'center' }, { titulo: 'De pie', alinear: 'center' }, { titulo: 'Total', alinear: 'right' }],
+      datos.choferes.map(c => [c.nombre, c.licencia, c.cortes, c.alumnos, Number(c.de_pie) || 0, fmtDinero(c.total)]),
+      { pie: ['Total', '', t.cortes, t.alumnos, t.dePie, fmtDinero(t.total)] }
     )
   }
 
@@ -499,7 +500,7 @@ export async function pdfGastos(datos, periodo, { admin } = {}) {
     const saldoTotal = datos.alumnos.reduce((s, a) => s + Number(a.saldo), 0)
     tabla(ctx,
       [{ titulo: 'Nombre' }, { titulo: 'Matrícula' }, { titulo: 'Viajes', alinear: 'center' }, { titulo: 'Cobrado', alinear: 'right' }, { titulo: 'Pagado', alinear: 'right' }, { titulo: 'Saldo hoy', alinear: 'right' }],
-      datos.alumnos.map(a => [a.nombre, a.matricula, a.viajes, fmtDinero(a.cargado), fmtDinero(a.pagado), fmtDinero(a.saldo)]),
+      datos.alumnos.map(a => [a.nombre, a.matricula, a.viajes, fmtDinero(a.cargado), fmtDinero(a.pagado), Number(a.saldo) < 0 ? `${fmtDinero(-a.saldo)} a favor` : fmtDinero(a.saldo)]),
       { pie: ['Total', '', r.viajes, fmtDinero(r.cobrado), fmtDinero(r.pagado), fmtDinero(saldoTotal)] }
     )
   } else {
