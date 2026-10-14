@@ -603,3 +603,39 @@ export function initPasswordToggles(root = document) {
     btn.querySelector('use').setAttribute('href', mostrar ? '#i-eye-off' : '#i-eye')
   }))
 }
+
+// --- OPCIONES ---
+// Botones de opción única (rol radio) dentro de un contenedor
+export function opciones(contenedor, items, alElegir) {
+  contenedor.innerHTML = items.map(it => `<button type="button" class="choice${it.tono ? ` tono-${it.tono}` : ''}" role="radio" aria-checked="false" data-value="${esc(it.value)}">
+      ${it.icon ? icon(it.icon) : ''}<span class="choice-text"><span class="choice-label">${esc(it.label)}</span>${it.sub ? `<span class="choice-sub">${esc(it.sub)}</span>` : ''}</span>
+    </button>`).join('')
+  let valor = null
+  const marcar = v => {
+    valor = v
+    $$('.choice', contenedor).forEach(b => b.setAttribute('aria-checked', String(b.dataset.value === v)))
+    contenedor.classList.remove('is-invalid')
+  }
+  contenedor.addEventListener('click', e => {
+    const b = e.target.closest('.choice')
+    if (!b) return
+    haptic(5)
+    marcar(b.dataset.value)
+    alElegir?.(b.dataset.value)
+  })
+  return { get value() { return valor }, set: marcar, reset: () => marcar(null) }
+}
+
+// Contador de caracteres de un textarea
+export function contador(textarea, etiqueta, max) {
+  const pintar = () => {
+    const n = textarea.value.length
+    etiqueta.textContent = `${n}/${max}`
+    etiqueta.classList.toggle('is-near', n > max * 0.9)
+  }
+  textarea.addEventListener('input', () => {
+    pintar()
+    textarea.closest('.field')?.classList.remove('is-invalid')
+  })
+  return pintar
+}

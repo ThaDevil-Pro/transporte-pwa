@@ -4,6 +4,7 @@
 // · Mapa interactivo del camión: 10 filas × (A B | pasillo | C D).
 // Toda la lógica de reglas vive en Supabase; aquí solo se presenta.
 // =====================================================================
+import { camionCorto } from './camiones.js'
 import {
   $, $$, esc, icon, avatar, haptic, openSheet, closeSheet, confirm, toast, setLoading, shake, patchList
 } from './ui.js'
@@ -236,18 +237,18 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
           <span class="seat-badge"><small>Asiento</small><strong>${s.mi_asiento}</strong></span>
           <div>
             <p class="seat-when">${esc(etiquetaDia(s.fecha))} · ${esc(horaTexto(s.hora))}</p>
-            <p class="seat-sub">Camión ${s.camion} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'} · ${esVentana(s.mi_asiento) ? 'Ventana' : 'Pasillo'} · Fila ${Math.ceil(s.mi_asiento / 4)}</p>
+            <p class="seat-sub">Camión ${camionCorto(s.camion)} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'} · ${esVentana(s.mi_asiento) ? 'Ventana' : 'Pasillo'} · Fila ${Math.ceil(s.mi_asiento / 4)}</p>
             ${junto ? `<p class="seat-sub"><b>Junto a ${esc(pareja.activa?.nombre || 'tu pareja')}</b> · asiento ${s.asiento_pareja}</p>` : ''}
           </div>
         </div>
         <button class="btn btn-secondary btn-block" data-abrir-asientos="${esc(claveSalida(s))}">Ver o cambiar asiento</button>`
     } else if (abierta) {
       seatBody.innerHTML = `<p class="seat-cta-title">Ya puedes apartar tu lugar</p>
-        <p class="seat-cta-sub">Camión ${abierta.camion}, ${esc(etiquetaDia(abierta.fecha).toLowerCase())} a las ${esc(horaTexto(abierta.hora))} · ${40 - abierta.ocupados} asientos libres</p>
+        <p class="seat-cta-sub">Camión ${camionCorto(abierta.camion)}, ${esc(etiquetaDia(abierta.fecha).toLowerCase())} a las ${esc(horaTexto(abierta.hora))} · ${40 - abierta.ocupados} asientos libres</p>
         <button class="btn btn-primary btn-block" data-abrir-asientos="${esc(claveSalida(abierta))}">${icon('i-seat')}Elegir asiento</button>`
     } else if (proxima) {
       seatBody.innerHTML = `<p class="seat-cta-title">El apartado abre en <span class="countdown-inline" data-cuenta="${esc(proxima.abre_en)}">${formatCuenta(new Date(proxima.abre_en) - Date.now())}</span></p>
-        <p class="seat-cta-sub">Para el camión ${proxima.camion}, ${esc(etiquetaDia(proxima.fecha).toLowerCase())} a las ${esc(horaTexto(proxima.hora))}. Se abre 12 horas antes.</p>
+        <p class="seat-cta-sub">Para el camión ${camionCorto(proxima.camion)}, ${esc(etiquetaDia(proxima.fecha).toLowerCase())} a las ${esc(horaTexto(proxima.hora))}. Se abre 12 horas antes.</p>
         <button class="btn btn-secondary btn-block" data-abrir-asientos="${esc(claveSalida(proxima))}">Ver el camión</button>`
     } else {
       seatBody.innerHTML = `<p class="seat-cta-title">Sin salidas próximas</p>
@@ -387,7 +388,7 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
         : s.abierta
           ? `${40 - s.ocupados} libres`
           : `${icon('i-lock')}${esc(new Date(s.abre_en).toLocaleTimeString('es-MX', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true }))}`
-      return `<button class="departure${s.mi_asiento ? ' is-mine' : ''}" role="tab" aria-selected="${k === salidaSel}" data-salida="${esc(k)}" aria-label="Camión ${s.camion}, ${esc(etiquetaDia(s.fecha))} ${esc(horaTexto(s.hora))}">
+      return `<button class="departure${s.mi_asiento ? ' is-mine' : ''}" role="tab" aria-selected="${k === salidaSel}" data-salida="${esc(k)}" aria-label="Camión ${camionCorto(s.camion)}, ${esc(etiquetaDia(s.fecha))} ${esc(horaTexto(s.hora))}">
         <span class="departure-day">${esc(etiquetaDia(s.fecha))} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'}</span>
         <span class="departure-time">${t}<small>${p}</small></span>
         <span class="departure-status"><span class="departure-bus">${icon('i-bus')}${s.camion}</span>${estado}</span>
@@ -480,7 +481,7 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
 
   function renderMapa(anterior) {
     renderHint()
-    $('#bus-name').textContent = `Camión ${mapa.camion}`
+    $('#bus-name').textContent = `Camión ${camionCorto(mapa.camion)}`
     $('#legend-pair').hidden = !mapa.pareja
     bus.classList.toggle('is-locked', !mapa.abierta)
     $('#bus-lock').hidden = mapa.abierta

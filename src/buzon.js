@@ -8,8 +8,9 @@
 // =====================================================================
 import {
   $, $$, esc, icon, avatar, haptic, toast, openSheet, closeSheet, setLoading, shake, patchList,
-  emptyState, skeletonRows, initSegmented
+  emptyState, skeletonRows, initSegmented, opciones, contador
 } from './ui.js'
+import { camionCorto, selectorCamion } from './camiones.js'
 
 const TZ = 'America/Mexico_City'
 
@@ -65,41 +66,6 @@ const fechaCompleta = iso => {
 const chip = (texto, tono) => `<span class="state-chip tono-${tono}">${esc(texto)}</span>`
 const mayus = s => s.charAt(0).toUpperCase() + s.slice(1)
 
-// Botones de opción única (rol radio) dentro de un contenedor
-function opciones(contenedor, items, alElegir) {
-  contenedor.innerHTML = items.map(it => `<button type="button" class="choice${it.tono ? ` tono-${it.tono}` : ''}" role="radio" aria-checked="false" data-value="${esc(it.value)}">
-      ${it.icon ? icon(it.icon) : ''}<span class="choice-text"><span class="choice-label">${esc(it.label)}</span>${it.sub ? `<span class="choice-sub">${esc(it.sub)}</span>` : ''}</span>
-    </button>`).join('')
-  let valor = null
-  const marcar = v => {
-    valor = v
-    $$('.choice', contenedor).forEach(b => b.setAttribute('aria-checked', String(b.dataset.value === v)))
-    contenedor.classList.remove('is-invalid')
-  }
-  contenedor.addEventListener('click', e => {
-    const b = e.target.closest('.choice')
-    if (!b) return
-    haptic(5)
-    marcar(b.dataset.value)
-    alElegir?.(b.dataset.value)
-  })
-  return { get value() { return valor }, set: marcar, reset: () => marcar(null) }
-}
-
-// Contador de caracteres de un textarea
-function contador(textarea, etiqueta, max) {
-  const pintar = () => {
-    const n = textarea.value.length
-    etiqueta.textContent = `${n}/${max}`
-    etiqueta.classList.toggle('is-near', n > max * 0.9)
-  }
-  textarea.addEventListener('input', () => {
-    pintar()
-    textarea.closest('.field')?.classList.remove('is-invalid')
-  })
-  return pintar
-}
-
 export function initBuzon({ rpc, supabase, camion }) {
   let rol = null
   let misQuejas = []
@@ -114,7 +80,7 @@ export function initBuzon({ rpc, supabase, camion }) {
   const formQueja = $('#form-queja')
   const mensajeQueja = $('#queja-mensaje')
   const categoria = opciones($('#queja-categorias'), Object.entries(CATEGORIAS).map(([value, c]) => ({ value, label: c.label, icon: c.icon })))
-  const camionQueja = initSegmented($('#queja-camion'))
+  const camionQueja = selectorCamion($('#queja-camion'), { noSe: true })
   const pintarContadorQueja = contador(mensajeQueja, $('#queja-contador'), 600)
 
   async function cargarAlumno() {
@@ -134,7 +100,7 @@ export function initBuzon({ rpc, supabase, camion }) {
         const cat = CATEGORIAS[q.categoria] || CATEGORIAS.otro
         return `<div class="inbox-mine-item">
           <div class="inbox-mine-top">
-            <span class="inbox-mine-cat">${icon(cat.icon)}${esc(cat.label)}${q.camion ? ` · Camión ${q.camion}` : ''}</span>
+            <span class="inbox-mine-cat">${icon(cat.icon)}${esc(cat.label)}${q.camion ? ` · Camión ${camionCorto(q.camion)}` : ''}</span>
             ${chip(est.label, est.tono)}
           </div>
           <p class="inbox-mine-text">${esc(q.mensaje)}</p>
@@ -149,7 +115,7 @@ export function initBuzon({ rpc, supabase, camion }) {
     haptic(6)
     formQueja.reset()
     categoria.reset()
-    camionQueja.select('0', false)
+    camionQueja.set('0')
     pintarContadorQueja()
     $$('.is-invalid', formQueja).forEach(el => el.classList.remove('is-invalid'))
     openSheet('sheet-queja')
@@ -200,7 +166,7 @@ export function initBuzon({ rpc, supabase, camion }) {
   const panelQuejas = $('#driver-inbox-quejas')
   const tipoFalla = opciones($('#falla-tipos'), Object.entries(TIPOS_FALLA).map(([value, label]) => ({ value, label })))
   const gravedad = opciones($('#falla-gravedad'), Object.entries(GRAVEDAD).map(([value, g]) => ({ value, label: g.label, sub: g.sub, tono: g.tono })))
-  const camionFalla = initSegmented($('#falla-camion'))
+  const camionFalla = selectorCamion($('#falla-camion'))
   const pintarContadorFalla = contador(descFalla, $('#falla-contador'), 600)
   const vistaChofer = initSegmented($('#driver-inbox-seg'), v => {
     panelFallas.hidden = v !== 'fallas'
@@ -216,7 +182,7 @@ export function initBuzon({ rpc, supabase, camion }) {
     return `<${conAutor ? 'button type="button"' : 'div'} class="row inbox-row${q.estado === 'nueva' && conAutor ? ' is-new' : ''}" data-queja="${esc(q.id)}">
       <span class="row-icon">${icon(cat.icon)}</span>
       <span class="row-text">
-        <span class="inbox-row-top"><span class="row-title">${esc(cat.label)}${q.camion ? ` · Camión ${q.camion}` : ''}</span>${chip(conAutor ? est.admin : est.label, est.tono)}</span>
+        <span class="inbox-row-top"><span class="row-title">${esc(cat.label)}${q.camion ? ` · Camión ${camionCorto(q.camion)}` : ''}</span>${chip(conAutor ? est.admin : est.label, est.tono)}</span>
         <span class="inbox-row-msg">${esc(q.mensaje)}</span>
         <span class="row-sub">${autor} · ${esc(cuando(q.creado_en))}</span>
       </span>
@@ -230,7 +196,7 @@ export function initBuzon({ rpc, supabase, camion }) {
     return `<${admin ? 'button type="button"' : 'div'} class="row inbox-row${f.estado === 'abierta' && admin ? ' is-new' : ''}" data-falla="${esc(f.id)}">
       <span class="row-icon tono-${g.tono}">${icon('i-wrench')}</span>
       <span class="row-text">
-        <span class="inbox-row-top"><span class="row-title">${esc(TIPOS_FALLA[f.tipo] || 'Falla')} · Camión ${f.camion}</span>${chip(est.label, est.tono)}</span>
+        <span class="inbox-row-top"><span class="row-title">${esc(TIPOS_FALLA[f.tipo] || 'Falla')} · Camión ${camionCorto(f.camion)}</span>${chip(est.label, est.tono)}</span>
         <span class="inbox-row-msg">${esc(f.descripcion)}</span>
         ${f.nota ? `<span class="inbox-reply">${icon('i-reply')}<span>${esc(f.nota)}</span></span>` : ''}
         <span class="row-sub"><span class="severity-dot tono-${g.tono}"></span>${esc(g.label)} · ${esc(quien || '')} · ${esc(cuando(f.creado_en))}</span>
@@ -266,7 +232,7 @@ export function initBuzon({ rpc, supabase, camion }) {
     formFalla.reset()
     tipoFalla.reset()
     gravedad.reset()
-    camionFalla.select(String(camion()), false)
+    camionFalla.set(camion())
     pintarContadorFalla()
     $$('.is-invalid', formFalla).forEach(el => el.classList.remove('is-invalid'))
     openSheet('sheet-falla')
@@ -391,7 +357,7 @@ export function initBuzon({ rpc, supabase, camion }) {
       const cat = CATEGORIAS[item.categoria] || CATEGORIAS.otro
       $('#atender-detalle').innerHTML = `
         <div class="inbox-author">${avatar(item.nombre || '?')}<span class="row-text"><span class="row-title">${esc(item.nombre || 'Alumno dado de baja')}</span><span class="row-sub">${item.matricula ? `Matrícula ${esc(item.matricula)}` : 'Ya no está registrado'}</span></span></div>
-        <p class="inbox-detail-meta">${icon(cat.icon)}${esc(cat.label)}${item.camion ? ` · Camión ${item.camion}` : ''} · ${esc(mayus(fechaCompleta(item.creado_en)))}</p>
+        <p class="inbox-detail-meta">${icon(cat.icon)}${esc(cat.label)}${item.camion ? ` · Camión ${camionCorto(item.camion)}` : ''} · ${esc(mayus(fechaCompleta(item.creado_en)))}</p>
         <p class="inbox-detail-text">${esc(item.mensaje)}</p>
         ${item.censurada ? `<p class="field-hint">Se ocultaron groserías del mensaje original.</p>` : ''}`
       pintarOpcionesEstado(ESTADO_QUEJA)
@@ -402,7 +368,7 @@ export function initBuzon({ rpc, supabase, camion }) {
       const g = GRAVEDAD[item.gravedad] || GRAVEDAD.media
       $('#atender-detalle').innerHTML = `
         <div class="inbox-author">${avatar(item.chofer_nombre || '?')}<span class="row-text"><span class="row-title">${esc(item.chofer_nombre || 'Chofer')}</span><span class="row-sub">Licencia ${esc(item.chofer)}</span></span></div>
-        <p class="inbox-detail-meta">${icon('i-wrench')}${esc(TIPOS_FALLA[item.tipo] || 'Falla')} · Camión ${item.camion} · ${esc(mayus(fechaCompleta(item.creado_en)))}</p>
+        <p class="inbox-detail-meta">${icon('i-wrench')}${esc(TIPOS_FALLA[item.tipo] || 'Falla')} · Camión ${camionCorto(item.camion)} · ${esc(mayus(fechaCompleta(item.creado_en)))}</p>
         <p class="inbox-detail-severity tono-${g.tono}"><span class="severity-dot tono-${g.tono}"></span>${esc(g.label)} · ${esc(g.sub)}</p>
         <p class="inbox-detail-text">${esc(item.descripcion)}</p>`
       pintarOpcionesEstado(ESTADO_FALLA)

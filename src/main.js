@@ -9,6 +9,8 @@ import { initImportar } from './importar.js'
 import { initReportes } from './reportes.js'
 import { initAmbiente } from './ambiente.js'
 import { initBuzon } from './buzon.js'
+import { initDiesel, fmtLitros, ESTADO_CARGA } from './diesel.js'
+import { actualizarCamiones, camionCorto, existeCamion, idsCamiones, nombreCamion, puntoCamion } from './camiones.js'
 import {
   $, $$, esc, icon, avatar, emptyState, skeletonRows, haptic,
   initScreens, showScreen, initTabs, selectTab, initSegmented,
@@ -55,14 +57,17 @@ let targetEndTime = null
 let timerTotalMs = 5 * 60 * 1000
 
 // Camiones: cada uno tiene su estado de viaje (estado_viaje.id = camión)
+// y un nombre y color (Rojo, Blanco, Amarillo, Gris) en camiones.js
 const CAMION_KEY = 'camify.camion'
-const CAMIONES = [1, 2]
 let estados = {}
 let camionActual = leerCamion() // el que maneja el chofer
 let camionAlumno = 1 // el del próximo asiento apartado del alumno
 
 function leerCamion() {
-  try { return Number(localStorage.getItem(CAMION_KEY)) || 1 } catch { return 1 }
+  try {
+    const n = Number(localStorage.getItem(CAMION_KEY))
+    return existeCamion(n) ? n : idsCamiones()[0]
+  } catch { return idsCamiones()[0] }
 }
 
 // --- 1. FORMATO ---
@@ -110,7 +115,7 @@ const asientos = initAsientos({
   alCambiarSalidas: salidas => {
     const s = salidas.find(x => x.mi_asiento) || salidas[0]
     const nuevo = s?.camion || 1
-    $('#trip-bus-label').textContent = `Camión ${nuevo}`
+    $('#trip-bus-label').textContent = nombreCamion(nuevo)
     if (nuevo === camionAlumno) return
     camionAlumno = nuevo
     if (currentRole === 'Estudiante') sincronizarViaje()
@@ -129,12 +134,16 @@ initImportar({
 // Buzón de quejas y fallas del camión
 const buzon = initBuzon({ rpc, supabase, camion: () => camionActual })
 
+// Control de diésel: cargas con ticket, revisión e informe
+const diesel = initDiesel({ rpc, supabase, camion: () => camionActual, alCambiar: () => reportes.refrescarDiesel() })
+
 // Reportes en PDF: el alumno, el chofer y la administración
-const reportes = initReportes({ rpc })
+const reportes = initReportes({ rpc, abrirCarga: c => diesel.abrirCarga(c) })
 $('#btn-student-report').addEventListener('click', () => reportes.abrir({ rol: 'Estudiante', perfil: perfilActual }))
 $('#btn-driver-report').addEventListener('click', () => reportes.abrir({ rol: 'Chofer', perfil: perfilActual }))
 $('#btn-admin-report-gastos').addEventListener('click', () => reportes.abrir({ rol: 'Admin', perfil: perfilActual, tipo: 'gastos' }))
 $('#btn-admin-report-chofer').addEventListener('click', () => reportes.abrir({ rol: 'Admin', perfil: perfilActual, tipo: 'chofer' }))
+$('#btn-admin-report-diesel').addEventListener('click', () => reportes.abrir({ rol: 'Admin', perfil: perfilActual, tipo: 'diesel' }))
 
 const rolesTitle = $('#roles-title')
 const loginForm = $('#login-form')
@@ -218,6 +227,7 @@ function cerrarSesion() {
   asientos.limpiar()
   asientosChofer.limpiar()
   buzon.limpiar()
+  diesel.limpiar()
   passengers = []
   copyPassengers = []
   currentRole = ''
@@ -642,7 +652,7 @@ function renderStudentSchedule() {
       return `<div class="row schedule-row${esProxima ? ' is-next' : ''}">
         <span class="schedule-time">${t}<small>${p}</small></span>
         <span class="badge ${ida ? 'badge-ida' : 'badge-regreso'}">${icon(ida ? 'i-arrow-right' : 'i-arrow-left')}${ida ? 'Ida' : 'Regreso'}</span>
-        ${esProxima ? '<span class="next-tag is-live"><span class="status-dot"></span>Próxima</span>' : `<span class="badge badge-bus">${icon('i-bus')}Camión ${s.camion}</span>`}
+        ${esProxima ? '<span class="next-tag is-live"><span class="status-dot"></span>Próxima</span>' : `<span class="badge badge-bus">${icon('i-bus')}Camión ${camionCorto(s.camion)}</span>`}
       </div>`
     },
     empty: emptyState('i-calendar', 'Sin salidas', `No hay salidas programadas el ${DIAS_NOMBRE[dia].toLowerCase()}.`)
@@ -654,7 +664,7 @@ function renderDriverSchedule() {
   const filas = scheduleRows
     .filter(r => (r.camion || 1) === camionActual)
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
-  $('#driver-schedule-eyebrow').textContent = `Camión ${camionActual} · Semana`
+  $('#driver-schedule-eyebrow').textContent = `Camión ${camionCorto(camionActual)} · Semana`
   patchList($('#driver-schedule-list'), filas, {
     key: r => r.id,
     render: (r, i) => `<article class="card schedule-card" data-id="${esc(r.id)}">
@@ -673,7 +683,7 @@ function renderDriverSchedule() {
         </div>`
       }).join('')}
     </article>`,
-    empty: emptyState('i-calendar', 'Sin horarios', `Agrega la primera salida del camión ${camionActual}.`)
+    empty: emptyState('i-calendar', 'Sin horarios', `Agrega la primera salida del camión ${camionCorto(camionActual)}.`)
   })
 }
 
@@ -791,7 +801,7 @@ function iniciarChofer(perfil) {
 
 // Carga todo lo del camión que maneja el chofer
 function aplicarCamion() {
-  $('#camion-label').textContent = `Camión ${camionActual}`
+  $('#camion-label').innerHTML = `${puntoCamion(camionActual)}${camionCorto(camionActual)}`
   $('#passengers-count').dataset.value = '0'
   $('#students-ul').innerHTML = skeletonRows(3)
   passengers = []
@@ -799,13 +809,14 @@ function aplicarCamion() {
   fetchPassengers()
   asientosChofer.cargar()
   renderDriverSchedule()
+  diesel.chofer()
 }
 
 async function elegirCamion({ primeraVez = false } = {}) {
   const elegido = await actionSheet({
     title: primeraVez ? '¿Qué camión manejas hoy?' : 'Cambiar de camión',
     message: 'La lista de abordaje, el temporizador y el corte son de cada camión.',
-    actions: CAMIONES.map(n => ({ label: `Camión ${n}${n === camionActual ? ' ✓' : ''}`, value: n }))
+    actions: idsCamiones().map(n => ({ label: `${nombreCamion(n)}${n === camionActual ? ' ✓' : ''}`, value: n }))
   })
   if (!elegido) return
   try { localStorage.setItem(CAMION_KEY, String(elegido)) } catch { /* modo privado */ }
@@ -813,7 +824,7 @@ async function elegirCamion({ primeraVez = false } = {}) {
   camionActual = elegido
   haptic([10, 40, 14])
   aplicarCamion()
-  toast(`Ahora manejas el camión ${elegido}`, { type: 'success' })
+  toast(`Ahora manejas el camión ${camionCorto(elegido)}`, { type: 'success' })
 }
 
 $('#btn-camion').addEventListener('click', () => elegirCamion())
@@ -961,7 +972,7 @@ btnIniciarViaje.addEventListener('click', async () => {
 function renderComprobante() {
   const ahora = new Date()
   const n = copyPassengers.length
-  $('#comprobante-fecha-hora').textContent = `Camión ${camionActual} · ${fmtFechaLarga(ahora)} · ${fmtHora(ahora)}`
+  $('#comprobante-fecha-hora').textContent = `Camión ${camionCorto(camionActual)} · ${fmtFechaLarga(ahora)} · ${fmtHora(ahora)}`
   $('#comprobante-total').textContent = fmtMoney(n * PRECIO_VIAJE)
   $('#comprobante-detalle').textContent = `${plural(n, 'alumno', 'alumnos')} × ${fmtMoney(PRECIO_VIAJE)}`
   $('#tbody-comprobante').innerHTML = n
@@ -1174,8 +1185,9 @@ btnTimerStop.addEventListener('click', () => accionTemporizador('cancelar', btnT
 async function cargarEstadoViaje() {
   const { data } = await supabase
     .from('estado_viaje')
-    .select('id, estado, tiempo_salida, temporizador_activo')
+    .select('id, estado, tiempo_salida, temporizador_activo, nombre, color')
   if (!data) return
+  actualizarCamiones(data)
   data.forEach(row => { estados[row.id] = row })
   sincronizarViaje()
 }
@@ -1219,6 +1231,7 @@ function iniciarAdmin() {
   $('#admin-total-balance').dataset.value = '0'
   loadAdminData()
   buzon.admin()
+  diesel.admin()
 }
 
 formCreateUser.addEventListener('submit', async e => {
@@ -1513,25 +1526,28 @@ function detalleBloqueo(clave) {
 const fmtDetalle = {
   pago_registrado: ['Pago registrado', 'i-wallet', 'is-money', d => `${d.matricula} · ${fmtMoney(d.monto)}${d.nota ? ` · ${d.nota}` : ''}`],
   saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.matricula} · ${fmtMoney(d.antes)} → ${fmtMoney(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
-  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `Camión ${d.camion} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}`],
-  abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `Camión ${d.camion} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}`],
+  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `Camión ${camionCorto(d.camion)} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}`],
+  abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}`],
   usuarios_importados: ['Usuarios importados', 'i-sheet', '', d => [
     d.alumnos && plural(d.alumnos, 'alumno', 'alumnos'),
     d.choferes && plural(d.choferes, 'chofer', 'choferes'),
     d.fallidos && `${d.fallidos} con error`
   ].filter(Boolean).join(' · ') || 'Ningún usuario creado'],
-  viaje_finalizado: ['Viaje finalizado', 'i-flag', '', d => `Camión ${d.camion}`],
-  lista_vaciada: ['Lista vaciada sin cobrar', 'i-trash', 'is-alert', d => `Camión ${d.camion} · ${plural(d.alumnos || 0, 'alumno', 'alumnos')}`],
-  alumno_quitado: ['Alumno quitado de la lista', 'i-minus', '', d => `Camión ${d.camion} · ${d.matricula}`],
-  qr_rechazado: ['Código QR rechazado', 'i-alert', 'is-alert', d => `${{ formato: 'No es de CAMIFY', firma: 'Falsificado', vencido: 'Vencido' }[d.motivo] || d.motivo}${d.matricula ? ` · ${d.matricula}` : ''} · Camión ${d.camion}`],
+  viaje_finalizado: ['Viaje finalizado', 'i-flag', '', d => `Camión ${camionCorto(d.camion)}`],
+  lista_vaciada: ['Lista vaciada sin cobrar', 'i-trash', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${plural(d.alumnos || 0, 'alumno', 'alumnos')}`],
+  alumno_quitado: ['Alumno quitado de la lista', 'i-minus', '', d => `Camión ${camionCorto(d.camion)} · ${d.matricula}`],
+  qr_rechazado: ['Código QR rechazado', 'i-alert', 'is-alert', d => `${{ formato: 'No es de CAMIFY', firma: 'Falsificado', vencido: 'Vencido' }[d.motivo] || d.motivo}${d.matricula ? ` · ${d.matricula}` : ''} · Camión ${camionCorto(d.camion)}`],
   login_bloqueado: ['Bloqueo por intentos fallidos', 'i-lock', 'is-alert', d => detalleBloqueo(String(d.clave || ''))],
   usuario_creado: ['Usuario creado', 'i-user-plus', '', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.nombre ? `${d.nombre} · ` : ''}${d.identificador}`],
   usuario_editado: ['Usuario editado', 'i-users', '', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.identificador}${d.password_restablecida ? ' · contraseña restablecida' : ''}`],
   usuario_eliminado: ['Usuario eliminado', 'i-trash', 'is-alert', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.nombre ? `${d.nombre} · ` : ''}${d.identificador}`],
   cambio_password: ['Cambio de contraseña', 'i-lock', '', () => ''],
-  falla_reportada: ['Falla del camión reportada', 'i-wrench', 'is-alert', d => `Camión ${d.camion} · ${FALLA_TIPO[d.tipo] || d.tipo} · ${FALLA_GRAVEDAD[d.gravedad] || d.gravedad}`],
+  falla_reportada: ['Falla del camión reportada', 'i-wrench', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${FALLA_TIPO[d.tipo] || d.tipo} · ${FALLA_GRAVEDAD[d.gravedad] || d.gravedad}`],
   falla_actualizada: ['Falla del camión actualizada', 'i-wrench', '', d => `Reporte #${d.id} · ${{ abierta: 'Abierta', reparacion: 'En reparación', resuelta: 'Resuelta' }[d.estado] || d.estado}`],
-  queja_actualizada: ['Queja atendida', 'i-inbox', '', d => `Queja #${d.id} · ${{ nueva: 'Nueva', revision: 'En revisión', atendida: 'Atendida' }[d.estado] || d.estado}${d.respondida ? ' · con respuesta' : ''}`]
+  queja_actualizada: ['Queja atendida', 'i-inbox', '', d => `Queja #${d.id} · ${{ nueva: 'Nueva', revision: 'En revisión', atendida: 'Atendida' }[d.estado] || d.estado}${d.respondida ? ' · con respuesta' : ''}`],
+  diesel_registrado: ['Carga de diésel registrada', 'i-fuel', 'is-money', d => `Camión ${camionCorto(d.camion)} · ${fmtLitros(d.litros)} · ${fmtMoney(d.importe)}`],
+  diesel_actualizado: ['Carga de diésel revisada', 'i-fuel', '', d => `Carga #${d.id} · Camión ${camionCorto(d.camion)} · ${ESTADO_CARGA[d.estado]?.label || d.estado}${d.corregida ? ' · datos corregidos' : ''}`],
+  diesel_tanque: ['Capacidad del tanque', 'i-gauge', '', d => `Camión ${camionCorto(d.camion)} · ${d.litros ? fmtLitros(d.litros) : 'sin dato'}`]
 }
 const FALLA_TIPO = { motor: 'Motor', frenos: 'Frenos', llantas: 'Llantas', luces: 'Luces', puertas: 'Puertas', clima: 'Clima', electrico: 'Eléctrico', otro: 'Otro' }
 const FALLA_GRAVEDAD = { baja: 'Puede seguir', media: 'Revisar pronto', alta: 'No puede circular' }
@@ -1560,6 +1576,7 @@ async function cargarBitacora() {
 $('#view-admin').addEventListener('tabchange', e => {
   if (e.detail === 'admin-tab-log') cargarBitacora()
   if (e.detail === 'admin-tab-inbox') buzon.adminAbrir()
+  if (e.detail === 'admin-tab-balance') diesel.refrescar()
 })
 
 // --- 12. TIEMPO REAL ---
@@ -1594,6 +1611,7 @@ document.addEventListener('visibilitychange', () => {
     asientosChofer.cargar()
   }
   buzon.refrescar()
+  diesel.refrescar()
 })
 
 // --- 13. INTRO Y ARRANQUE ---

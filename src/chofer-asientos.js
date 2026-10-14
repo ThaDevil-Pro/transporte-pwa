@@ -2,6 +2,7 @@
 // Mapa de asientos del chofer: quién va en cada asiento y si ya subió.
 // Solo lectura; el apartado lo hacen los alumnos.
 // =====================================================================
+import { camionCorto } from './camiones.js'
 import { $, $$, esc, icon, initials, haptic, alert } from './ui.js'
 import { TZ, claveSalida, splitHora, etiquetaDia } from './asientos.js'
 
@@ -20,8 +21,8 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
   async function cargar() {
     activo = true
     const bus = camion()
-    $('#driver-seats-eyebrow').textContent = `Camión ${bus}`
-    $('#driver-bus-name').textContent = `Camión ${bus}`
+    $('#driver-seats-eyebrow').textContent = `Camión ${camionCorto(bus)}`
+    $('#driver-bus-name').textContent = `Camión ${camionCorto(bus)}`
     const { data, error } = await rpc('chofer_salidas', { p_camion: bus })
     // Ignora la respuesta si el chofer cambió de camión mientras tanto
     if (error || !activo || bus !== camion()) return

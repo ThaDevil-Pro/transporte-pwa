@@ -31,11 +31,10 @@
     <symbol id="i-reply" viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></symbol>
     <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
     <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
-    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
-    <symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
-    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
-    <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
-    <symbol id="i-reply" viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></symbol>
+    <symbol id="i-fuel" viewBox="0 0 24 24"><line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
     <symbol id="i-bus" viewBox="0 0 24 24"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></symbol>
     <symbol id="i-student" viewBox="0 0 24 24"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></symbol>
     <symbol id="i-wheel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.2"/><path d="M12 14.2V21"/><path d="M9.8 12H3.2"/><path d="M14.2 12h6.6"/></symbol>
@@ -203,7 +202,7 @@
           <article class="card trip-card" id="trip-card" data-state="waiting" data-reveal style="--i:1">
             <div class="trip-top">
               <span class="status-pill"><span class="status-dot"></span><span id="trip-status-label">Esperando</span></span>
-              <span class="trip-bus-tag"><svg class="icon trip-bus"><use href="#i-bus"/></svg><span id="trip-bus-label">Camión 1</span></span>
+              <span class="trip-bus-tag"><svg class="icon trip-bus"><use href="#i-bus"/></svg><span id="trip-bus-label">Camión Rojo</span></span>
             </div>
             <div class="trip-main" id="trip-main">
               <p class="trip-kicker" id="trip-kicker" hidden>Sale en</p>
@@ -280,7 +279,7 @@
       <header class="nav">
         <div class="nav-leading">
           <button class="nav-pill" id="btn-camion" aria-label="Cambiar de camión">
-            <svg class="icon"><use href="#i-bus"/></svg><span id="camion-label">Camión 1</span><svg class="icon nav-pill-chevron"><use href="#i-chevron-right"/></svg>
+            <svg class="icon"><use href="#i-bus"/></svg><span id="camion-label">Camión Rojo</span><svg class="icon nav-pill-chevron"><use href="#i-chevron-right"/></svg>
           </button>
         </div>
         <div class="nav-title">Viaje</div>
@@ -350,12 +349,24 @@
           <button class="btn btn-primary btn-lg btn-block" id="btn-iniciar-viaje" disabled>Hacer corte</button>
           <button class="btn btn-plain btn-block corte-report" id="btn-driver-report"><svg class="icon"><use href="#i-chart"/></svg>Ver mis reportes</button>
         </article>
+
+        <article class="card diesel-card" id="driver-diesel-card" data-reveal style="--i:5">
+          <div class="diesel-card-head">
+            <span class="row-icon tono-orange"><svg class="icon"><use href="#i-fuel"/></svg></span>
+            <div class="diesel-card-text">
+              <h2 class="diesel-card-title">Diésel</h2>
+              <p class="diesel-card-sub" id="driver-diesel-sub">Registra cada carga con la foto del ticket</p>
+            </div>
+          </div>
+          <button class="btn btn-tinted btn-lg btn-block" id="btn-diesel-registrar"><svg class="icon"><use href="#i-camera"/></svg>Registrar carga</button>
+          <div class="inbox-mine" id="driver-diesel-list" hidden></div>
+        </article>
       </div>
 
       <!-- Pestaña: Asientos -->
       <div class="scroll tab-panel" id="driver-tab-seats" data-title="Asientos">
         <div class="page-header" data-reveal style="--i:0">
-          <p class="eyebrow" id="driver-seats-eyebrow">Camión 1</p>
+          <p class="eyebrow" id="driver-seats-eyebrow">Camión Rojo</p>
           <h1 class="large-title">Asientos</h1>
         </div>
         <div class="departures departures-inline" id="driver-departures" role="tablist" aria-label="Salidas del camión" data-reveal style="--i:1"></div>
@@ -367,7 +378,7 @@
         <div class="bus bus-driver-view" id="driver-bus" data-reveal style="--i:3">
           <div class="bus-front" aria-hidden="true">
             <span class="bus-driver"><svg class="icon"><use href="#i-wheel"/></svg></span>
-            <span class="bus-name" id="driver-bus-name">Camión 1</span>
+            <span class="bus-name" id="driver-bus-name">Camión Rojo</span>
             <span class="bus-door">Puerta<i></i></span>
           </div>
           <div class="bus-seats" id="driver-bus-seats" role="group" aria-label="Asientos del camión"></div>
@@ -555,7 +566,17 @@
               <button class="btn btn-secondary" id="btn-admin-report-chofer"><svg class="icon"><use href="#i-wheel"/></svg>Reportes de choferes</button>
             </div>
           </article>
-          <div class="list" id="admin-balances-ul" data-reveal style="--i:2"></div>
+          <article class="card summary-card diesel-summary" id="admin-diesel-card" data-reveal style="--i:2">
+            <div class="card-label"><svg class="icon"><use href="#i-fuel"/></svg>Diésel este mes</div>
+            <div class="amount"><span class="amount-currency">$</span><span class="amount-value" id="admin-diesel-total">0.00</span></div>
+            <p class="card-foot" id="admin-diesel-meta">Sin cargas este mes</p>
+            <p class="diesel-pending" id="admin-diesel-pending" hidden></p>
+            <div class="report-actions">
+              <button class="btn btn-tinted" id="btn-admin-diesel-cargas"><svg class="icon"><use href="#i-receipt"/></svg>Cargas y tickets</button>
+              <button class="btn btn-secondary" id="btn-admin-report-diesel"><svg class="icon"><use href="#i-chart"/></svg>Informe de diésel</button>
+            </div>
+          </article>
+          <div class="list" id="admin-balances-ul" data-reveal style="--i:3"></div>
         </div>
       </div>
 
@@ -843,7 +864,7 @@
         <div class="bus" id="bus">
           <div class="bus-front" aria-hidden="true">
             <span class="bus-driver"><svg class="icon"><use href="#i-wheel"/></svg></span>
-            <span class="bus-name" id="bus-name">Camión 1</span>
+            <span class="bus-name" id="bus-name">Camión Rojo</span>
             <span class="bus-door">Puerta<i></i></span>
           </div>
           <div class="bus-seats" id="bus-seats" role="group" aria-label="Asientos del camión"></div>
@@ -909,10 +930,11 @@
       </div>
       <div class="sheet-body report-body">
         <div class="report-controls">
-          <div class="segmented" id="report-kind" style="--n:2" hidden>
+          <div class="segmented" id="report-kind" style="--n:3" hidden>
             <span class="segmented-thumb"></span>
             <button type="button" data-value="gastos">Gastos</button>
             <button type="button" data-value="chofer">Por chofer</button>
+            <button type="button" data-value="diesel">Diésel</button>
           </div>
           <label class="report-select" id="report-chofer-field" hidden>
             <svg class="icon"><use href="#i-wheel"/></svg>
@@ -932,6 +954,10 @@
         <div class="report-preview" id="report-preview"></div>
       </div>
       <div class="sheet-footer">
+        <label class="switch-row report-option" id="report-fotos-opcion" hidden>
+          <span class="switch-text"><b>Incluir fotos de los tickets</b><small id="report-fotos-nota">Al final del PDF, como comprobante</small></span>
+          <input type="checkbox" class="switch" id="report-fotos" checked>
+        </label>
         <button class="btn btn-primary btn-lg btn-block" id="btn-report-pdf" disabled><svg class="icon"><use href="#i-download"/></svg>Descargar PDF</button>
       </div>
     </div>
@@ -956,12 +982,7 @@
         </div>
         <div class="form-group">
           <p class="form-label">¿En qué camión?</p>
-          <div class="segmented" id="queja-camion" style="--n:3">
-            <span class="segmented-thumb"></span>
-            <button type="button" data-value="1">Camión 1</button>
-            <button type="button" data-value="2">Camión 2</button>
-            <button type="button" data-value="0">No sé</button>
-          </div>
+          <div class="choices" id="queja-camion" role="radiogroup" aria-label="Camión"></div>
         </div>
         <div class="field field-area">
           <textarea id="queja-mensaje" rows="5" maxlength="600" placeholder=" "></textarea>
@@ -988,11 +1009,7 @@
       <form class="sheet-body sheet-form inbox-form" id="form-falla" novalidate>
         <div class="form-group">
           <p class="form-label">Camión</p>
-          <div class="segmented" id="falla-camion" style="--n:2">
-            <span class="segmented-thumb"></span>
-            <button type="button" data-value="1">Camión 1</button>
-            <button type="button" data-value="2">Camión 2</button>
-          </div>
+          <div class="choices" id="falla-camion" role="radiogroup" aria-label="Camión"></div>
         </div>
         <div class="form-group">
           <p class="form-label">¿Qué falla?</p>
@@ -1038,6 +1055,200 @@
         <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-atender-save">Guardar</button>
       </form>
     </div>
+  </div>
+
+  <!-- Cargas de diésel (administración) -->
+  <div class="sheet" id="sheet-diesel-cargas" role="dialog" aria-modal="true" aria-labelledby="sheet-diesel-cargas-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-diesel-cargas-title">Cargas de diésel</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <div class="sheet-body report-body">
+        <div class="segmented segmented-mini" id="diesel-cargas-filtro" style="--n:3">
+          <span class="segmented-thumb"></span>
+          <button type="button" data-value="pendientes">Por verificar</button>
+          <button type="button" data-value="alertas">Alertas</button>
+          <button type="button" data-value="todas">Todas</button>
+        </div>
+        <div class="list inbox-list" id="diesel-cargas-list"></div>
+      </div>
+      <div class="sheet-footer diesel-footer">
+        <button class="btn btn-primary btn-lg" id="btn-diesel-nueva"><svg class="icon"><use href="#i-plus"/></svg>Registrar ticket</button>
+        <button class="btn btn-secondary btn-lg" id="btn-diesel-tanques"><svg class="icon"><use href="#i-gauge"/></svg>Tanques</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Revisar una carga de diésel (administración) -->
+  <div class="sheet" id="sheet-diesel-carga" role="dialog" aria-modal="true" aria-labelledby="sheet-diesel-carga-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-diesel-carga-title">Carga de diésel</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <form class="sheet-body sheet-form inbox-form" id="form-diesel-revisar" novalidate>
+        <div class="diesel-ticket" id="diesel-revisar-ticket"></div>
+        <div class="inbox-detail" id="diesel-revisar-detalle"></div>
+        <div class="form-group">
+          <p class="form-label">Estado</p>
+          <div class="choices choices-2" id="diesel-revisar-estado" role="radiogroup" aria-label="Estado de la carga"></div>
+        </div>
+        <div class="field field-area">
+          <textarea id="diesel-revisar-nota" rows="3" maxlength="300" placeholder=" "></textarea>
+          <label for="diesel-revisar-nota" id="diesel-revisar-nota-label">Nota (opcional)</label>
+          <span class="field-count" id="diesel-revisar-contador">0/300</span>
+        </div>
+        <p class="field-hint">El chofer ve el estado y la nota de sus cargas.</p>
+        <button type="button" class="btn btn-plain diesel-fix-toggle" id="btn-diesel-corregir" aria-expanded="false" aria-controls="diesel-corregir"><svg class="icon"><use href="#i-receipt"/></svg><span>Corregir datos</span></button>
+        <div class="collapsible is-collapsed" id="diesel-corregir" inert>
+          <div class="collapsible-inner">
+            <div class="field-stack">
+              <div class="choices" id="diesel-corr-camion" role="radiogroup" aria-label="Camión"></div>
+              <div class="field-row">
+                <div class="field">
+                  <input id="diesel-corr-litros" type="number" inputmode="decimal" step="0.01" min="0" placeholder=" ">
+                  <label for="diesel-corr-litros">Litros</label>
+                </div>
+                <div class="field">
+                  <input id="diesel-corr-importe" type="number" inputmode="decimal" step="0.01" min="0" placeholder=" ">
+                  <label for="diesel-corr-importe">Total ($)</label>
+                </div>
+              </div>
+              <div class="field">
+                <input id="diesel-corr-odometro" type="number" inputmode="numeric" step="1" min="0" placeholder=" ">
+                <label for="diesel-corr-odometro">Kilometraje del tablero</label>
+              </div>
+              <div class="field field-date">
+                <input id="diesel-corr-fecha" type="datetime-local">
+                <label for="diesel-corr-fecha">Fecha y hora de la carga</label>
+              </div>
+              <label class="switch-row">
+                <span class="switch-text"><b>Tanque lleno</b><small>Si fue carga parcial, apágalo</small></span>
+                <input type="checkbox" class="switch" id="diesel-corr-lleno">
+              </label>
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-diesel-revisar-save">Guardar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Capacidad del tanque de cada camión -->
+  <div class="sheet" id="sheet-diesel-tanques" role="dialog" aria-modal="true" aria-labelledby="sheet-diesel-tanques-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-diesel-tanques-title">Tanques</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <form class="sheet-body sheet-form" id="form-diesel-tanques" novalidate>
+        <p class="sheet-lead">Con la capacidad del tanque, CAMIFY detecta cargas de más litros de los que caben y kilómetros que no alcanzan con un tanque.</p>
+        <div class="field-stack" id="diesel-tanques-campos"></div>
+        <p class="field-hint">Déjalo vacío si no lo sabes.</p>
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-diesel-tanques-save">Guardar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Va después de la lista de cargas: se abre encima de ella -->
+  <!-- Registrar carga de diésel (chofer y administración) -->
+  <div class="sheet" id="sheet-diesel" role="dialog" aria-modal="true" aria-labelledby="sheet-diesel-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-diesel-title">Registrar carga</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <form class="sheet-body sheet-form inbox-form" id="form-diesel" novalidate>
+        <div class="ticket-pick" id="diesel-foto-box">
+          <input type="file" id="diesel-foto" accept="image/*" capture="environment" hidden>
+          <button type="button" class="ticket-pick-empty" id="btn-diesel-foto">
+            <span class="ticket-pick-icon"><svg class="icon"><use href="#i-camera"/></svg></span>
+            <span class="ticket-pick-title">Tomar foto del ticket</span>
+            <span class="ticket-pick-sub" id="diesel-foto-sub">Que se lean los litros, el total y la fecha</span>
+          </button>
+          <div class="ticket-pick-preview">
+            <img alt="Foto del ticket">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-diesel-foto-cambiar"><svg class="icon"><use href="#i-camera"/></svg>Cambiar</button>
+          </div>
+        </div>
+        <label class="report-select" id="diesel-chofer-field" hidden>
+          <svg class="icon"><use href="#i-wheel"/></svg>
+          <select id="diesel-chofer" aria-label="Chofer"></select>
+          <svg class="icon report-select-chevron"><use href="#i-chevron-right"/></svg>
+        </label>
+        <div class="form-group">
+          <p class="form-label">Camión</p>
+          <div class="choices" id="diesel-camion" role="radiogroup" aria-label="Camión"></div>
+        </div>
+        <div class="form-group">
+          <div class="field-row">
+            <div class="field">
+              <input id="diesel-litros" type="number" inputmode="decimal" step="0.01" min="0" placeholder=" ">
+              <label for="diesel-litros">Litros</label>
+            </div>
+            <div class="field">
+              <input id="diesel-importe" type="number" inputmode="decimal" step="0.01" min="0" placeholder=" ">
+              <label for="diesel-importe">Total ($)</label>
+            </div>
+          </div>
+          <p class="diesel-hints" id="diesel-precio" aria-live="polite" hidden></p>
+        </div>
+        <div class="form-group">
+          <div class="field">
+            <input id="diesel-odometro" type="number" inputmode="numeric" step="1" min="0" placeholder=" ">
+            <label for="diesel-odometro">Kilometraje del tablero</label>
+          </div>
+          <p class="field-hint diesel-odo-hint" id="diesel-odo-hint" aria-live="polite"></p>
+        </div>
+        <label class="switch-row">
+          <span class="switch-text"><b>Llené el tanque</b><small>Apágalo si solo cargaste una parte</small></span>
+          <input type="checkbox" class="switch" id="diesel-lleno" checked>
+        </label>
+        <div class="form-group">
+          <p class="form-label">Más datos</p>
+          <div class="field field-date">
+            <input id="diesel-fecha" type="datetime-local">
+            <label for="diesel-fecha">Fecha y hora de la carga</label>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <input id="diesel-gasolinera" type="text" maxlength="80" placeholder=" " autocomplete="off" autocapitalize="words">
+              <label for="diesel-gasolinera">Gasolinera</label>
+            </div>
+            <div class="field">
+              <input id="diesel-folio" type="text" maxlength="40" placeholder=" " autocomplete="off" autocapitalize="characters" spellcheck="false">
+              <label for="diesel-folio">Folio</label>
+            </div>
+          </div>
+          <p class="field-hint">La gasolinera y el folio son opcionales. El folio evita que el mismo ticket se registre dos veces.</p>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-diesel-send"><svg class="icon"><use href="#i-check"/></svg>Guardar carga</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Visor del ticket a pantalla completa -->
+  <div class="ticket-viewer" id="ticket-viewer" role="dialog" aria-modal="true" aria-label="Foto del ticket" hidden>
+    <button type="button" class="icon-btn ticket-viewer-close" aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+    <div class="ticket-viewer-scroll"><img alt="Foto del ticket"></div>
+    <p class="ticket-viewer-hint">Toca la foto para acercar</p>
   </div>
 
   <!-- Aviso flotante estilo Dynamic Island -->

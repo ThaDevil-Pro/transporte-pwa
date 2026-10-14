@@ -3,6 +3,7 @@
 // control y lo sube a la lista sin QR (para quien no trae su código).
 // El servidor marca el abordaje como manual y lo anota en la bitácora.
 // =====================================================================
+import { camionCorto } from './camiones.js'
 import { $, esc, icon, avatar, haptic, toast, confirm, openSheet } from './ui.js'
 
 const MINIMO = 2
@@ -85,7 +86,7 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
 
     lista.innerHTML = resultados.map((a, i) => {
       const abordo = !disponible(a)
-      const sub = abordo ? `${esc(a.matricula)} · Ya va en el camión ${esc(a.camion)}` : esc(a.matricula)
+      const sub = abordo ? `${esc(a.matricula)} · Ya va en el camión ${esc(camionCorto(a.camion))}` : esc(a.matricula)
       return `<button type="button" class="row" role="option" id="manual-opt-${i}" data-i="${i}" aria-selected="${i === activo}"${abordo ? ' aria-disabled="true"' : ''} tabindex="-1">
         ${avatar(a.nombre)}
         <span class="row-text"><span class="row-title">${esc(a.nombre)}</span><span class="row-sub">${sub}</span></span>
@@ -124,13 +125,13 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
     const a = resultados[i]
     if (!a || registrando) return
     if (!disponible(a)) {
-      toast(`${primerNombre(a.nombre)} ya va en el camión ${a.camion}`, { type: 'warning' })
+      toast(`${primerNombre(a.nombre)} ya va en el camión ${camionCorto(a.camion)}`, { type: 'warning' })
       return
     }
     const bus = camion()
     const ok = await confirm({
       title: `¿Subir a ${a.nombre}?`,
-      message: `${a.matricula} · Camión ${bus}. Quedará registrado a mano y se le cobrará en el corte.`,
+      message: `${a.matricula} · Camión ${camionCorto(bus)}. Quedará registrado a mano y se le cobrará en el corte.`,
       confirmLabel: 'Subir'
     })
     if (!ok) {

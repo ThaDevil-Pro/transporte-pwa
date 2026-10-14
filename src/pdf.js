@@ -3,6 +3,9 @@
 // descargar el primer reporte). Mismo lenguaje visual que la app:
 // blanco, tipografía grande, tarjetas grises redondeadas y líneas finas.
 // =====================================================================
+import { camionCorto } from './camiones.js'
+import { ALERTAS, ESTADO_CARGA, fmtLitros, fmtKm, fmtRend, rendimiento } from './diesel.js'
+
 const TZ = 'America/Mexico_City'
 
 const C = {
@@ -177,7 +180,8 @@ function parrafo(ctx, t, { color = C.gris, size = 10 } = {}) {
 }
 
 // Tabla con líneas finas. columnas: [{ titulo, alinear?, ancho? }]
-function tabla(ctx, columnas, filas, { pie = null } = {}) {
+// colorFila(i) devuelve el color del texto de una fila (p. ej. las que tienen alertas)
+function tabla(ctx, columnas, filas, { pie = null, letra = 9, colorFila = null } = {}) {
   const limpiar = fila => fila.map(c => limpio(c))
   const columnStyles = {}
   columnas.forEach((c, i) => {
@@ -194,7 +198,7 @@ function tabla(ctx, columnas, filas, { pie = null } = {}) {
     columnStyles,
     styles: {
       font: 'helvetica',
-      fontSize: 9,
+      fontSize: letra,
       textColor: C.tinta,
       cellPadding: { top: 6.5, bottom: 6.5, left: 5, right: 5 },
       lineColor: C.linea,
@@ -207,13 +211,17 @@ function tabla(ctx, columnas, filas, { pie = null } = {}) {
     didParseCell: d => {
       // Los títulos siguen la alineación de su columna
       if (d.section === 'head' || d.section === 'foot') d.cell.styles.halign = columnas[d.column.index]?.alinear || 'left'
+      if (d.section === 'body' && colorFila) {
+        const color = colorFila(d.row.index)
+        if (color) d.cell.styles.textColor = color
+      }
     }
   })
   ctx.y = ctx.doc.lastAutoTable.finalY + 28
 }
 
-// Barras dobles (cobrado y pagado) por día o por mes
-function grafica(ctx, puntos, { serieA, serieB }) {
+// Barras dobles (cobrado y pagado) por día o por mes; con una sola serie, barras sencillas
+function grafica(ctx, puntos, { serieA, serieB = null }) {
   const { doc } = ctx
   const h = 130
   asegurar(ctx, h + 60)
@@ -233,15 +241,15 @@ function grafica(ctx, puntos, { serieA, serieB }) {
   }
 
   const paso = w / puntos.length
-  const barra = Math.min(12, (paso * 0.7) / 2)
+  const barra = serieB ? Math.min(12, (paso * 0.7) / 2) : Math.min(18, paso * 0.6)
   const cadaCuanto = Math.ceil(puntos.length / 16)
   puntos.forEach((p, i) => {
     const cx = x0 + paso * i + paso / 2
     const ha = (p.a / tope) * h
-    const hb = (p.b / tope) * h
+    const hb = serieB ? (p.b / tope) * h : 0
     if (ha > 0) {
       doc.setFillColor(...C.tinta)
-      doc.roundedRect(cx - barra - 1, y0 + h - ha, barra, ha, Math.min(2.5, barra / 2), Math.min(2.5, barra / 2), 'F')
+      doc.roundedRect(serieB ? cx - barra - 1 : cx - barra / 2, y0 + h - ha, barra, ha, Math.min(2.5, barra / 2), Math.min(2.5, barra / 2), 'F')
     }
     if (hb > 0) {
       doc.setFillColor(...C.verde)
@@ -255,9 +263,11 @@ function grafica(ctx, puntos, { serieA, serieB }) {
   doc.setFillColor(...C.tinta)
   doc.roundedRect(x0, ly - 7, 8, 8, 2, 2, 'F')
   texto(ctx, serieA, x0 + 13, ly, { size: 8.5, color: C.gris })
-  doc.setFillColor(...C.verde)
-  doc.roundedRect(x0 + 110, ly - 7, 8, 8, 2, 2, 'F')
-  texto(ctx, serieB, x0 + 123, ly, { size: 8.5, color: C.gris })
+  if (serieB) {
+    doc.setFillColor(...C.verde)
+    doc.roundedRect(x0 + 110, ly - 7, 8, 8, 2, 2, 'F')
+    texto(ctx, serieB, x0 + 123, ly, { size: 8.5, color: C.gris })
+  }
   ctx.y = ly + 26
 }
 
@@ -329,7 +339,7 @@ export async function pdfAlumno(datos, periodo) {
   if (viajes.length) {
     tabla(ctx,
       [{ titulo: '#', ancho: 26 }, { titulo: 'Fecha' }, { titulo: 'Hora' }, { titulo: 'Camión', alinear: 'center' }, { titulo: 'Registro' }, { titulo: 'Monto', alinear: 'right' }],
-      viajes.map((v, i) => [i + 1, mayus(fecha(v.fecha_hora, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })), hora(v.fecha_hora), v.camion ?? 1, registro(v.manual), fmtDinero(v.monto)]),
+      viajes.map((v, i) => [i + 1, mayus(fecha(v.fecha_hora, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })), hora(v.fecha_hora), camionCorto(v.camion ?? 1), registro(v.manual), fmtDinero(v.monto)]),
       { pie: ['', 'Total', '', '', '', fmtDinero(cobrado)] }
     )
   } else {
@@ -404,7 +414,7 @@ export async function pdfChofer(datos, periodo) {
   seccion(ctx, 'Cortes', `${cortes.length} en el periodo`)
   tabla(ctx,
     [{ titulo: '#', ancho: 26 }, { titulo: 'Fecha' }, { titulo: 'Hora' }, { titulo: 'Camión', alinear: 'center' }, { titulo: 'Pasajeros', alinear: 'center' }, { titulo: 'A mano', alinear: 'center' }, { titulo: 'Total', alinear: 'right' }],
-    cortes.map((c, i) => [i + 1, mayus(fecha(c.creado_en, { weekday: 'short', day: 'numeric', month: 'short' })), hora(c.creado_en), c.camion, c.alumnos, c.manuales, fmtDinero(c.total)]),
+    cortes.map((c, i) => [i + 1, mayus(fecha(c.creado_en, { weekday: 'short', day: 'numeric', month: 'short' })), hora(c.creado_en), camionCorto(c.camion), c.alumnos, c.manuales, fmtDinero(c.total)]),
     { pie: ['', 'Total', '', '', r.pasajeros, r.manuales, fmtDinero(r.total)] }
   )
 
@@ -415,7 +425,7 @@ export async function pdfChofer(datos, periodo) {
     cortes.forEach((c, i) => {
       // Las listas cortas no se parten entre dos páginas
       asegurar(ctx, Math.min(64 + c.pasajeros.length * 25, 420))
-      texto(ctx, `Corte ${i + 1} · Camión ${c.camion}`, M, ctx.y + 4, { size: 11, bold: true })
+      texto(ctx, `Corte ${i + 1} · Camión ${camionCorto(c.camion)}`, M, ctx.y + 4, { size: 11, bold: true })
       texto(ctx, `${mayus(fecha(c.creado_en, { weekday: 'long', day: 'numeric', month: 'long' }))}, ${hora(c.creado_en)} · ${fmtDinero(c.total)}`,
         ctx.ancho - M, ctx.y + 4, { size: 9, color: C.gris, align: 'right' })
       ctx.y += 12
@@ -479,7 +489,7 @@ export async function pdfGastos(datos, periodo, { admin } = {}) {
     seccion(ctx, 'Por camión')
     tabla(ctx,
       [{ titulo: 'Camión' }, { titulo: 'Viajes', alinear: 'center' }, { titulo: 'Cobrado', alinear: 'right' }],
-      datos.camiones.map(c => [`Camión ${c.camion}`, c.viajes, fmtDinero(c.cargado)]),
+      datos.camiones.map(c => [`Camión ${camionCorto(c.camion)}`, c.viajes, fmtDinero(c.cargado)]),
       { pie: ['Total', r.viajes, fmtDinero(r.cobrado)] }
     )
   }
@@ -509,26 +519,200 @@ export async function pdfGastos(datos, periodo, { admin } = {}) {
   return terminar(ctx, `camify-gastos-${periodo.archivo}.pdf`)
 }
 
-function porDia(dias, periodo) {
+// valores(d) → [a, b] de cada día
+const cobradoPagado = d => [Number(d?.cargado || 0), Number(d?.pagado || 0)]
+
+function porDia(dias, periodo, valores = cobradoPagado) {
   const mapa = new Map(dias.map(d => [d.fecha, d]))
   const puntos = []
   for (let d = new Date(`${periodo.desde}T12:00:00Z`); d.toISOString().slice(0, 10) <= periodo.hasta; d.setUTCDate(d.getUTCDate() + 1)) {
     const k = d.toISOString().slice(0, 10)
-    const v = mapa.get(k)
-    puntos.push({ etiqueta: periodo.tipo === 'semana' ? mayus(dia(k, { weekday: 'short' })) : String(d.getUTCDate()), a: Number(v?.cargado || 0), b: Number(v?.pagado || 0) })
+    const [a, b] = valores(mapa.get(k))
+    puntos.push({ etiqueta: periodo.tipo === 'semana' ? mayus(dia(k, { weekday: 'short' })) : String(d.getUTCDate()), a, b })
   }
   return puntos
 }
 
-function porMes(dias, periodo) {
+// Por mes: los 12 del año o los 6 del semestre
+function porMes(dias, periodo, valores = cobradoPagado) {
   const anio = periodo.desde.slice(0, 4)
-  return Array.from({ length: 12 }, (_, m) => {
-    const prefijo = `${anio}-${String(m + 1).padStart(2, '0')}`
+  const inicio = Number(periodo.desde.slice(5, 7)) - 1
+  return Array.from({ length: periodo.tipo === 'semestre' ? 6 : 12 }, (_, m) => {
+    const prefijo = `${anio}-${String(inicio + m + 1).padStart(2, '0')}`
     const del = dias.filter(d => d.fecha.startsWith(prefijo))
     return {
       etiqueta: mayus(dia(`${prefijo}-15`, { month: 'short' }).replace('.', '')),
-      a: del.reduce((s, d) => s + Number(d.cargado), 0),
-      b: del.reduce((s, d) => s + Number(d.pagado), 0)
+      a: del.reduce((s, d) => s + valores(d)[0], 0),
+      b: del.reduce((s, d) => s + valores(d)[1], 0)
     }
   })
+}
+
+// =====================================================================
+// Informe de diésel (administración, para directivos)
+// =====================================================================
+export async function pdfDiesel(datos, periodo, { admin, fotos } = {}) {
+  const t = datos.totales
+  const importe = Number(t.importe)
+  const litros = Number(t.litros)
+  const precio = litros ? importe / litros : null
+  const rend = rendimiento(t.km_lleno, t.litros_lleno)
+  const ant = datos.anterior
+  const cambio = ant && Number(ant.importe) > 0 ? ((importe - Number(ant.importe)) / Number(ant.importe)) * 100 : null
+  const n = (k, uno, varios) => `${k} ${k === 1 ? uno : varios}`
+
+  const ctx = await nuevoDocumento({
+    eyebrow: 'Informe de diésel',
+    titulo: mayus(periodo.titulo),
+    subtitulo: `${periodo.texto}${admin ? ` · Generado por ${admin}` : ''}`
+  })
+
+  tarjetas(ctx, [
+    {
+      etiqueta: 'Gasto en diésel', valor: fmtDinero(importe),
+      nota: cambio == null ? n(t.cargas, 'carga', 'cargas') : `${cambio >= 0 ? '+' : '-'}${Math.abs(Math.round(cambio))} % vs. periodo anterior`,
+      color: cambio != null && cambio > 15 ? C.naranja : C.tinta
+    },
+    { etiqueta: 'Litros', valor: fmtLitros(litros), nota: n(t.cargas, 'carga', 'cargas') },
+    { etiqueta: 'Precio promedio', valor: precio ? fmtDinero(precio) : '-', nota: 'por litro' },
+    { etiqueta: 'Rendimiento', valor: fmtRend(rend), nota: Number(t.km) ? `${fmtKm(t.km)} recorridos` : 'Falta kilometraje' },
+    { etiqueta: 'Costo por km', valor: precio && rend ? fmtDinero(precio / rend) : '-', nota: 'Precio entre rendimiento' },
+    { etiqueta: 'Diésel por salida', valor: t.salidas ? fmtDinero(importe / t.salidas) : '-', nota: n(t.salidas, 'salida', 'salidas') },
+    { etiqueta: 'Diésel por alumno', valor: t.pasajeros ? fmtDinero(importe / t.pasajeros) : '-', nota: n(t.pasajeros, 'viaje de alumno', 'viajes de alumnos') },
+    {
+      etiqueta: 'Revisión', valor: t.con_alertas ? n(t.con_alertas, 'alerta', 'alertas') : 'Sin alertas',
+      nota: t.pendientes ? `${t.pendientes} por verificar` : 'Todo verificado',
+      color: t.con_alertas ? C.naranja : C.verde
+    }
+  ])
+
+  if (!datos.cargas.length) {
+    parrafo(ctx, 'No se registraron cargas de diésel en este periodo.')
+    return terminar(ctx, `camify-diesel-${periodo.archivo}.pdf`)
+  }
+
+  // Gráfica del gasto: por día o por mes
+  if (periodo.tipo !== 'dia' && datos.dias.length) {
+    const largo = periodo.tipo === 'anio' || periodo.tipo === 'semestre'
+    const valores = d => [Number(d?.importe || 0), 0]
+    seccion(ctx, largo ? 'Gasto por mes' : 'Gasto por día')
+    grafica(ctx, largo ? porMes(datos.dias, periodo, valores) : porDia(datos.dias, periodo, valores), { serieA: 'Gasto en diésel' })
+  }
+
+  const camiones = datos.camiones.filter(c => c.cargas || c.salidas)
+  if (camiones.length) {
+    seccion(ctx, 'Por camión')
+    tabla(ctx,
+      [{ titulo: 'Camión' }, { titulo: 'Cargas', alinear: 'center' }, { titulo: 'Litros', alinear: 'right' }, { titulo: 'Gasto', alinear: 'right' },
+        { titulo: 'Km', alinear: 'right' }, { titulo: 'Km/L', alinear: 'right' }, { titulo: '$/km', alinear: 'right' }, { titulo: 'Salidas', alinear: 'center' }],
+      camiones.map(c => {
+        const r = rendimiento(c.km_lleno, c.litros_lleno)
+        const p = Number(c.litros) ? Number(c.importe) / Number(c.litros) : null
+        return [`Camión ${camionCorto(c.camion)}${c.tanque ? ` (tanque ${fmtLitros(c.tanque)})` : ''}`, c.cargas, fmtLitros(c.litros), fmtDinero(c.importe),
+          Number(c.km) ? fmtKm(c.km) : '-', r ? fmtRend(r).replace(' km/L', '') : '-', p && r ? fmtDinero(p / r) : '-', c.salidas]
+      }),
+      { pie: ['Total', t.cargas, fmtLitros(litros), fmtDinero(importe), Number(t.km) ? fmtKm(t.km) : '-', rend ? fmtRend(rend).replace(' km/L', '') : '-', precio && rend ? fmtDinero(precio / rend) : '-', t.salidas] }
+    )
+  }
+
+  if (datos.choferes.length) {
+    seccion(ctx, 'Por chofer')
+    tabla(ctx,
+      [{ titulo: 'Chofer' }, { titulo: 'Licencia' }, { titulo: 'Cargas', alinear: 'center' }, { titulo: 'Litros', alinear: 'right' }, { titulo: 'Gasto', alinear: 'right' }],
+      datos.choferes.map(c => [c.nombre || 'Sin chofer (administración)', c.licencia || '-', c.cargas, fmtLitros(c.litros), fmtDinero(c.importe)]),
+      { pie: ['Total', '', t.cargas, fmtLitros(litros), fmtDinero(importe)] }
+    )
+  }
+
+  seccion(ctx, 'Cargas', n(datos.cargas.length, 'carga en el periodo', 'cargas en el periodo'))
+  const conAlerta = datos.cargas.map(c => (c.alertas || []).length > 0)
+  tabla(ctx,
+    [{ titulo: '#', ancho: 20 }, { titulo: 'Fecha' }, { titulo: 'Camión' }, { titulo: 'Chofer' }, { titulo: 'Litros', alinear: 'right' },
+      { titulo: '$/L', alinear: 'right' }, { titulo: 'Total', alinear: 'right' }, { titulo: 'Tablero', alinear: 'right' }, { titulo: 'Km/L', alinear: 'right' }, { titulo: 'Estado' }],
+    datos.cargas.map((c, i) => [
+      i + 1,
+      `${mayus(fecha(c.fecha, { day: 'numeric', month: 'short' }))}, ${hora(c.fecha)}`,
+      camionCorto(c.camion),
+      c.chofer_nombre || (c.registrado_rol === 'Admin' ? 'Administración' : c.chofer || '-'),
+      fmtLitros(c.litros).replace(' L', ''),
+      dinero.format(Number(c.precio_litro)),
+      fmtDinero(c.importe),
+      fmtKm(c.odometro).replace(' km', ''),
+      c.rendimiento != null ? dinero.format(Number(c.rendimiento)) : '-',
+      `${(ESTADO_CARGA[c.estado] || ESTADO_CARGA.pendiente).label}${conAlerta[i] ? ' (!)' : ''}${c.tiene_foto ? '' : ' · sin ticket'}`
+    ]),
+    { pie: ['', 'Total', '', '', fmtLitros(litros).replace(' L', ''), precio ? dinero.format(precio) : '', fmtDinero(importe), '', '', ''], letra: 7.5, colorFila: i => (conAlerta[i] ? C.naranja : null) }
+  )
+
+  // Alertas con su explicación
+  const alertas = datos.cargas.flatMap(c => (c.alertas || []).map(a => ({ c, a })))
+  if (alertas.length) {
+    seccion(ctx, 'Alertas', n(alertas.length, 'alerta', 'alertas'))
+    tabla(ctx,
+      [{ titulo: 'Carga' }, { titulo: 'Alerta' }, { titulo: 'Qué puede significar' }, { titulo: 'Revisión' }],
+      alertas.map(({ c, a }) => [
+        `${mayus(fecha(c.fecha, { day: 'numeric', month: 'short' }))} · Camión ${camionCorto(c.camion)} · ${fmtLitros(c.litros)}`,
+        ALERTAS[a]?.texto || a,
+        a === 'rendimiento_bajo' || a === 'rendimiento_alto'
+          ? `${ALERTAS[a].detalle} Rindió ${fmtRend(c.rendimiento)}${c.rendimiento_normal ? `; lo normal es ${fmtRend(c.rendimiento_normal)}` : ''}.`
+          : ALERTAS[a]?.detalle || '',
+        `${(ESTADO_CARGA[c.estado] || ESTADO_CARGA.pendiente).label}${c.nota ? `: ${c.nota}` : ''}`
+      ]),
+      { letra: 8 }
+    )
+  }
+
+  parrafo(ctx, [
+    'Rendimiento: kilómetros entre dos llenados completos del tanque, divididos entre los litros cargados en ese tramo.',
+    'Costo por km: precio promedio por litro entre el rendimiento.',
+    'Por salida y por alumno: gasto del periodo entre los cortes de viaje y los alumnos cobrados en esos cortes.',
+    datos.anuladas ? `No se cuentan ${n(datos.anuladas, 'carga anulada', 'cargas anuladas')}.` : ''
+  ].filter(Boolean).join(' '), { size: 8.5 })
+
+  if (fotos?.size) anexoTickets(ctx, datos.cargas, fotos)
+
+  return terminar(ctx, `camify-diesel-${periodo.archivo}.pdf`)
+}
+
+// Anexo: los tickets en cuadrícula de 3 × 2 por página
+function anexoTickets(ctx, cargas, fotos) {
+  const { doc } = ctx
+  const conFoto = cargas.filter(c => fotos.has(c.id))
+  if (!conFoto.length) return
+  doc.addPage()
+  ctx.y = M
+  texto(ctx, 'ANEXO', M, ctx.y + 4, { size: 9, bold: true, color: C.azul, spacing: 0.6 })
+  ctx.y += 26
+  texto(ctx, 'Tickets de las cargas', M, ctx.y, { size: 20, bold: true })
+  ctx.y += 14
+  const faltan = cargas.length - conFoto.length
+  parrafo(ctx, `${conFoto.length} ${conFoto.length === 1 ? 'ticket' : 'tickets'} en orden de fecha.${faltan ? ` ${faltan} ${faltan === 1 ? 'carga no tiene' : 'cargas no tienen'} foto.` : ''}`)
+
+  const gap = 14
+  const cw = (ctx.util - gap * 2) / 3
+  const ih = 250
+  const alto = ih + 48
+  conFoto.forEach((c, i) => {
+    const col = i % 3
+    if (col === 0) {
+      if (i > 0) ctx.y += alto + gap
+      if (ctx.y + alto > ctx.alto - PIE - 8) {
+        doc.addPage()
+        ctx.y = M
+      }
+    }
+    const x = M + col * (cw + gap)
+    const foto = fotos.get(c.id)
+    doc.setFillColor(...C.fondo)
+    doc.roundedRect(x, ctx.y, cw, ih, 8, 8, 'F')
+    const escala = Math.min((cw - 12) / foto.ancho, (ih - 12) / foto.alto)
+    const w = foto.ancho * escala
+    const h = foto.alto * escala
+    doc.addImage(foto.data, 'JPEG', x + (cw - w) / 2, ctx.y + (ih - h) / 2, w, h)
+    const conAlerta = (c.alertas || []).length > 0
+    texto(ctx, `${i + 1}. ${mayus(fecha(c.fecha, { weekday: 'short', day: 'numeric', month: 'short' }))}, ${hora(c.fecha)}`, x, ctx.y + ih + 14, { size: 8.5, bold: true, color: conAlerta ? C.naranja : C.tinta })
+    texto(ctx, `Camión ${camionCorto(c.camion)} · ${fmtLitros(c.litros)} · ${fmtDinero(c.importe)}`, x, ctx.y + ih + 27, { size: 8, color: C.gris })
+    texto(ctx, `${c.folio ? `Folio ${c.folio}` : c.gasolinera || ''}`.slice(0, 40), x, ctx.y + ih + 39, { size: 8, color: C.gris })
+  })
+  ctx.y += alto + gap
 }

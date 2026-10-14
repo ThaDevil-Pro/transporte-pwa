@@ -1,9 +1,12 @@
 // =====================================================================
 // Hoja de reportes: el alumno ve sus viajes, el chofer sus cortes del día,
-// la semana o el mes, y la administración el informe de gastos o el
-// reporte de cualquier chofer. Vista previa en la hoja y PDF descargable.
+// la semana o el mes, y la administración el informe de gastos, el
+// reporte de cualquier chofer o el informe de diésel (también por
+// semestre). Vista previa en la hoja y PDF descargable.
 // =====================================================================
+import { camionCorto } from './camiones.js'
 import { $, esc, icon, haptic, toast, openSheet, initSegmented, setLoading, skeletonRows, emptyState, animateNumber } from './ui.js'
+import { ALERTAS, ESTADO_CARGA, fmtLitros, fmtKm, fmtRend, rendimiento, miniatura } from './diesel.js'
 
 const TZ = 'America/Mexico_City'
 const MAX_FILAS = 40
@@ -12,6 +15,7 @@ const PERIODOS = {
   dia: { etiqueta: 'Día', adjetivo: 'diario' },
   semana: { etiqueta: 'Semana', adjetivo: 'semanal' },
   mes: { etiqueta: 'Mes', adjetivo: 'mensual' },
+  semestre: { etiqueta: 'Semestre', adjetivo: 'semestral' },
   anio: { etiqueta: 'Año', adjetivo: 'anual' }
 }
 
@@ -20,6 +24,8 @@ const CONFIG = {
   Chofer: { titulo: 'Mis reportes', periodos: ['dia', 'semana', 'mes'], inicial: 'dia' },
   Admin: { titulo: 'Reportes', periodos: ['dia', 'semana', 'mes', 'anio'], inicial: 'mes' }
 }
+// El diésel se mide por semana, mes, semestre (enero–junio y julio–diciembre) y año
+const PERIODOS_DIESEL = ['semana', 'mes', 'semestre', 'anio']
 
 const dinero = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtDinero = n => `$${dinero.format(Number(n) || 0)}`
@@ -50,6 +56,12 @@ function rango(tipo, ref) {
     const fin = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0, 12))
     return { desde, hasta: aYMD(fin) }
   }
+  if (tipo === 'semestre') {
+    const anio = ref.slice(0, 4)
+    return d.getUTCMonth() < 6
+      ? { desde: `${anio}-01-01`, hasta: `${anio}-06-30` }
+      : { desde: `${anio}-07-01`, hasta: `${anio}-12-31` }
+  }
   return { desde: `${ref.slice(0, 4)}-01-01`, hasta: `${ref.slice(0, 4)}-12-31` }
 }
 
@@ -58,6 +70,7 @@ function mover(tipo, ref, dir) {
   if (tipo === 'semana') return sumarDias(ref, dir * 7)
   const d = aFecha(ref)
   if (tipo === 'mes') return aYMD(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + dir, 1, 12)))
+  if (tipo === 'semestre') return aYMD(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + dir * 6, 1, 12)))
   return `${d.getUTCFullYear() + dir}-01-01`
 }
 
@@ -81,6 +94,11 @@ function describir(tipo, ref) {
     titulo = mayus(fmtDia(desde, { month: 'long' }))
     texto = mayus(fmtDia(desde, { month: 'long', year: 'numeric' }))
     relativo = actual ? 'Este mes' : anio
+  } else if (tipo === 'semestre') {
+    const primero = desde.slice(5, 7) === '01'
+    titulo = primero ? 'Enero – junio' : 'Julio – diciembre'
+    texto = `Semestre ${primero ? 'enero–junio' : 'julio–diciembre'} ${anio}`
+    relativo = actual ? `Este semestre · ${anio}` : anio
   } else {
     titulo = anio
     texto = `Año ${anio}`
@@ -89,11 +107,12 @@ function describir(tipo, ref) {
   return {
     tipo, desde, hasta, titulo, texto, relativo,
     adjetivo: PERIODOS[tipo].adjetivo,
-    archivo: tipo === 'dia' ? desde : tipo === 'semana' ? `semana-${desde}` : tipo === 'mes' ? desde.slice(0, 7) : anio
+    archivo: tipo === 'dia' ? desde : tipo === 'semana' ? `semana-${desde}` : tipo === 'mes' ? desde.slice(0, 7)
+      : tipo === 'semestre' ? `${anio}-S${desde.slice(5, 7) === '01' ? 1 : 2}` : anio
   }
 }
 
-export function initReportes({ rpc }) {
+export function initReportes({ rpc, abrirCarga }) {
   const sheet = $('#sheet-report')
   const kindSeg = $('#report-kind')
   const choferField = $('#report-chofer-field')
@@ -103,14 +122,18 @@ export function initReportes({ rpc }) {
   const btnPdf = $('#btn-report-pdf')
   const btnPrev = $('#report-prev')
   const btnNext = $('#report-next')
+  const fotosOpcion = $('#report-fotos-opcion')
+  const fotosCheck = $('#report-fotos')
 
-  let estado = null // { rol, perfil, tipo: 'propio'|'gastos'|'chofer', periodo, ref, licencia, datos }
+  let estado = null // { rol, perfil, tipo: 'propio'|'gastos'|'chofer'|'diesel', periodo, ref, licencia, datos }
   let peticion = 0
   let choferes = []
 
   const kind = initSegmented(kindSeg, valor => {
     estado.tipo = valor
+    pintarPeriodos()
     pintarControles()
+    pintarRango()
     cargar()
   })
 
@@ -131,7 +154,30 @@ export function initReportes({ rpc }) {
     cargar()
   }
 
-  // rol: 'Estudiante' | 'Chofer' | 'Admin'; tipo (admin): 'gastos' | 'chofer'
+  const periodosDe = e => (e.rol === 'Admin' && e.tipo === 'diesel' ? PERIODOS_DIESEL : CONFIG[e.rol].periodos)
+
+  // Periodos según el rol y el tipo (los botones se rehacen; el segmentado es nuevo)
+  function pintarPeriodos() {
+    const lista = periodosDe(estado)
+    if (periodSeg.dataset.lista === lista.join() && lista.includes(estado.periodo)) return
+    if (!lista.includes(estado.periodo)) {
+      estado.periodo = lista.includes('mes') ? 'mes' : lista[0]
+      estado.ref = ajustarRef(estado.periodo, estado.ref)
+    }
+    periodSeg.dataset.lista = lista.join()
+    periodSeg.style.setProperty('--n', lista.length)
+    periodSeg.innerHTML = '<span class="segmented-thumb"></span>' +
+      lista.map(p => `<button type="button" data-value="${p}">${PERIODOS[p].etiqueta}</button>`).join('')
+    periodSeg.dataset.value = estado.periodo
+    initSegmented(periodSeg, valor => {
+      estado.periodo = valor
+      estado.ref = ajustarRef(valor, estado.ref)
+      pintarRango()
+      cargar()
+    })
+  }
+
+  // rol: 'Estudiante' | 'Chofer' | 'Admin'; tipo (admin): 'gastos' | 'chofer' | 'diesel'
   async function abrir({ rol, perfil = {}, tipo = 'gastos', licencia = null }) {
     const cfg = CONFIG[rol]
     estado = {
@@ -143,18 +189,8 @@ export function initReportes({ rpc }) {
       datos: null
     }
     $('#sheet-report-title').textContent = cfg.titulo
-
-    // Periodos según el rol (los botones se rehacen; el segmentado es nuevo)
-    periodSeg.style.setProperty('--n', cfg.periodos.length)
-    periodSeg.innerHTML = '<span class="segmented-thumb"></span>' +
-      cfg.periodos.map(p => `<button type="button" data-value="${p}">${PERIODOS[p].etiqueta}</button>`).join('')
-    periodSeg.dataset.value = cfg.inicial
-    initSegmented(periodSeg, valor => {
-      estado.periodo = valor
-      estado.ref = ajustarRef(valor, estado.ref)
-      pintarRango()
-      cargar()
-    })
+    periodSeg.dataset.lista = ''
+    pintarPeriodos()
 
     kindSeg.hidden = rol !== 'Admin'
     if (rol === 'Admin') kind.select(estado.tipo, false)
@@ -188,6 +224,7 @@ export function initReportes({ rpc }) {
   function pintarControles() {
     const verChofer = estado.rol === 'Admin' && estado.tipo === 'chofer'
     choferField.hidden = !verChofer
+    fotosOpcion.hidden = !(estado.rol === 'Admin' && estado.tipo === 'diesel')
     if (verChofer) {
       if (!choferes.some(c => c.licencia === estado.licencia)) estado.licencia = choferes[0]?.licencia || null
       choferSelect.value = estado.licencia || ''
@@ -210,7 +247,13 @@ export function initReportes({ rpc }) {
     if (estado.rol === 'Estudiante') nombre = 'alumno_reporte'
     else if (estado.rol === 'Chofer') nombre = 'chofer_reporte'
     else if (estado.tipo === 'gastos') nombre = 'admin_reporte_gastos'
-    else {
+    else if (estado.tipo === 'diesel') {
+      // El periodo anterior del mismo tamaño, para comparar
+      const ant = rango(estado.periodo, mover(estado.periodo, estado.ref, -1))
+      nombre = 'admin_reporte_diesel'
+      params.p_ant_desde = ant.desde
+      params.p_ant_hasta = ant.hasta
+    } else {
       nombre = 'admin_reporte_chofer'
       params.p_licencia = estado.licencia
       if (!estado.licencia) {
@@ -240,7 +283,7 @@ export function initReportes({ rpc }) {
     return `<div class="report-stats">${items.map(it => `
       <div class="report-stat${it.tono ? ` is-${it.tono}` : ''}">
         <span class="report-stat-label">${esc(it.etiqueta)}</span>
-        <span class="report-stat-value${it.valor.length > 8 ? ' is-long' : ''}" data-valor="${it.numero ?? ''}" data-decimales="${it.dinero ? 2 : 0}">${esc(it.valor)}</span>
+        <span class="report-stat-value${it.valor.length > 8 ? ' is-long' : ''}" data-valor="${it.numero ?? ''}" data-decimales="${it.dinero ? 2 : it.decimales || 0}" data-sufijo="${esc(it.sufijo || '')}">${esc(it.valor)}</span>
         ${it.nota ? `<span class="report-stat-note">${esc(it.nota)}</span>` : ''}
       </div>`).join('')}</div>`
   }
@@ -279,12 +322,14 @@ export function initReportes({ rpc }) {
         ? `<div class="list">${movs.slice(0, MAX_FILAS).map(m => fila({
             iconId: m.pago ? 'i-wallet' : 'i-bus',
             tono: m.pago ? 'is-money' : '',
-            titulo: m.pago ? 'Pago registrado' : `Viaje · Camión ${m.camion ?? 1}`,
+            titulo: m.pago ? 'Pago registrado' : `Viaje · Camión ${camionCorto(m.camion ?? 1)}`,
             sub: `${fmtFechaHora(m.f)}${m.pago && m.nota ? ` · ${m.nota}` : ''}${m.manual ? ' · A mano' : ''}`,
             monto: `${m.pago ? '−' : ''}${fmtDinero(m.monto)}`,
             montoTono: m.pago ? 'is-positive' : ''
           })).join('')}</div>${resto(movs.length - MAX_FILAS)}`
         : emptyState('i-receipt', 'Sin viajes', `No tuviste viajes ni pagos en ${p.texto.toLowerCase().startsWith('semana') ? 'esta semana' : 'este periodo'}.`)
+    } else if (estado.tipo === 'diesel') {
+      html += vistaDiesel(d, p)
     } else if (estado.tipo === 'gastos') {
       const cobrado = d.alumnos.reduce((s, a) => s + Number(a.cargado), 0)
       const viajes = d.alumnos.reduce((s, a) => s + Number(a.viajes), 0)
@@ -307,7 +352,7 @@ export function initReportes({ rpc }) {
         : `<p class="report-empty">Ningún chofer hizo cortes en este periodo.</p>`
       if (d.camiones.length) {
         html += encabezado('Por camión')
-        html += `<div class="list">${d.camiones.map(c => fila({ iconId: 'i-bus', titulo: `Camión ${c.camion}`, sub: plural(c.viajes, 'viaje', 'viajes'), monto: fmtDinero(c.cargado) })).join('')}</div>`
+        html += `<div class="list">${d.camiones.map(c => fila({ iconId: 'i-bus', titulo: `Camión ${camionCorto(c.camion)}`, sub: plural(c.viajes, 'viaje', 'viajes'), monto: fmtDinero(c.cargado) })).join('')}</div>`
       }
       html += encabezado('Por alumno', d.alumnos.length ? plural(d.alumnos.length, 'alumno', 'alumnos') : '')
       html += d.alumnos.length
@@ -334,7 +379,7 @@ export function initReportes({ rpc }) {
       html += cortes.length
         ? `<div class="list">${[...cortes].reverse().slice(0, MAX_FILAS).map(c => fila({
             iconId: 'i-receipt',
-            titulo: `Corte · Camión ${c.camion}`,
+            titulo: `Corte · Camión ${camionCorto(c.camion)}`,
             sub: `${estado.periodo === 'dia' ? fmtHora(c.creado_en) : fmtFechaHora(c.creado_en)} · ${plural(c.alumnos, 'pasajero', 'pasajeros')}${c.manuales ? ` (${c.manuales} a mano)` : ''}`,
             monto: fmtDinero(c.total),
             data: ` data-corte="${c.id}" role="button" tabindex="0" aria-expanded="false"`
@@ -349,7 +394,12 @@ export function initReportes({ rpc }) {
       const n = Number(el.dataset.valor)
       if (!el.dataset.valor || !Number.isFinite(n) || n === 0) return
       const dec = Number(el.dataset.decimales)
-      if (dec) {
+      const sufijo = el.dataset.sufijo
+      if (sufijo) {
+        // Litros, km/L…: solo se anima el número
+        el.innerHTML = `<span></span> ${esc(sufijo)}`
+        animateNumber(el.firstElementChild, n, { decimals: dec, duration: 900 })
+      } else if (dec) {
         // animateNumber pinta solo el número; se conserva el signo de pesos
         el.innerHTML = `$<span></span>`
         animateNumber(el.firstElementChild, n, { decimals: 2, duration: 900 })
@@ -360,9 +410,87 @@ export function initReportes({ rpc }) {
     })
   }
 
+  function vistaDiesel(d, p) {
+    const t = d.totales
+    const importe = Number(t.importe)
+    const litros = Number(t.litros)
+    const rend = rendimiento(t.km_lleno, t.litros_lleno)
+    const ant = d.anterior
+    const cambio = ant && Number(ant.importe) > 0 ? ((importe - Number(ant.importe)) / Number(ant.importe)) * 100 : null
+    let html = stats([
+      {
+        etiqueta: 'Gasto en diésel', valor: fmtDinero(importe), numero: importe, dinero: true,
+        nota: cambio == null ? plural(t.cargas, 'carga', 'cargas') : `${cambio >= 0 ? '+' : '−'}${Math.abs(Math.round(cambio))} % vs. periodo anterior`,
+        tono: cambio != null && cambio > 15 ? 'orange' : ''
+      },
+      { etiqueta: 'Litros', valor: fmtLitros(litros), numero: litros, sufijo: 'L', decimales: 0, nota: plural(t.cargas, 'carga', 'cargas') },
+      { etiqueta: 'Rendimiento', valor: fmtRend(rend), numero: rend ?? '', sufijo: rend ? 'km/L' : '', decimales: 2, nota: t.km ? `${fmtKm(t.km)} recorridos` : 'Falta kilometraje' },
+      { etiqueta: 'Precio promedio', valor: litros ? fmtDinero(importe / litros) : '—', numero: litros ? importe / litros : '', dinero: true, nota: 'por litro' },
+      { etiqueta: 'Por salida', valor: t.salidas ? fmtDinero(importe / t.salidas) : '—', numero: t.salidas ? importe / t.salidas : '', dinero: true, nota: plural(t.salidas, 'salida', 'salidas') },
+      { etiqueta: 'Por alumno', valor: t.pasajeros ? fmtDinero(importe / t.pasajeros) : '—', numero: t.pasajeros ? importe / t.pasajeros : '', dinero: true, nota: plural(t.pasajeros, 'viaje de alumno', 'viajes de alumnos') }
+    ])
+
+    const avisos = [
+      t.con_alertas && plural(t.con_alertas, 'carga con alertas', 'cargas con alertas'),
+      t.pendientes && plural(t.pendientes, 'por verificar', 'por verificar'),
+      d.anuladas && plural(d.anuladas, 'anulada (no cuenta)', 'anuladas (no cuentan)')
+    ].filter(Boolean)
+    if (avisos.length) html += `<p class="report-callout${t.con_alertas ? ' is-warning' : ''}">${icon(t.con_alertas ? 'i-alert' : 'i-info')}<span>${esc(avisos.join(' · '))}</span></p>`
+
+    const camiones = d.camiones.filter(c => c.cargas || c.salidas)
+    if (camiones.length) {
+      html += encabezado('Por camión')
+      html += `<div class="list">${camiones.map(c => {
+        const r = rendimiento(c.km_lleno, c.litros_lleno)
+        return fila({
+          iconId: 'i-bus',
+          titulo: `Camión ${camionCorto(c.camion)}`,
+          sub: [plural(c.cargas, 'carga', 'cargas'), fmtLitros(c.litros), r && fmtRend(r), r && Number(c.litros) > 0 && `${fmtDinero(Number(c.importe) / Number(c.litros) / r)}/km`].filter(Boolean).join(' · '),
+          monto: fmtDinero(c.importe)
+        })
+      }).join('')}</div>`
+    }
+
+    if (d.choferes.length > 1 || (d.choferes.length === 1 && d.choferes[0].licencia)) {
+      html += encabezado('Por chofer')
+      html += `<div class="list">${d.choferes.map(c => fila({
+        iconId: 'i-wheel',
+        titulo: c.nombre || 'Sin chofer (administración)',
+        sub: `${plural(c.cargas, 'carga', 'cargas')} · ${fmtLitros(c.litros)}`,
+        monto: fmtDinero(c.importe)
+      })).join('')}</div>`
+    }
+
+    const cargas = [...d.cargas].reverse()
+    html += encabezado('Cargas', cargas.length ? 'Toca una para ver su ticket' : '')
+    html += cargas.length
+      ? `<div class="list">${cargas.slice(0, MAX_FILAS).map(c => {
+          const est = ESTADO_CARGA[c.estado] || ESTADO_CARGA.pendiente
+          const alertas = c.alertas || []
+          return fila({
+            iconId: 'i-fuel',
+            tono: alertas.length ? 'tono-orange' : c.estado === 'verificada' ? 'tono-green' : '',
+            titulo: `Camión ${camionCorto(c.camion)} · ${fmtLitros(c.litros)}`,
+            sub: [fmtFechaHora(c.fecha), c.chofer_nombre, alertas.length ? `⚠ ${ALERTAS[alertas[0]]?.texto || alertas[0]}` : est.label].filter(Boolean).join(' · '),
+            monto: fmtDinero(c.importe),
+            data: ` data-carga="${c.id}" role="button" tabindex="0"`
+          })
+        }).join('')}</div>${resto(cargas.length - MAX_FILAS)}`
+      : emptyState('i-fuel', 'Sin cargas', `No se registraron cargas de diésel en ${p.tipo === 'semana' ? 'esta semana' : 'este periodo'}.`)
+    return html
+  }
+
   // Detalle de un corte o ir al reporte de un chofer desde el informe de gastos
   function activarFila(el) {
     if (!estado?.datos) return
+    if (el.dataset.carga) {
+      const c = estado.datos.cargas?.find(x => String(x.id) === el.dataset.carga)
+      if (c && abrirCarga) {
+        haptic(6)
+        abrirCarga(c)
+      }
+      return
+    }
     if (el.dataset.corte) {
       const detalle = preview.querySelector(`[data-detalle="${el.dataset.corte}"]`)
       if (!detalle) return
@@ -385,12 +513,12 @@ export function initReportes({ rpc }) {
   }
 
   preview.addEventListener('click', e => {
-    const el = e.target.closest('[data-corte], [data-licencia]')
+    const el = e.target.closest('[data-corte], [data-licencia], [data-carga]')
     if (el) activarFila(el)
   })
   preview.addEventListener('keydown', e => {
     if (e.key !== 'Enter' && e.key !== ' ') return
-    const el = e.target.closest('[data-corte], [data-licencia]')
+    const el = e.target.closest('[data-corte], [data-licencia], [data-carga]')
     if (!el) return
     e.preventDefault()
     activarFila(el)
@@ -406,7 +534,11 @@ export function initReportes({ rpc }) {
       let resultado
       if (estado.rol === 'Estudiante') resultado = await pdf.pdfAlumno(datos, p)
       else if (estado.tipo === 'gastos') resultado = await pdf.pdfGastos(datos, p, { admin: estado.perfil?.usuario })
-      else resultado = await pdf.pdfChofer(datos, p)
+      else if (estado.tipo === 'diesel') {
+        const fotos = fotosCheck.checked ? await cargarFotos(datos.cargas) : null
+        if (!estado) return
+        resultado = await pdf.pdfDiesel(datos, p, { admin: estado.perfil?.usuario, fotos })
+      } else resultado = await pdf.pdfChofer(datos, p)
       if (resultado !== 'cancelado') {
         haptic([10, 40, 14])
         toast(resultado === 'compartido' ? 'Reporte listo' : 'Reporte descargado', { type: 'success' })
@@ -419,5 +551,31 @@ export function initReportes({ rpc }) {
     }
   })
 
-  return { abrir }
+  // Tickets para el anexo del PDF: de 30 en 30 y reducidos
+  async function cargarFotos(cargas) {
+    const ids = cargas.filter(c => c.tiene_foto).map(c => c.id)
+    const fotos = new Map()
+    if (!ids.length) return fotos
+    if (ids.length > 6) toast(`Preparando ${ids.length} tickets…`, { duration: 2400 })
+    for (let i = 0; i < ids.length; i += 30) {
+      const { data, error } = await rpc('admin_diesel_tickets', { p_ids: ids.slice(i, i + 30) })
+      if (error) throw error
+      for (const t of data) {
+        try {
+          fotos.set(t.id, await miniatura(t.foto))
+        } catch (err) {
+          console.warn('Ticket sin poder leer:', t.id, err)
+        }
+      }
+    }
+    return fotos
+  }
+
+  return {
+    abrir,
+    // Otro dispositivo cambió el diésel: si el informe está abierto, se recarga
+    refrescarDiesel() {
+      if (estado?.tipo === 'diesel' && !btnPdf.classList.contains('is-loading')) cargar()
+    }
+  }
 }

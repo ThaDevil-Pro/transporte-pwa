@@ -3534,8 +3534,11 @@ button.row:active {
 
 
 /* --- 16d. REPORTES --- */
+/* Filas a la altura de su contenido: en una hoja con scroll, una lista con
+   overflow: hidden se encogería a 0 */
 .report-body {
   display: grid;
+  grid-auto-rows: max-content;
   gap: 20px;
   align-content: start;
 }
@@ -3813,6 +3816,639 @@ button.row:active {
   .report-preview .list {
     animation: none;
   }
+}
+
+/* --- 16f. DIÉSEL --- */
+.choices-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* Interruptor estilo iOS */
+.switch {
+  position: relative;
+  flex: none;
+  width: 51px;
+  height: 31px;
+  margin: 0;
+  border-radius: 16px;
+  background: var(--fill-2);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: background-color 0.25s var(--ease);
+}
+
+.switch::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15), 0 1px 1px rgba(0, 0, 0, 0.16);
+  transition: transform 0.3s var(--ease-spring);
+}
+
+.switch:checked {
+  background: var(--green);
+}
+
+.switch:checked::before {
+  transform: translateX(20px);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px 12px 16px;
+  border-radius: var(--r-md);
+  background: var(--fill);
+  cursor: pointer;
+}
+
+.switch-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.switch-text b {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.switch-text small {
+  font-size: 13px;
+  color: var(--label-2);
+}
+
+/* Fecha y hora con la misma etiqueta flotante */
+.field-date input {
+  display: block;
+  min-width: 0;
+  text-align: left;
+  color: var(--label);
+}
+
+.field-date input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.field-date input::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+}
+
+.field-date label {
+  transform: translateY(-11px) scale(0.76);
+  color: var(--label-2);
+}
+
+/* Foto del ticket en el formulario */
+.ticket-pick {
+  position: relative;
+  border-radius: var(--r-lg);
+  transition: box-shadow 0.25s var(--ease);
+}
+
+.ticket-pick.is-invalid {
+  box-shadow: 0 0 0 2px var(--red);
+}
+
+.ticket-pick-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 26px 16px 22px;
+  border: 1.5px dashed color-mix(in srgb, var(--orange) 55%, transparent);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--orange) 7%, transparent);
+  text-align: center;
+  transition: transform 0.2s var(--ease), background-color 0.2s;
+}
+
+.ticket-pick-empty:active {
+  transform: scale(0.98);
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
+}
+
+.ticket-pick-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--orange) 70%, #fff), var(--orange) 60%, color-mix(in srgb, var(--orange) 80%, #000));
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--orange) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.ticket-pick-icon .icon {
+  width: 28px;
+  height: 28px;
+}
+
+.ticket-pick-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.ticket-pick-sub {
+  font-size: 13px;
+  color: var(--label-2);
+}
+
+.ticket-pick-preview {
+  display: none;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--fill);
+}
+
+.ticket-pick-preview img {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+}
+
+.ticket-pick-preview .btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  --btn-bg: rgba(0, 0, 0, 0.55);
+  --btn-fg: #fff;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.ticket-pick.has-foto .ticket-pick-empty {
+  display: none;
+}
+
+.ticket-pick.has-foto .ticket-pick-preview {
+  display: block;
+  animation: report-in 0.45s var(--ease) both;
+}
+
+.ticket-pick.is-loading .ticket-pick-empty {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.ticket-pick.is-loading .ticket-pick-icon {
+  animation: diesel-pulse 1s ease-in-out infinite;
+}
+
+@keyframes diesel-pulse {
+  50% { transform: scale(0.92); opacity: 0.7; }
+}
+
+/* Pistas bajo los campos */
+.diesel-hints {
+  display: grid;
+  gap: 4px;
+  padding: 0 4px;
+  font-size: 14px;
+  color: var(--label-2);
+}
+
+.diesel-hints[hidden] {
+  display: none;
+}
+
+.diesel-hints span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diesel-hints .icon {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+.diesel-hints b {
+  color: var(--label);
+  font-variant-numeric: tabular-nums;
+}
+
+.diesel-hints .is-warning,
+.diesel-hints .is-warning b,
+.diesel-odo-hint.is-warning {
+  color: var(--orange-text);
+}
+
+.diesel-odo-hint b {
+  color: var(--label);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tarjeta del chofer */
+.diesel-card {
+  display: grid;
+  gap: 16px;
+}
+
+.diesel-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.diesel-card-text {
+  min-width: 0;
+}
+
+.diesel-card-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.diesel-card-sub {
+  font-size: 14px;
+  color: var(--label-2);
+}
+
+.diesel-card .inbox-mine {
+  margin-top: 0;
+}
+
+.diesel-card .inbox-mine[hidden] {
+  display: none;
+}
+
+/* Tarjeta de la administración */
+.diesel-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.diesel-pending.is-warning {
+  background: color-mix(in srgb, var(--orange) 13%, transparent);
+  color: var(--orange-text);
+}
+
+.diesel-pending .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.diesel-pending[hidden] {
+  display: none;
+}
+
+/* Lista de cargas */
+.diesel-row.is-void .row-title,
+.diesel-row.is-void .row-sub {
+  color: var(--label-3);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--label-3) 60%, transparent);
+}
+
+.diesel-alert-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--orange-text);
+}
+
+.diesel-alert-line .icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.diesel-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.diesel-footer .btn {
+  min-width: 0;
+}
+
+.diesel-footer .btn-secondary {
+  padding-inline: 18px;
+}
+
+/* Revisar una carga */
+/* Sin overflow: hidden aquí; en una hoja con scroll la fila de la cuadrícula se encogería a 0 */
+.diesel-ticket {
+  border-radius: var(--r-lg);
+  background: var(--fill);
+}
+
+.diesel-ticket.is-loading {
+  height: 220px;
+}
+
+.diesel-ticket.is-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 72px;
+  color: var(--label-2);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.diesel-ticket.is-empty .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.diesel-ticket-btn {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  cursor: zoom-in;
+}
+
+.diesel-ticket-btn img {
+  display: block;
+  width: 100%;
+  max-height: 340px;
+  object-fit: contain;
+  animation: report-in 0.45s var(--ease) both;
+}
+
+.diesel-datos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (min-width: 520px) {
+  .diesel-datos {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.diesel-dato {
+  display: grid;
+  align-content: start;
+  gap: 1px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.diesel-dato span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--label-2);
+}
+
+.diesel-dato b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.diesel-dato small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--label-3);
+}
+
+.diesel-dato.tono-orange {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--orange) 60%, transparent);
+}
+
+.diesel-dato.tono-orange b {
+  color: var(--orange-text);
+}
+
+.diesel-alertas {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.diesel-alertas li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--orange) 11%, transparent);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--label-2);
+}
+
+.diesel-alertas .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  color: var(--orange-text);
+}
+
+.diesel-alertas b {
+  display: block;
+  font-size: 14px;
+  color: var(--orange-text);
+}
+
+.diesel-fix-toggle {
+  justify-self: start;
+  margin: -6px 0 -6px -8px;
+}
+
+/* Informe */
+.report-option {
+  margin-bottom: 12px;
+}
+
+.report-option[hidden] {
+  display: none;
+}
+
+/* En el informe de diésel los datos de cada camión no caben en una línea */
+.report-preview .row-sub {
+  white-space: normal;
+}
+
+.report-callout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 11px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 600;
+  animation: report-in 0.5s 0.05s var(--ease) both;
+}
+
+.report-callout.is-warning {
+  background: color-mix(in srgb, var(--orange) 13%, transparent);
+  color: var(--orange-text);
+}
+
+.report-callout .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+/* Visor del ticket a pantalla completa */
+.ticket-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  background: rgba(0, 0, 0, 0.92);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+.ticket-viewer[hidden] {
+  display: none;
+}
+
+.ticket-viewer-scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-top) + 64px) 16px calc(var(--safe-bottom) + 56px);
+}
+
+.ticket-viewer img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 130px);
+  border-radius: 10px;
+  cursor: zoom-in;
+  transition: max-width 0.3s var(--ease);
+}
+
+.ticket-viewer.is-zoom .ticket-viewer-scroll {
+  place-items: start center;
+}
+
+.ticket-viewer.is-zoom img {
+  max-width: none;
+  width: min(1600px, 220vw);
+  max-height: none;
+  cursor: zoom-out;
+}
+
+.ticket-viewer-close {
+  position: absolute;
+  top: calc(var(--safe-top) + 12px);
+  right: 12px;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.ticket-viewer-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--safe-bottom) + 18px);
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+}
+
+.ticket-viewer.is-zoom .ticket-viewer-hint {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket-pick.is-loading .ticket-pick-icon,
+  .report-callout,
+  .diesel-ticket-btn img {
+    animation: none;
+  }
+}
+
+/* --- 16g. CAMIONES CON NOMBRE Y COLOR --- */
+.bus-dot {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bus, var(--label-3));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  vertical-align: 0;
+}
+
+.nav-pill {
+  white-space: nowrap;
+}
+
+.nav-pill .bus-dot {
+  margin-right: 6px;
+}
+
+.choices-bus {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.choices-bus .choice {
+  flex-direction: row;
+  gap: 8px;
+  min-height: 46px;
+}
+
+.choices-bus .choice .bus-dot {
+  width: 12px;
+  height: 12px;
 }
 
 /* --- 17. DOCK: TAB BAR FLOTANTE + ACCIÓN --- */
