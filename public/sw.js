@@ -3,7 +3,7 @@
 // - Archivos estáticos (JS/CSS/imágenes/video): caché primero
 // - Supabase y otros orígenes: nunca se cachean (datos en vivo)
 
-const CACHE = 'camify-v6'
+const CACHE = 'camify-v7'
 const PRECACHE = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/favicon.svg']
 
 self.addEventListener('install', (event) => {

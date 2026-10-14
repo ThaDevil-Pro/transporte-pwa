@@ -22,7 +22,8 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
   let espera = null
   let registrando = false
 
-  const disponible = a => a.camion == null
+  // bloqueado: su adeudo pasa de $600 (el servidor tampoco lo dejaría subir)
+  const disponible = a => a.camion == null && !a.bloqueado
 
   function abrir() {
     limpiar()
@@ -86,11 +87,13 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
 
     lista.innerHTML = resultados.map((a, i) => {
       const abordo = !disponible(a)
-      const sub = abordo ? `${esc(a.matricula)} · Ya va en el camión ${esc(camionCorto(a.camion))}` : esc(a.matricula)
+      const sub = a.camion != null
+        ? `${esc(a.matricula)} · Ya va en el camión ${esc(camionCorto(a.camion))}`
+        : a.bloqueado ? `${esc(a.matricula)} · No puede subir: debe más de $600` : esc(a.matricula)
       return `<button type="button" class="row" role="option" id="manual-opt-${i}" data-i="${i}" aria-selected="${i === activo}"${abordo ? ' aria-disabled="true"' : ''} tabindex="-1">
         ${avatar(a.nombre)}
         <span class="row-text"><span class="row-title">${esc(a.nombre)}</span><span class="row-sub">${sub}</span></span>
-        <span class="row-trailing">${icon(abordo ? 'i-check' : 'i-plus')}</span>
+        <span class="row-trailing">${icon(a.camion != null ? 'i-check' : a.bloqueado ? 'i-lock' : 'i-plus')}</span>
       </button>`
     }).join('')
   }
@@ -125,13 +128,19 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
     const a = resultados[i]
     if (!a || registrando) return
     if (!disponible(a)) {
-      toast(`${primerNombre(a.nombre)} ya va en el camión ${camionCorto(a.camion)}`, { type: 'warning' })
+      toast(a.camion != null
+        ? `${primerNombre(a.nombre)} ya va en el camión ${camionCorto(a.camion)}`
+        : `${primerNombre(a.nombre)} debe más de $600: tiene que pagar en la administración`, { type: 'warning' })
       return
     }
     const bus = camion()
     registrando = true
-    const { data: mapa } = await rpc('chofer_mapa_actual', { p_camion: bus })
+    const { data: mapa, error: errorMapa } = await rpc('chofer_mapa_actual', { p_camion: bus })
     registrando = false
+    if (errorMapa) {
+      toast('No se pudo cargar el mapa de asientos. Revisa tu conexión.', { type: 'error' })
+      return
+    }
     let asiento = null
     if (mapa) {
       // undefined = cerró la hoja sin elegir

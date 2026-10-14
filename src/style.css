@@ -5412,6 +5412,29 @@ button.row:active {
   opacity: 0.25;
 }
 
+/* Adeudo mayor a $600: no hay código; el motivo va debajo de la tarjeta */
+.qr-card.is-blocked {
+  position: relative;
+}
+
+.qr-card.is-blocked canvas {
+  opacity: 0;
+}
+
+.qr-card.is-blocked::before {
+  content: "Código bloqueado";
+  position: absolute;
+  inset: 20px 20px auto;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--red) 9%, #fff);
+  color: var(--red-text);
+  font-size: 20px;
+  font-weight: 700;
+}
+
 /* Saldos: pagos y correcciones */
 .balance-now {
   display: flex;

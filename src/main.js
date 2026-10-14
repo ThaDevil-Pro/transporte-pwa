@@ -559,6 +559,7 @@ function pintarQR({ cargando = false } = {}) {
   const c = codigoActual()
   const card = $('.qr-card')
   card.classList.toggle('is-offline', !c)
+  card.classList.toggle('is-blocked', !c && !!qrBloqueo)
   if (!c) {
     $('#qr-countdown').textContent = qrBloqueo || (cargando ? 'Preparando tu código…' : 'Sin conexión: conéctate para generar tu código')
     $('#qr-progress').style.setProperty('--p', 0)
@@ -871,7 +872,8 @@ function renderPassengersUI() {
   animateNumber($('#passengers-count'), n, { duration: 700 })
   $('#gauge-fill').style.strokeDashoffset = String(GAUGE_C * (1 - Math.min(n, CAPACIDAD) / CAPACIDAD))
   $('#driver-hero').dataset.level = n >= CAPACIDAD ? 'full' : n >= CAPACIDAD - 5 ? 'high' : 'normal'
-  $('#scanner-count').textContent = `${n} de ${CAPACIDAD} a bordo`
+  const dePie = passengers.filter(p => p.de_pie).length
+  $('#scanner-count').textContent = dePie ? `${n} a bordo · ${dePie} de pie` : `${n} de ${CAPACIDAD} a bordo`
   $('#btn-clear-list').hidden = n === 0
 
   patchList($('#students-ul'), passengers, {
@@ -1557,7 +1559,7 @@ const fmtDetalle = {
   saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.matricula} · ${fmtSaldo(d.antes)} → ${fmtSaldo(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
   corte: ['Corte de viaje', 'i-bus', 'is-money', d => `Camión ${camionCorto(d.camion)} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}${d.de_pie ? ` · ${d.de_pie} de pie` : ''}`],
   emergencia: ['Emergencia del camión', 'i-alert', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${d.motivo === 'descompuesto' ? 'Se descompuso' : 'No estará disponible'} · avisó a ${plural(d.avisados || 0, 'alumno', 'alumnos')}`],
-  abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}`],
+  abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}${d.asiento ? ` · Asiento ${d.asiento}` : ''}${d.de_pie ? ' · De pie' : ''}`],
   usuarios_importados: ['Usuarios importados', 'i-sheet', '', d => [
     d.alumnos && plural(d.alumnos, 'alumno', 'alumnos'),
     d.choferes && plural(d.choferes, 'chofer', 'choferes'),

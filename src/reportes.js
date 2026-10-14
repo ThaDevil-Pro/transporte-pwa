@@ -323,7 +323,7 @@ export function initReportes({ rpc, abrirCarga }) {
         ? `<div class="list">${movs.slice(0, MAX_FILAS).map(m => fila({
             iconId: m.pago ? 'i-wallet' : 'i-bus',
             tono: m.pago ? 'is-money' : '',
-            titulo: m.pago ? 'Pago registrado' : `Viaje · Camión ${camionCorto(m.camion ?? 1)}`,
+            titulo: m.pago ? 'Pago registrado' : `${Number(m.monto) ? 'Viaje' : 'Regreso incluido'} · Camión ${camionCorto(m.camion ?? 1)}`,
             sub: `${fmtFechaHora(m.f)}${m.pago && m.nota ? ` · ${m.nota}` : ''}${m.manual ? ' · A mano' : ''}`,
             monto: `${m.pago ? '−' : ''}${fmtDinero(m.monto)}`,
             montoTono: m.pago ? 'is-positive' : ''
