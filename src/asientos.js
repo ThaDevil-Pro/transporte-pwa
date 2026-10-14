@@ -576,7 +576,7 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
     })
     setLoading(btnConfirm, false)
     if (error) {
-      toast(error.message, { type: 'error' })
+      toast(error.message, { type: 'error', duration: 4500 })
       seleccion = null
       cargarMapa()
       return
