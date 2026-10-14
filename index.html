@@ -25,9 +25,17 @@
   <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
     <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
     <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-reply" viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></symbol>
     <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
     <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
     <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-reply" viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></symbol>
     <symbol id="i-bus" viewBox="0 0 24 24"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></symbol>
     <symbol id="i-student" viewBox="0 0 24 24"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></symbol>
     <symbol id="i-wheel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.2"/><path d="M12 14.2V21"/><path d="M9.8 12H3.2"/><path d="M14.2 12h6.6"/></symbol>
@@ -216,6 +224,11 @@
             <div id="pair-card-body"><div class="skeleton" style="height:60px;margin-top:14px;border-radius:16px"></div></div>
           </article>
 
+          <article class="card inbox-card" id="student-inbox-card" data-reveal style="--i:4">
+            <div class="card-label"><svg class="icon"><use href="#i-inbox"/></svg>Buzón de quejas</div>
+            <div id="student-inbox-body"><div class="skeleton" style="height:60px;margin-top:14px;border-radius:16px"></div></div>
+          </article>
+
           <article class="card balance-card" id="student-balance-card" data-state="clear" data-reveal style="--i:4">
             <div class="card-label"><svg class="icon"><use href="#i-wallet"/></svg>Saldo pendiente</div>
             <div class="amount"><span class="amount-currency">$</span><span class="amount-value" id="student-balance">0.00</span></div>
@@ -380,13 +393,37 @@
         </button>
       </div>
 
+      <!-- Pestaña: Buzón (quejas anónimas y fallas del camión) -->
+      <div class="scroll tab-panel" id="driver-tab-inbox" data-title="Buzón">
+        <div class="page-header" data-reveal style="--i:0">
+          <p class="eyebrow">Quejas y fallas</p>
+          <h1 class="large-title">Buzón</h1>
+        </div>
+        <div class="stack" data-reveal style="--i:1">
+          <div class="segmented" id="driver-inbox-seg" style="--n:2">
+            <span class="segmented-thumb"></span>
+            <button type="button" data-value="fallas">Fallas del camión</button>
+            <button type="button" data-value="quejas">Quejas</button>
+          </div>
+          <div class="inbox-pane" id="driver-inbox-fallas">
+            <button class="btn btn-primary btn-lg btn-block" id="btn-report-falla"><svg class="icon"><use href="#i-wrench"/></svg>Reportar una falla</button>
+            <div class="list inbox-list" id="driver-fallas-list"></div>
+          </div>
+          <div class="inbox-pane" id="driver-inbox-quejas" hidden>
+            <p class="inbox-note"><svg class="icon"><use href="#i-lock"/></svg>Son anónimas: no ves quién las escribió.</p>
+            <div class="list inbox-list" id="driver-quejas-list"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="dock">
         <div class="side-head"><div class="side-logo" role="img" aria-label="CAMIFY"></div><span class="side-role">Chofer</span></div>
-        <nav class="tabbar" style="--n:3" role="tablist" aria-label="Secciones del chofer">
+        <nav class="tabbar tabbar-compact" style="--n:4" role="tablist" aria-label="Secciones del chofer">
           <span class="tabbar-thumb"></span>
           <button class="tab is-active" role="tab" data-tab="driver-tab-trip"><svg class="icon"><use href="#i-bus"/></svg><span>Viaje</span></button>
           <button class="tab" role="tab" data-tab="driver-tab-seats"><svg class="icon"><use href="#i-seat"/></svg><span>Asientos</span></button>
           <button class="tab" role="tab" data-tab="driver-tab-schedule"><svg class="icon"><use href="#i-calendar"/></svg><span>Horarios</span></button>
+          <button class="tab" role="tab" data-tab="driver-tab-inbox"><svg class="icon"><use href="#i-inbox"/></svg><span>Buzón</span></button>
         </nav>
         <button class="dock-action dock-action-round" id="btn-open-scanner" aria-label="Escanear código QR"><svg class="icon"><use href="#i-scan"/></svg><span class="dock-action-label">Escanear código</span></button>
         <button type="button" class="side-account" data-logout aria-label="Tu cuenta">
@@ -522,14 +559,36 @@
         </div>
       </div>
 
+      <!-- Pestaña: Buzón (quejas con autor y fallas del camión) -->
+      <div class="scroll tab-panel" id="admin-tab-inbox" data-title="Buzón">
+        <div class="page-header" data-reveal style="--i:0">
+          <p class="eyebrow">Administración</p>
+          <h1 class="large-title">Buzón</h1>
+        </div>
+        <div class="stack" data-reveal style="--i:1">
+          <div class="segmented" id="admin-inbox-seg" style="--n:2">
+            <span class="segmented-thumb"></span>
+            <button type="button" data-value="quejas">Quejas</button>
+            <button type="button" data-value="fallas">Fallas del camión</button>
+          </div>
+          <div class="segmented segmented-mini" id="admin-inbox-filter" style="--n:2">
+            <span class="segmented-thumb"></span>
+            <button type="button" data-value="pendientes">Pendientes</button>
+            <button type="button" data-value="todas">Todas</button>
+          </div>
+          <div class="list inbox-list" id="admin-inbox-list"></div>
+        </div>
+      </div>
+
       <div class="dock">
         <div class="side-head"><div class="side-logo" role="img" aria-label="CAMIFY"></div><span class="side-role">Admin</span></div>
-        <nav class="tabbar" style="--n:4" role="tablist" aria-label="Secciones de administración">
+        <nav class="tabbar tabbar-compact" style="--n:5" role="tablist" aria-label="Secciones de administración">
           <span class="tabbar-thumb"></span>
           <button class="tab is-active" role="tab" data-tab="admin-tab-register"><svg class="icon"><use href="#i-user-plus"/></svg><span>Registrar</span></button>
           <button class="tab" role="tab" data-tab="admin-tab-users"><svg class="icon"><use href="#i-users"/></svg><span>Usuarios</span></button>
           <button class="tab" role="tab" data-tab="admin-tab-balance"><svg class="icon"><use href="#i-wallet"/></svg><span>Saldos</span></button>
           <button class="tab" role="tab" data-tab="admin-tab-log"><svg class="icon"><use href="#i-shield"/></svg><span>Actividad</span></button>
+          <button class="tab" role="tab" data-tab="admin-tab-inbox"><svg class="icon"><use href="#i-inbox"/></svg><span>Buzón</span><span class="tab-badge" id="admin-inbox-badge" hidden></span></button>
         </nav>
         <button type="button" class="side-account" data-logout aria-label="Tu cuenta">
           <span class="side-avatar" data-side-avatar></span>
@@ -875,6 +934,109 @@
       <div class="sheet-footer">
         <button class="btn btn-primary btn-lg btn-block" id="btn-report-pdf" disabled><svg class="icon"><use href="#i-download"/></svg>Descargar PDF</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Queja del alumno -->
+  <div class="sheet" id="sheet-queja" role="dialog" aria-modal="true" aria-labelledby="sheet-queja-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-queja-title">Buzón de quejas</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <form class="sheet-body sheet-form inbox-form" id="form-queja" novalidate>
+        <p class="sheet-lead">Cuéntanos qué pasó o qué podemos mejorar.</p>
+        <div class="form-group">
+          <p class="form-label">¿De qué trata?</p>
+          <div class="choices" id="queja-categorias" role="radiogroup" aria-label="Tema de la queja"></div>
+        </div>
+        <div class="form-group">
+          <p class="form-label">¿En qué camión?</p>
+          <div class="segmented" id="queja-camion" style="--n:3">
+            <span class="segmented-thumb"></span>
+            <button type="button" data-value="1">Camión 1</button>
+            <button type="button" data-value="2">Camión 2</button>
+            <button type="button" data-value="0">No sé</button>
+          </div>
+        </div>
+        <div class="field field-area">
+          <textarea id="queja-mensaje" rows="5" maxlength="600" placeholder=" "></textarea>
+          <label for="queja-mensaje">Tu mensaje</label>
+          <span class="field-count" id="queja-contador">0/600</span>
+        </div>
+        <p class="inbox-privacy"><svg class="icon"><use href="#i-lock"/></svg><span>El chofer la lee <b>sin tu nombre</b>. La administración sí sabe que fue tuya, para darle seguimiento y responderte. Las groserías se ocultan automáticamente.</span></p>
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-queja-send"><svg class="icon"><use href="#i-send"/></svg>Enviar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Reporte de falla del chofer -->
+  <div class="sheet" id="sheet-falla" role="dialog" aria-modal="true" aria-labelledby="sheet-falla-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-falla-title">Reportar una falla</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <form class="sheet-body sheet-form inbox-form" id="form-falla" novalidate>
+        <div class="form-group">
+          <p class="form-label">Camión</p>
+          <div class="segmented" id="falla-camion" style="--n:2">
+            <span class="segmented-thumb"></span>
+            <button type="button" data-value="1">Camión 1</button>
+            <button type="button" data-value="2">Camión 2</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <p class="form-label">¿Qué falla?</p>
+          <div class="choices choices-4" id="falla-tipos" role="radiogroup" aria-label="Tipo de falla"></div>
+        </div>
+        <div class="form-group">
+          <p class="form-label">¿Qué tan grave es?</p>
+          <div class="choices choices-severity" id="falla-gravedad" role="radiogroup" aria-label="Gravedad"></div>
+        </div>
+        <div class="field field-area">
+          <textarea id="falla-descripcion" rows="4" maxlength="600" placeholder=" "></textarea>
+          <label for="falla-descripcion">Describe la falla</label>
+          <span class="field-count" id="falla-contador">0/600</span>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-falla-send"><svg class="icon"><use href="#i-send"/></svg>Enviar reporte</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Atender queja o falla (administración) -->
+  <div class="sheet" id="sheet-atender" role="dialog" aria-modal="true" aria-labelledby="sheet-atender-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-atender-title">Queja</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <form class="sheet-body sheet-form inbox-form" id="form-atender" novalidate>
+        <div class="inbox-detail" id="atender-detalle"></div>
+        <div class="form-group">
+          <p class="form-label">Estado</p>
+          <div class="choices choices-3" id="atender-estado" role="radiogroup" aria-label="Estado"></div>
+        </div>
+        <div class="field field-area">
+          <textarea id="atender-texto" rows="4" maxlength="500" placeholder=" "></textarea>
+          <label for="atender-texto" id="atender-texto-label">Respuesta para el alumno (opcional)</label>
+          <span class="field-count" id="atender-contador">0/500</span>
+        </div>
+        <p class="field-hint" id="atender-hint"></p>
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-atender-save">Guardar</button>
+      </form>
     </div>
   </div>
 

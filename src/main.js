@@ -8,6 +8,7 @@ import { initChoferManual } from './chofer-manual.js'
 import { initImportar } from './importar.js'
 import { initReportes } from './reportes.js'
 import { initAmbiente } from './ambiente.js'
+import { initBuzon } from './buzon.js'
 import {
   $, $$, esc, icon, avatar, emptyState, skeletonRows, haptic,
   initScreens, showScreen, initTabs, selectTab, initSegmented,
@@ -125,6 +126,9 @@ initImportar({
   alTerminar: () => loadAdminData()
 })
 
+// Buzón de quejas y fallas del camión
+const buzon = initBuzon({ rpc, supabase, camion: () => camionActual })
+
 // Reportes en PDF: el alumno, el chofer y la administración
 const reportes = initReportes({ rpc })
 $('#btn-student-report').addEventListener('click', () => reportes.abrir({ rol: 'Estudiante', perfil: perfilActual }))
@@ -213,6 +217,7 @@ function cerrarSesion() {
   closeAllSheets({ force: true })
   asientos.limpiar()
   asientosChofer.limpiar()
+  buzon.limpiar()
   passengers = []
   copyPassengers = []
   currentRole = ''
@@ -443,6 +448,7 @@ function iniciarAlumno(perfil) {
   renderTripCard()
   refrescarAlumno()
   asientos.cargar(perfil.nombre)
+  buzon.alumno()
 }
 
 function renderPerfilAlumno(perfil) {
@@ -773,6 +779,7 @@ function iniciarChofer(perfil) {
   $('#driver-name').textContent = `Hola, ${primerNombre(perfil.nombre)}`
   $('#driver-license').textContent = `Licencia ${perfil.licencia}`
   selectTab($('#view-driver'), 'driver-tab-trip', { animate: false })
+  buzon.chofer()
   aplicarCamion()
   renderDriverSchedule()
 
@@ -814,6 +821,7 @@ $('#btn-camion').addEventListener('click', () => elegirCamion())
 // El mapa del chofer se actualiza cada vez que abre la pestaña
 $('#view-driver').addEventListener('tabchange', e => {
   if (e.detail === 'driver-tab-seats') asientosChofer.cargar()
+  if (e.detail === 'driver-tab-inbox') buzon.choferAbrir()
 })
 
 async function fetchPassengers() {
@@ -1210,6 +1218,7 @@ function iniciarAdmin() {
   $('#admin-balances-ul').innerHTML = skeletonRows(4)
   $('#admin-total-balance').dataset.value = '0'
   loadAdminData()
+  buzon.admin()
 }
 
 formCreateUser.addEventListener('submit', async e => {
@@ -1519,8 +1528,13 @@ const fmtDetalle = {
   usuario_creado: ['Usuario creado', 'i-user-plus', '', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.nombre ? `${d.nombre} · ` : ''}${d.identificador}`],
   usuario_editado: ['Usuario editado', 'i-users', '', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.identificador}${d.password_restablecida ? ' · contraseña restablecida' : ''}`],
   usuario_eliminado: ['Usuario eliminado', 'i-trash', 'is-alert', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.nombre ? `${d.nombre} · ` : ''}${d.identificador}`],
-  cambio_password: ['Cambio de contraseña', 'i-lock', '', () => '']
+  cambio_password: ['Cambio de contraseña', 'i-lock', '', () => ''],
+  falla_reportada: ['Falla del camión reportada', 'i-wrench', 'is-alert', d => `Camión ${d.camion} · ${FALLA_TIPO[d.tipo] || d.tipo} · ${FALLA_GRAVEDAD[d.gravedad] || d.gravedad}`],
+  falla_actualizada: ['Falla del camión actualizada', 'i-wrench', '', d => `Reporte #${d.id} · ${{ abierta: 'Abierta', reparacion: 'En reparación', resuelta: 'Resuelta' }[d.estado] || d.estado}`],
+  queja_actualizada: ['Queja atendida', 'i-inbox', '', d => `Queja #${d.id} · ${{ nueva: 'Nueva', revision: 'En revisión', atendida: 'Atendida' }[d.estado] || d.estado}${d.respondida ? ' · con respuesta' : ''}`]
 }
+const FALLA_TIPO = { motor: 'Motor', frenos: 'Frenos', llantas: 'Llantas', luces: 'Luces', puertas: 'Puertas', clima: 'Clima', electrico: 'Eléctrico', otro: 'Otro' }
+const FALLA_GRAVEDAD = { baja: 'Puede seguir', media: 'Revisar pronto', alta: 'No puede circular' }
 
 async function cargarBitacora() {
   const lista = $('#admin-log-ul')
@@ -1545,6 +1559,7 @@ async function cargarBitacora() {
 
 $('#view-admin').addEventListener('tabchange', e => {
   if (e.detail === 'admin-tab-log') cargarBitacora()
+  if (e.detail === 'admin-tab-inbox') buzon.adminAbrir()
 })
 
 // --- 12. TIEMPO REAL ---
@@ -1578,6 +1593,7 @@ document.addEventListener('visibilitychange', () => {
     fetchPassengers()
     asientosChofer.cargar()
   }
+  buzon.refrescar()
 })
 
 // --- 13. INTRO Y ARRANQUE ---

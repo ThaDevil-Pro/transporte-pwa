@@ -3077,6 +3077,462 @@ button.row:active {
   100% { transform: scale(1); }
 }
 
+/* --- 16e. BUZÓN DE QUEJAS Y FALLAS --- */
+.tono-blue { --tono: var(--blue); --tint: var(--blue); }
+.tono-green { --tono: var(--green-text); --tint: var(--green); }
+.tono-orange { --tono: var(--orange-text); --tint: var(--orange); }
+.tono-red { --tono: var(--red-text); --tint: var(--red); }
+.tono-gray { --tono: var(--label-2); --tint: var(--label-2); }
+
+/* Pestañas: con 4 o 5 secciones caben aunque la pantalla sea angosta */
+.tabbar .tab {
+  position: relative;
+}
+
+@media (max-width: 1023px) {
+  .tabbar-compact .tab {
+    min-width: 0;
+    padding: 7px 6px 5px;
+  }
+}
+
+@media (min-width: 420px) and (max-width: 1023px) {
+  .tabbar-compact .tab {
+    min-width: 70px;
+  }
+}
+
+.tab-badge {
+  position: absolute;
+  top: 2px;
+  left: calc(50% + 6px);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+/* En computadora las pestañas son filas: el contador va al final */
+@media (min-width: 1024px) {
+  .tab-badge {
+    position: static;
+    margin-left: auto;
+    box-shadow: none;
+  }
+
+  /* El buzón no se estira de lado a lado */
+  #admin-tab-inbox .stack,
+  #driver-tab-inbox .stack {
+    max-width: 760px;
+  }
+}
+
+.segmented-mini button {
+  height: 28px;
+  font-size: 13px;
+}
+
+/* Estado (Nueva, En revisión, Atendida…) */
+.state-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--tono, var(--label-2)) 14%, transparent);
+  color: var(--tono, var(--label-2));
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Tarjeta del alumno */
+.inbox-intro {
+  margin: 10px 0 14px;
+  font-size: 15px;
+  color: var(--label-2);
+}
+
+.inbox-mine {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.inbox-mine-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--fill);
+}
+
+.inbox-mine-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.inbox-mine-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label-2);
+}
+
+.inbox-mine-cat .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.inbox-mine-text {
+  font-size: 15px;
+  line-height: 1.4;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.inbox-reply {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--label);
+  overflow-wrap: anywhere;
+}
+
+.inbox-reply .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--blue);
+}
+
+.inbox-time {
+  font-size: 12px;
+  color: var(--label-3);
+}
+
+/* Formularios */
+.inbox-form {
+  gap: 20px;
+}
+
+.form-group {
+  display: grid;
+  gap: 10px;
+}
+
+.form-label {
+  padding: 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--label-2);
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  border-radius: var(--r-md);
+}
+
+.choices-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.choices-3,
+.choices-severity {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.choices.is-invalid {
+  box-shadow: 0 0 0 2px var(--red);
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 48px;
+  padding: 10px 6px;
+  border-radius: var(--r-md);
+  background: var(--fill);
+  color: var(--label);
+  text-align: center;
+  transition: background-color 0.2s, box-shadow 0.25s var(--ease), transform 0.2s var(--ease);
+}
+
+.choice:active {
+  transform: scale(0.96);
+}
+
+.choice .icon {
+  width: 22px;
+  height: 22px;
+  color: var(--label-2);
+}
+
+.choice-text {
+  display: grid;
+  gap: 1px;
+}
+
+.choice-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.choice-sub {
+  font-size: 11px;
+  color: var(--label-2);
+}
+
+.choice[aria-checked="true"] {
+  --sel: var(--tono, var(--blue));
+  background: color-mix(in srgb, var(--sel) 14%, transparent);
+  box-shadow: inset 0 0 0 2px var(--sel);
+}
+
+.choice[aria-checked="true"] .icon,
+.choice[aria-checked="true"] .choice-label {
+  color: var(--sel);
+}
+
+.choices-severity .choice::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--tint, var(--tono));
+}
+
+/* Campo de texto largo con etiqueta flotante */
+.field-area textarea {
+  display: block;
+  width: 100%;
+  min-height: 132px;
+  padding: 28px 16px 30px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--fill);
+  color: var(--label);
+  font: inherit;
+  font-size: 17px;
+  line-height: 1.4;
+  resize: none;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.2s, box-shadow 0.3s var(--ease);
+}
+
+.field-area textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--blue) 18%, transparent);
+}
+
+.field-area textarea:focus + label,
+.field-area textarea:not(:placeholder-shown) + label {
+  transform: translateY(-11px) scale(0.76);
+  color: var(--label-2);
+}
+
+.field-area textarea:focus + label {
+  color: var(--blue);
+}
+
+.field-area.is-invalid textarea {
+  border-color: var(--red);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 15%, transparent);
+}
+
+.field-count {
+  position: absolute;
+  right: 14px;
+  bottom: 9px;
+  font-size: 12px;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.field-count.is-near {
+  color: var(--orange-text);
+}
+
+.inbox-privacy,
+.inbox-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--label-2);
+}
+
+.inbox-privacy {
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--fill);
+}
+
+.inbox-privacy .icon,
+.inbox-note .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+
+.inbox-note {
+  padding: 0 4px;
+}
+
+/* Listas del chofer y de la administración */
+.inbox-pane {
+  display: grid;
+  gap: 14px;
+}
+
+.inbox-pane[hidden] {
+  display: none;
+}
+
+.inbox-row {
+  align-items: flex-start;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.inbox-row .row-text {
+  gap: 4px;
+}
+
+.inbox-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.inbox-row-top .row-title {
+  min-width: 0;
+  font-size: 16px;
+}
+
+.inbox-row-msg {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--label);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.inbox-row .inbox-reply {
+  margin-top: 2px;
+}
+
+.inbox-row .row-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: normal;
+}
+
+.inbox-row.is-new .row-title::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--blue);
+  vertical-align: 2px;
+}
+
+.severity-dot {
+  flex: none;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tint, var(--tono));
+}
+
+/* Detalle al atender */
+.inbox-detail {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--r-lg);
+  background: var(--fill);
+}
+
+.inbox-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.inbox-detail-meta,
+.inbox-detail-severity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--label-2);
+}
+
+.inbox-detail-severity {
+  color: var(--tono);
+  font-weight: 600;
+}
+
+.inbox-detail-meta .icon {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+.inbox-detail-text {
+  font-size: 16px;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.choices-3 .choice {
+  min-height: 44px;
+}
+
+
 /* --- 16d. REPORTES --- */
 .report-body {
   display: grid;

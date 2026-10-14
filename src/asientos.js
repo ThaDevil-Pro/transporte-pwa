@@ -18,7 +18,9 @@ const AVISO_UI = {
   asiento_pareja: { titulo: 'Tu pareja apartó tu lugar', icono: 'i-seat', tint: 'indigo' },
   pareja_aceptada: { titulo: '¡Ya tienes pareja de viaje!', icono: 'i-link', tint: 'green' },
   pareja_rechazada: { titulo: 'Invitación no aceptada', icono: 'i-link', tint: 'gray' },
-  pareja_terminada: { titulo: 'Pareja de viaje terminada', icono: 'i-link', tint: 'gray' }
+  pareja_terminada: { titulo: 'Pareja de viaje terminada', icono: 'i-link', tint: 'gray' },
+  queja_respondida: { titulo: 'Respondieron tu queja', icono: 'i-inbox', tint: 'blue' },
+  queja_atendida: { titulo: 'Tu queja fue atendida', icono: 'i-inbox', tint: 'green' }
 }
 
 // --- FORMATO ---
