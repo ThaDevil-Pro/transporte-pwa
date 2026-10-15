@@ -4461,6 +4461,10 @@ button.row:active {
   margin-top: 4px;
 }
 
+#students-ul.is-locked .btn-remove-student {
+  display: none;
+}
+
 .badge-standing {
   --tint: var(--red-text);
   flex: none;

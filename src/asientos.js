@@ -586,7 +586,9 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
     await Promise.all([cargarMapa(), cargarSalidas()])
     toast(data.asiento_pareja
       ? `Asientos ${Math.min(n, data.asiento_pareja)} y ${Math.max(n, data.asiento_pareja)} apartados`
-      : `Asiento ${n} apartado`, { type: 'success' })
+      : data.pareja_debe
+        ? `Asiento ${n} apartado solo para ti: tu pareja no está al corriente`
+        : `Asiento ${n} apartado`, { type: data.pareja_debe ? 'warning' : 'success', duration: data.pareja_debe ? 4500 : 2800 })
     setTimeout(() => closeSheet('sheet-seats'), 1200)
   })
 

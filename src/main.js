@@ -874,7 +874,7 @@ function renderPassengersUI() {
   $('#driver-hero').dataset.level = n >= CAPACIDAD ? 'full' : n >= CAPACIDAD - 5 ? 'high' : 'normal'
   const dePie = passengers.filter(p => p.de_pie).length
   $('#scanner-count').textContent = dePie ? `${n} a bordo · ${dePie} de pie` : `${n} de ${CAPACIDAD} a bordo`
-  $('#btn-clear-list').hidden = n === 0
+  $('#btn-clear-list').hidden = n === 0 || isTripActive
 
   patchList($('#students-ul'), passengers, {
     key: p => p.id,
@@ -910,6 +910,9 @@ function renderDriverTrip() {
 
   const corte = $('#corte-card')
   corte.dataset.state = isTripActive ? 'active' : 'idle'
+  // Después del corte ya se cobró: no se puede quitar ni vaciar (el servidor también lo impide)
+  $('#students-ul').classList.toggle('is-locked', isTripActive)
+  $('#btn-clear-list').hidden = !passengers.length || isTripActive
   $('#corte-label').textContent = isTripActive ? 'Cobrado en este viaje' : 'Total del corte'
   const libres = regresos(passengers)
   $('#corte-total').textContent = fmtMoney(totalCorte(passengers))
