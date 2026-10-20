@@ -1697,6 +1697,6 @@ fetchScheduleMatrix()
 // --- 14. PWA: SERVICE WORKER (solo en producción para no cachear en desarrollo) ---
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(err => console.error('Error al registrar el service worker:', err))
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(err => console.error('Error al registrar el service worker:', err))
   })
 }
