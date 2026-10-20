@@ -1,7 +1,7 @@
 # Evita que Supabase (plan gratis) pause el proyecto por inactividad:
 # hace una consulta pequeña todos los días.
-# Requiere los secretos del repositorio SUPABASE_URL y SUPABASE_ANON_KEY
-# (los mismos valores de tu archivo .env).
+# Toma la dirección y la llave pública de la app publicada (son las mismas que
+# ya ve cualquier navegador), así que no necesita secretos.
 name: Mantener Supabase activo
 
 on:
@@ -13,16 +13,20 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      APP_URL: https://camify.lat
     steps:
       - name: Consultar la base de datos
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
+          js=$(curl -sfL "$APP_URL/" | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+          par=$(curl -sfL "$APP_URL$js" | grep -oE '`https://[a-z0-9]+\.supabase\.co`,`[A-Za-z0-9_.-]+`' | head -1)
+          SUPABASE_URL=$(echo "$par" | cut -d'`' -f2)
+          SUPABASE_ANON_KEY=$(echo "$par" | cut -d'`' -f4)
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "::error::Faltan los secretos SUPABASE_URL o SUPABASE_ANON_KEY"
+            echo "::error::No se encontró la configuración de Supabase en $APP_URL"
             exit 1
           fi
+          echo "::add-mask::$SUPABASE_ANON_KEY"
           code=$(curl -s -o /dev/null -w "%{http_code}" \
             "$SUPABASE_URL/rest/v1/horarios_matriz?select=id&limit=1" \
             -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY")
