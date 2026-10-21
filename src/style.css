@@ -1288,6 +1288,7 @@ button.row:active {
 
 #view-login[data-tint="orange"] .ambient span:nth-child(1) { --c: var(--orange); }
 #view-login[data-tint="indigo"] .ambient span:nth-child(1) { --c: var(--indigo); }
+#view-login[data-tint="green"] .ambient span:nth-child(1) { --c: var(--green); }
 
 .screen-onboarding .scroll {
   padding-top: calc(var(--safe-top) + var(--nav-h));
@@ -1600,6 +1601,7 @@ button.row:active {
 #view-login { --luz: #2997ff; }
 #view-login[data-tint="orange"] { --luz: #ff9f0a; }
 #view-login[data-tint="indigo"] { --luz: #7d7aff; }
+#view-login[data-tint="green"] { --luz: #30d158; }
 
 #view-login .ambient span:nth-child(2) { --c: #bf5af2; }
 #view-login .ambient span:nth-child(3) { --c: #ff375f; opacity: 0.45; }

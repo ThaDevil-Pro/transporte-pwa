@@ -22,7 +22,9 @@ const PERIODOS = {
 const CONFIG = {
   Estudiante: { titulo: 'Reporte de viajes', periodos: ['semana', 'mes', 'anio'], inicial: 'mes' },
   Chofer: { titulo: 'Mis reportes', periodos: ['dia', 'semana', 'mes'], inicial: 'dia' },
-  Admin: { titulo: 'Reportes', periodos: ['dia', 'semana', 'mes', 'anio'], inicial: 'mes' }
+  Admin: { titulo: 'Reportes', periodos: ['dia', 'semana', 'mes', 'anio'], inicial: 'mes' },
+  // Finanzas solo ve el informe de gastos
+  Financiero: { titulo: 'Informe de gastos', periodos: ['dia', 'semana', 'mes', 'anio'], inicial: 'mes' }
 }
 // El diésel se mide por semana, mes, semestre (enero–junio y julio–diciembre) y año
 const PERIODOS_DIESEL = ['semana', 'mes', 'semestre', 'anio']
@@ -182,7 +184,7 @@ export function initReportes({ rpc, abrirCarga }) {
     const cfg = CONFIG[rol]
     estado = {
       rol, perfil,
-      tipo: rol === 'Admin' ? tipo : 'propio',
+      tipo: rol === 'Admin' ? tipo : rol === 'Financiero' ? 'gastos' : 'propio',
       periodo: cfg.inicial,
       ref: hoy(),
       licencia,
@@ -341,14 +343,15 @@ export function initReportes({ rpc, abrirCarga }) {
         { etiqueta: 'Adeudo hoy', valor: fmtDinero(d.adeudo_total), numero: Number(d.adeudo_total), dinero: true, tono: Number(d.adeudo_total) > 0 ? 'orange' : '' },
         { etiqueta: 'Con adeudo', valor: String(d.alumnos_con_adeudo), numero: d.alumnos_con_adeudo, nota: 'alumnos' }
       ])
-      html += encabezado('Por chofer', d.choferes.length ? 'Toca para ver su reporte' : '')
+      const verChoferes = estado.rol === 'Admin'
+      html += encabezado('Por chofer', d.choferes.length && verChoferes ? 'Toca para ver su reporte' : '')
       html += d.choferes.length
         ? `<div class="list">${d.choferes.map(c => fila({
             iconId: 'i-wheel',
             titulo: c.nombre,
             sub: `${plural(c.cortes, 'corte', 'cortes')} · ${plural(c.alumnos, 'pasajero', 'pasajeros')}${Number(c.de_pie) ? ` · ${c.de_pie} de pie` : ''}`,
             monto: fmtDinero(c.total),
-            data: ` data-licencia="${esc(c.licencia)}" role="button" tabindex="0"`
+            data: verChoferes ? ` data-licencia="${esc(c.licencia)}" role="button" tabindex="0"` : ''
           })).join('')}</div>`
         : `<p class="report-empty">Ningún chofer hizo cortes en este periodo.</p>`
       if (d.camiones.length) {
@@ -503,7 +506,7 @@ export function initReportes({ rpc, abrirCarga }) {
         detalle.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }],
           { duration: 320, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' })
       }
-    } else if (el.dataset.licencia) {
+    } else if (el.dataset.licencia && estado.rol === 'Admin') {
       haptic(6)
       estado.tipo = 'chofer'
       estado.licencia = el.dataset.licencia

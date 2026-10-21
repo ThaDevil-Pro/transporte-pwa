@@ -34,9 +34,10 @@ const DIAS_CORTO = { lunes: 'Lun', martes: 'Mar', miercoles: 'Mié', jueves: 'Ju
 const ROLES = {
   Estudiante: { icon: 'i-student', tint: 'blue', title: 'Estudiante', subtitle: 'Entra con tu matrícula y contraseña.', idLabel: 'Matrícula', screen: 'view-student', error: 'Número de control o contraseña incorrectos.' },
   Chofer: { icon: 'i-wheel', tint: 'orange', title: 'Chofer', subtitle: 'Entra con tu número de licencia.', idLabel: 'Número de licencia', screen: 'view-driver', error: 'Número de licencia o contraseña incorrectos.' },
-  Admin: { icon: 'i-shield', tint: 'indigo', title: 'Administración', subtitle: 'Acceso para gestionar usuarios y saldos.', idLabel: 'Usuario', screen: 'view-admin', error: 'Usuario o contraseña incorrectos.' }
+  Admin: { icon: 'i-shield', tint: 'indigo', title: 'Administración', subtitle: 'Acceso para gestionar usuarios y saldos.', idLabel: 'Usuario', screen: 'view-admin', error: 'Usuario o contraseña incorrectos.' },
+  Financiero: { icon: 'i-wallet', tint: 'green', title: 'Financiero', subtitle: 'Cobros, pagos y saldos de los alumnos.', idLabel: 'Usuario', screen: 'view-finanzas', error: 'Usuario o contraseña incorrectos.' }
 }
-const ROL_ETIQUETA = { Estudiante: 'Alumno', Chofer: 'Chofer', Admin: 'Admin' }
+const ROL_ETIQUETA = { Estudiante: 'Alumno', Chofer: 'Chofer', Admin: 'Admin', Financiero: 'Financiero' }
 
 let currentRole = ''
 let perfilActual = {}
@@ -110,6 +111,7 @@ initSheets()
 initPasswordToggles()
 initTabs($('#view-driver'))
 initTabs($('#view-admin'))
+initTabs($('#view-finanzas'))
 
 // Asientos y parejas del alumno (rpc es una declaración de función, ya disponible)
 const asientos = initAsientos({
@@ -148,6 +150,7 @@ $('#btn-driver-report').addEventListener('click', () => reportes.abrir({ rol: 'C
 $('#btn-admin-report-gastos').addEventListener('click', () => reportes.abrir({ rol: 'Admin', perfil: perfilActual, tipo: 'gastos' }))
 $('#btn-admin-report-chofer').addEventListener('click', () => reportes.abrir({ rol: 'Admin', perfil: perfilActual, tipo: 'chofer' }))
 $('#btn-admin-report-diesel').addEventListener('click', () => reportes.abrir({ rol: 'Admin', perfil: perfilActual, tipo: 'diesel' }))
+$('#btn-fin-report-gastos').addEventListener('click', () => reportes.abrir({ rol: 'Financiero', perfil: perfilActual }))
 
 const rolesTitle = $('#roles-title')
 const loginForm = $('#login-form')
@@ -205,6 +208,7 @@ function entrar(rol, perfil, transition = 'fade') {
   pintarCuentaLateral(rol, perfil)
   if (rol === 'Estudiante') iniciarAlumno(perfil)
   else if (rol === 'Chofer') iniciarChofer(perfil)
+  else if (rol === 'Financiero') iniciarFinanzas()
   else iniciarAdmin()
   return showScreen(ROLES[rol].screen, transition)
 }
@@ -1321,11 +1325,12 @@ async function loadAdminData() {
     console.error('Error al cargar usuarios:', error)
     return
   }
-  const { alumnos, choferes, admins } = data
+  const { alumnos, choferes, financieros = [], admins } = data
   alumnosCache = alumnos
   allUsersCache = [
     ...alumnos.map(u => ({ ...u, rol: 'Estudiante', idStr: u.matricula })),
     ...choferes.map(u => ({ ...u, rol: 'Chofer', idStr: u.licencia })),
+    ...financieros.map(u => ({ ...u, rol: 'Financiero', idStr: u.usuario })),
     ...admins.map(u => ({ ...u, nombre: u.usuario, rol: 'Admin', idStr: u.usuario }))
   ]
   $('#admin-users-meta').textContent = plural(allUsersCache.length, 'usuario registrado', 'usuarios registrados')
@@ -1430,19 +1435,37 @@ $('#form-edit-user').addEventListener('submit', async e => {
 
 $('#form-edit-user').addEventListener('input', e => e.target.closest('.field')?.classList.remove('is-invalid'))
 
+// Saldos: la misma lista en administración y en finanzas (finanzas además busca y filtra)
+const finFiltro = initSegmented($('#fin-filter-seg'), () => renderBalancesList())
+$('#fin-search').addEventListener('input', () => renderBalancesList())
+const sinAcentos = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
 function renderBalancesList() {
+  const fin = currentRole === 'Financiero'
+  const ui = fin
+    ? { total: $('#fin-total-balance'), meta: $('#fin-balance-meta'), lista: $('#fin-balances-ul') }
+    : { total: $('#admin-total-balance'), meta: $('#admin-balance-meta'), lista: $('#admin-balances-ul') }
   const ordenados = [...alumnosCache].sort((a, b) => (Number(b.saldo) || 0) - (Number(a.saldo) || 0) || a.nombre.localeCompare(b.nombre))
   const total = ordenados.reduce((s, a) => s + Math.max(0, Number(a.saldo) || 0), 0)
   const conAdeudo = ordenados.filter(a => Number(a.saldo) > 0).length
   const aFavor = ordenados.filter(a => Number(a.saldo) < 0).length
 
-  animateNumber($('#admin-total-balance'), total, { decimals: 2 })
-  $('#admin-balance-meta').textContent = conAdeudo
+  animateNumber(ui.total, total, { decimals: 2 })
+  ui.meta.textContent = conAdeudo
     ? `${plural(conAdeudo, 'alumno', 'alumnos')} con saldo pendiente`
     : 'Todos los alumnos están al corriente'
-  if (aFavor) $('#admin-balance-meta').textContent += ` · ${plural(aFavor, 'con saldo', 'con saldo')} a favor`
+  if (aFavor) ui.meta.textContent += ` · ${plural(aFavor, 'con saldo', 'con saldo')} a favor`
 
-  patchList($('#admin-balances-ul'), ordenados, {
+  let visibles = ordenados
+  const q = fin ? sinAcentos($('#fin-search').value.trim()) : ''
+  if (fin) {
+    const f = finFiltro.value
+    visibles = ordenados.filter(a =>
+      (f === 'adeudo' ? Number(a.saldo) > 0 : f === 'favor' ? Number(a.saldo) < 0 : true) &&
+      (!q || sinAcentos(a.nombre).includes(q) || sinAcentos(a.matricula).includes(q)))
+  }
+
+  patchList(ui.lista, visibles, {
     key: a => a.id,
     render: a => {
       const saldo = Number(a.saldo) || 0
@@ -1453,9 +1476,38 @@ function renderBalancesList() {
         ${icon('i-chevron-right', 'chevron')}
       </button>`
     },
-    empty: emptyState('i-users', 'Sin alumnos', 'Registra alumnos para ver sus saldos.')
+    empty: alumnosCache.length
+      ? emptyState('i-search', 'Sin resultados', q ? 'Prueba con otro nombre o matrícula.' : 'Ningún alumno en este filtro.')
+      : emptyState('i-users', 'Sin alumnos', 'Registra alumnos para ver sus saldos.')
   })
 }
+
+async function cargarSaldosFinanzas() {
+  const { data, error } = await rpc('finanzas_alumnos')
+  if (error || !Array.isArray(data)) return
+  alumnosCache = data
+  renderBalancesList()
+}
+
+const recargarSaldos = () => (currentRole === 'Financiero' ? cargarSaldosFinanzas() : loadAdminData())
+
+function iniciarFinanzas() {
+  selectTab($('#view-finanzas'), 'fin-tab-balance', { animate: false })
+  $('#fin-search').value = ''
+  finFiltro.select('todos', false)
+  $('#fin-balances-ul').innerHTML = skeletonRows(4)
+  $('#fin-total-balance').dataset.value = '0'
+  cargarSaldosFinanzas()
+}
+
+$('#view-finanzas').addEventListener('tabchange', e => {
+  if (e.detail === 'fin-tab-balance') cargarSaldosFinanzas()
+  if (e.detail === 'fin-tab-log') cargarBitacora({
+    lista: $('#fin-log-ul'),
+    nombre: 'finanzas_movimientos',
+    vacio: emptyState('i-receipt', 'Sin movimientos todavía', 'Aquí verás cada pago y corrección de saldo.')
+  })
+})
 
 // Saldos: registrar un pago (baja el saldo y queda en el historial) o corregirlo con motivo
 const balanceMode = initSegmented($('#balance-mode-seg'), aplicarModoSaldo)
@@ -1478,7 +1530,7 @@ function aplicarModoSaldo(modo) {
   $$('.field', $('#form-edit-balance')).forEach(f => f.classList.remove('is-invalid'))
 }
 
-$('#admin-balances-ul').addEventListener('click', e => {
+function abrirSaldo(e) {
   const row = e.target.closest('.row[data-id]')
   if (!row) return
   editingAlumno = alumnosCache.find(a => String(a.id) === row.dataset.id)
@@ -1490,7 +1542,9 @@ $('#admin-balances-ul').addEventListener('click', e => {
   balanceMode.select(saldo > 0 ? 'pago' : 'ajuste', false)
   aplicarModoSaldo(balanceMode.value)
   openSheet('sheet-edit-balance')
-})
+}
+$('#admin-balances-ul').addEventListener('click', abrirSaldo)
+$('#fin-balances-ul').addEventListener('click', abrirSaldo)
 
 $('#form-edit-balance').addEventListener('click', e => {
   const btn = e.target.closest('[data-quick]')
@@ -1536,7 +1590,7 @@ $('#form-edit-balance').addEventListener('submit', async e => {
   await closeSheet('sheet-edit-balance')
   haptic([10, 40, 14])
   toast(pago ? `Pago de ${fmtMoney(valor)} registrado` : 'Saldo corregido', { type: 'success' })
-  loadAdminData()
+  recargarSaldos()
 })
 
 $('#form-edit-balance').addEventListener('input', e => e.target.closest('.field')?.classList.remove('is-invalid'))
@@ -1558,8 +1612,8 @@ function detalleBloqueo(clave) {
 }
 
 const fmtDetalle = {
-  pago_registrado: ['Pago registrado', 'i-wallet', 'is-money', d => `${d.matricula} · ${fmtMoney(d.monto)}${d.nota ? ` · ${d.nota}` : ''}`],
-  saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.matricula} · ${fmtSaldo(d.antes)} → ${fmtSaldo(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
+  pago_registrado: ['Pago registrado', 'i-wallet', 'is-money', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${fmtMoney(d.monto)}${d.nota ? ` · ${d.nota}` : ''}`],
+  saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${fmtSaldo(d.antes)} → ${fmtSaldo(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
   corte: ['Corte de viaje', 'i-bus', 'is-money', d => `Camión ${camionCorto(d.camion)} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}${d.de_pie ? ` · ${d.de_pie} de pie` : ''}`],
   emergencia: ['Emergencia del camión', 'i-alert', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${d.motivo === 'descompuesto' ? 'Se descompuso' : 'No estará disponible'} · avisó a ${plural(d.avisados || 0, 'alumno', 'alumnos')}`],
   abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}${d.asiento ? ` · Asiento ${d.asiento}` : ''}${d.de_pie ? ' · De pie' : ''}`],
@@ -1587,10 +1641,9 @@ const fmtDetalle = {
 const FALLA_TIPO = { motor: 'Motor', frenos: 'Frenos', llantas: 'Llantas', luces: 'Luces', puertas: 'Puertas', clima: 'Clima', electrico: 'Eléctrico', otro: 'Otro' }
 const FALLA_GRAVEDAD = { baja: 'Puede seguir', media: 'Revisar pronto', alta: 'No puede circular' }
 
-async function cargarBitacora() {
-  const lista = $('#admin-log-ul')
+async function cargarBitacora({ lista = $('#admin-log-ul'), nombre = 'admin_bitacora', vacio = emptyState('i-shield', 'Sin actividad todavía', 'Aquí verás pagos, cortes, cambios y alertas.') } = {}) {
   if (!lista.children.length) lista.innerHTML = skeletonRows(5)
-  const { data, error } = await rpc('admin_bitacora', { p_limite: 150 })
+  const { data, error } = await rpc(nombre, { p_limite: 150 })
   if (error || !Array.isArray(data)) return
   patchList(lista, data, {
     key: r => r.id,
@@ -1604,7 +1657,7 @@ async function cargarBitacora() {
         <span class="row-text"><span class="row-title">${esc(titulo)}</span><span class="row-sub">${detalle ? `${esc(detalle)}<br>` : ''}${esc(quien)} · ${esc(fmtFecha(f))} · ${esc(fmtHora(f))}</span></span>
       </div>`
     },
-    empty: emptyState('i-shield', 'Sin actividad todavía', 'Aquí verás pagos, cortes, cambios y alertas.')
+    empty: vacio
   })
 }
 
@@ -1645,6 +1698,7 @@ document.addEventListener('visibilitychange', () => {
     fetchPassengers()
     asientosChofer.cargar()
   }
+  if (currentRole === 'Financiero') cargarSaldosFinanzas()
   buzon.refrescar()
   diesel.refrescar()
 })

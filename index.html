@@ -135,8 +135,16 @@
               </span>
               <svg class="icon chevron"><use href="#i-chevron-right"/></svg>
             </button>
+            <button class="role-card" data-role="Financiero" data-reveal style="--i:9">
+              <span class="app-icon tint-green"><svg class="icon"><use href="#i-wallet"/></svg></span>
+              <span class="role-text">
+                <span class="role-title">Financiero</span>
+                <span class="role-sub">Cobros, pagos y saldos</span>
+              </span>
+              <svg class="icon chevron"><use href="#i-chevron-right"/></svg>
+            </button>
           </div>
-          <p class="footnote" data-reveal style="--i:9">CAMIFY · Transporte escolar<br><a class="legal-link" href="/privacidad.html">Aviso de privacidad</a> · <a class="legal-link" href="/terminos.html">Términos de uso</a></p>
+          <p class="footnote" data-reveal style="--i:10">CAMIFY · Transporte escolar<br><a class="legal-link" href="/privacidad.html">Aviso de privacidad</a> · <a class="legal-link" href="/terminos.html">Términos de uso</a></p>
         </div>
       </div>
     </section>
@@ -465,10 +473,11 @@
         </div>
 
         <form id="form-create-user" class="card form-card" novalidate data-reveal style="--i:1">
-          <div class="segmented" id="admin-role-seg" style="--n:3">
+          <div class="segmented" id="admin-role-seg" style="--n:4">
             <span class="segmented-thumb"></span>
             <button type="button" data-value="Estudiante">Alumno</button>
             <button type="button" data-value="Chofer">Chofer</button>
+            <button type="button" data-value="Financiero">Finanzas</button>
             <button type="button" data-value="Admin">Admin</button>
           </div>
 
@@ -531,11 +540,12 @@
             <svg class="icon"><use href="#i-search"/></svg>
             <input type="search" id="search-user-input" placeholder="Buscar por nombre o ID" autocomplete="off" enterkeyhint="search">
           </div>
-          <div class="segmented" id="admin-filter-seg" style="--n:4">
+          <div class="segmented" id="admin-filter-seg" style="--n:5">
             <span class="segmented-thumb"></span>
             <button type="button" data-value="Todos">Todos</button>
             <button type="button" data-value="Estudiante">Alumnos</button>
             <button type="button" data-value="Chofer">Choferes</button>
+            <button type="button" data-value="Financiero">Finanzas</button>
             <button type="button" data-value="Admin">Admins</button>
           </div>
           <div class="list" id="admin-users-ul"></div>
@@ -616,6 +626,72 @@
         <button type="button" class="side-account" data-logout aria-label="Tu cuenta">
           <span class="side-avatar" data-side-avatar></span>
           <span class="side-account-text"><span class="side-account-name" data-side-name>—</span><span class="side-account-sub" data-side-sub>Administración</span></span>
+          <svg class="icon"><use href="#i-chevron-right"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- ============ FINANZAS (solo el dinero de los alumnos) ============ -->
+    <section class="screen has-dock" id="view-finanzas">
+      <header class="nav">
+        <div class="nav-leading"></div>
+        <div class="nav-title">Saldos</div>
+        <div class="nav-trailing">
+          <button class="icon-btn" data-logout aria-label="Cerrar sesión"><svg class="icon"><use href="#i-logout"/></svg></button>
+        </div>
+      </header>
+
+      <!-- Pestaña: Saldos -->
+      <div class="scroll tab-panel is-active" id="fin-tab-balance" data-title="Saldos">
+        <div class="page-header" data-reveal style="--i:0">
+          <p class="eyebrow">Finanzas</p>
+          <h1 class="large-title">Saldos</h1>
+        </div>
+        <div class="stack">
+          <article class="card summary-card" data-reveal style="--i:1">
+            <div class="card-label"><svg class="icon"><use href="#i-wallet"/></svg>Total por cobrar</div>
+            <div class="amount"><span class="amount-currency">$</span><span class="amount-value" id="fin-total-balance">0.00</span></div>
+            <p class="card-foot" id="fin-balance-meta">Sin adeudos</p>
+            <div class="report-actions">
+              <button class="btn btn-tinted" id="btn-fin-report-gastos"><svg class="icon"><use href="#i-chart"/></svg>Informe de gastos</button>
+            </div>
+          </article>
+          <div class="stack" data-reveal style="--i:2">
+            <div class="search">
+              <svg class="icon"><use href="#i-search"/></svg>
+              <input type="search" id="fin-search" placeholder="Buscar por nombre o matrícula" autocomplete="off" enterkeyhint="search">
+            </div>
+            <div class="segmented" id="fin-filter-seg" style="--n:3">
+              <span class="segmented-thumb"></span>
+              <button type="button" data-value="todos">Todos</button>
+              <button type="button" data-value="adeudo">Con adeudo</button>
+              <button type="button" data-value="favor">A favor</button>
+            </div>
+          </div>
+          <div class="list" id="fin-balances-ul" data-reveal style="--i:3"></div>
+        </div>
+      </div>
+
+      <!-- Pestaña: Movimientos (pagos y correcciones) -->
+      <div class="scroll tab-panel" id="fin-tab-log" data-title="Movimientos">
+        <div class="page-header" data-reveal style="--i:0">
+          <p class="eyebrow">Finanzas</p>
+          <h1 class="large-title">Movimientos</h1>
+          <p class="lead lead-sm">Cada pago y corrección de saldo, con quién lo registró y cuándo. Nadie puede editar este registro.</p>
+        </div>
+        <div class="list" id="fin-log-ul" data-reveal style="--i:1"></div>
+      </div>
+
+      <div class="dock">
+        <div class="side-head"><div class="side-logo" role="img" aria-label="CAMIFY"></div><span class="side-role">Finanzas</span></div>
+        <nav class="tabbar" style="--n:2" role="tablist" aria-label="Secciones de finanzas">
+          <span class="tabbar-thumb"></span>
+          <button class="tab is-active" role="tab" data-tab="fin-tab-balance"><svg class="icon"><use href="#i-wallet"/></svg><span>Saldos</span></button>
+          <button class="tab" role="tab" data-tab="fin-tab-log"><svg class="icon"><use href="#i-receipt"/></svg><span>Movimientos</span></button>
+        </nav>
+        <button type="button" class="side-account" data-logout aria-label="Tu cuenta">
+          <span class="side-avatar" data-side-avatar></span>
+          <span class="side-account-text"><span class="side-account-name" data-side-name>—</span><span class="side-account-sub" data-side-sub>Finanzas</span></span>
           <svg class="icon"><use href="#i-chevron-right"/></svg>
         </button>
       </div>
