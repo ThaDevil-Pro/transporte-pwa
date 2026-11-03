@@ -3,7 +3,7 @@
 // control y lo sube a la lista sin QR (para quien no trae su código).
 // El servidor marca el abordaje como manual y lo anota en la bitácora.
 // =====================================================================
-import { camionCorto } from './camiones.js'
+import { camionCorto, plantillaColumnas, posicion } from './camiones.js'
 import { $, $$, esc, icon, avatar, initials, haptic, toast, confirm, openSheet, closeSheet } from './ui.js'
 
 const MINIMO = 2
@@ -89,7 +89,8 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
       const abordo = !disponible(a)
       const sub = a.camion != null
         ? `${esc(a.matricula)} · Ya va en el camión ${esc(camionCorto(a.camion))}`
-        : a.bloqueado ? `${esc(a.matricula)} · No puede subir: debe más de $600` : esc(a.matricula)
+        : a.bloqueado ? `${esc(a.matricula)} · No puede subir: debe más de $600`
+          : a.sin_apartar ? `${esc(a.matricula)} · Debe más de $60: solo un asiento que nadie apartó` : esc(a.matricula)
       return `<button type="button" class="row" role="option" id="manual-opt-${i}" data-i="${i}" aria-selected="${i === activo}"${abordo ? ' aria-disabled="true"' : ''} tabindex="-1">
         ${avatar(a.nombre)}
         <span class="row-text"><span class="row-title">${esc(a.nombre)}</span><span class="row-sub">${sub}</span></span>
@@ -129,7 +130,7 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
     if (!a || registrando) return
     if (!disponible(a)) {
       toast(a.camion != null
-        ? `${primerNombre(a.nombre)} ya va en el camión ${camionCorto(a.camion)}`
+        ? `${primerNombre(a.nombre)} ya va en ${camionCorto(a.camion)}`
         : `${primerNombre(a.nombre)} debe más de $600: tiene que pagar en la administración`, { type: 'warning' })
       return
     }
@@ -153,7 +154,7 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
       // Sin salida programada no hay mapa de asientos: sube sin asiento
       const ok = await confirm({
         title: `¿Subir a ${a.nombre}?`,
-        message: `${a.matricula} · Camión ${camionCorto(bus)}. No hay una salida programada, así que sube sin asiento. Se le cobrará en el corte.`,
+        message: `${a.matricula} · ${camionCorto(bus)}. No hay una salida programada, así que sube sin asiento. Se le cobrará en el corte.`,
         confirmLabel: 'Subir'
       })
       if (!ok) {
@@ -174,7 +175,7 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
 
     haptic(30)
     toast(data.de_pie
-      ? `Camión lleno: ${primerNombre(data.nombre)} irá de pie`
+      ? `Vehículo lleno: ${primerNombre(data.nombre)} irá de pie`
       : `${primerNombre(data.nombre)} está a bordo${data.asiento ? ` · Asiento ${data.asiento}` : ''}`, { type: data.de_pie ? 'warning' : 'success' })
     // Lista lista para el siguiente alumno sin código
     limpiar()
@@ -192,23 +193,23 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
       let elegido = mapa.asientos.find(x => x.matricula === a.matricula)?.n ?? null
       const libres = mapa.asientos.filter(x => !x.nombre).length
       const dePie = !libres && elegido == null
+      // Debe más de $60: solo puede ir en un asiento que nadie apartó, nunca de pie
+      const sinLugar = dePie && a.sin_apartar
       const seat = x => {
         const mio = x.matricula === a.matricula
         const estado = mio ? 'mio' : x.nombre ? 'ocupado' : 'libre'
-        return `<button type="button" class="seat${mio ? ' is-selected' : ''}" data-n="${x.n}" data-estado="${estado}"${estado === 'ocupado' ? ' disabled' : ''} aria-label="Asiento ${x.n}${estado === 'ocupado' ? `, ocupado por ${esc(x.nombre)}` : ''}">${estado === 'ocupado' ? esc(initials(x.nombre)) : x.n}</button>`
+        return `<button type="button" class="seat${mio ? ' is-selected' : ''}" style="${posicion(bus, x.n)}" data-n="${x.n}" data-estado="${estado}"${estado === 'ocupado' ? ' disabled' : ''} aria-label="Asiento ${x.n}${estado === 'ocupado' ? `, ocupado por ${esc(x.nombre)}` : ''}">${estado === 'ocupado' ? esc(initials(x.nombre)) : x.n}</button>`
       }
-      const celdas = []
-      for (let r = 0; r < 10; r++) {
-        const fila = mapa.asientos.slice(r * 4, r * 4 + 4)
-        celdas.push(seat(fila[0]), seat(fila[1]), `<span class="bus-row-label" aria-hidden="true">${r + 1}</span>`, seat(fila[2]), seat(fila[3]))
-      }
-      grid.innerHTML = celdas.join('')
-      $('#manual-seat-bus-name').textContent = `Camión ${camionCorto(bus)}`
-      $('#manual-seat-lead').textContent = dePie
-        ? `${a.nombre} · El camión va lleno: no queda ningún asiento libre, irá de pie.`
-        : `${a.nombre} · Salida de las ${mapa.hora} (${mapa.tipo === 'REGRESO' ? 'regreso' : 'ida'}). Toca un asiento libre.`
-      btnOk.textContent = dePie ? 'Subir de pie' : elegido ? `Subir · Asiento ${elegido}` : 'Subir'
-      btnOk.disabled = !dePie && elegido == null
+      grid.style.gridTemplateColumns = plantillaColumnas(bus)
+      grid.innerHTML = mapa.asientos.map(seat).join('')
+      $('#manual-seat-bus-name').textContent = `${camionCorto(bus)}`
+      $('#manual-seat-lead').textContent = sinLugar
+        ? `${a.nombre} debe más de $60 y ya no queda ningún asiento libre sin apartar: no puede subir.`
+        : dePie
+          ? `${a.nombre} · El vehículo va lleno: no queda ningún asiento libre, irá de pie.`
+          : `${a.nombre} · Salida de las ${mapa.hora} (${mapa.tipo === 'REGRESO' ? 'regreso' : 'ida'}). Toca un asiento libre${a.sin_apartar ? ' (debe más de $60: no puede ir de pie)' : ''}.`
+      btnOk.textContent = sinLugar ? 'No puede subir' : dePie ? 'Subir de pie' : elegido ? `Subir · Asiento ${elegido}` : 'Subir'
+      btnOk.disabled = sinLugar || (!dePie && elegido == null)
 
       let listo = false
       const terminar = v => {

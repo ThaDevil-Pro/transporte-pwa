@@ -210,7 +210,7 @@
           <article class="card trip-card" id="trip-card" data-state="waiting" data-reveal style="--i:1">
             <div class="trip-top">
               <span class="status-pill"><span class="status-dot"></span><span id="trip-status-label">Esperando</span></span>
-              <span class="trip-bus-tag"><svg class="icon trip-bus"><use href="#i-bus"/></svg><span id="trip-bus-label">Camión Rojo</span></span>
+              <span class="trip-bus-tag"><svg class="icon trip-bus"><use href="#i-bus"/></svg><span id="trip-bus-label">Sin salidas</span></span>
             </div>
             <div class="trip-main" id="trip-main">
               <p class="trip-kicker" id="trip-kicker" hidden>Sale en</p>
@@ -286,8 +286,8 @@
     <section class="screen has-dock" id="view-driver">
       <header class="nav">
         <div class="nav-leading">
-          <button class="nav-pill" id="btn-camion" aria-label="Cambiar de camión">
-            <svg class="icon"><use href="#i-bus"/></svg><span id="camion-label">Camión Rojo</span><svg class="icon nav-pill-chevron"><use href="#i-chevron-right"/></svg>
+          <button class="nav-pill" id="btn-camion" aria-label="Vehículo de la jornada">
+            <svg class="icon"><use href="#i-bus"/></svg><span id="camion-label">Elige vehículo</span><svg class="icon nav-pill-chevron"><use href="#i-chevron-right"/></svg>
           </button>
         </div>
         <div class="nav-title">Viaje</div>
@@ -312,7 +312,7 @@
               </svg>
               <div class="gauge-center">
                 <span class="gauge-value" id="passengers-count">0</span>
-                <span class="gauge-max">de 40</span>
+                <span class="gauge-max" id="gauge-max">de 0</span>
               </div>
             </div>
             <div class="hero-text">
@@ -376,22 +376,22 @@
       <!-- Pestaña: Asientos -->
       <div class="scroll tab-panel" id="driver-tab-seats" data-title="Asientos">
         <div class="page-header" data-reveal style="--i:0">
-          <p class="eyebrow" id="driver-seats-eyebrow">Camión Rojo</p>
+          <p class="eyebrow" id="driver-seats-eyebrow">Vehículo</p>
           <h1 class="large-title">Asientos</h1>
         </div>
         <div class="departures departures-inline" id="driver-departures" role="tablist" aria-label="Salidas del camión" data-reveal style="--i:1"></div>
         <div class="seat-stats" id="driver-seat-stats" data-reveal style="--i:2">
           <div class="seat-stat"><span class="seat-stat-value" id="stat-apartados">0</span><span class="seat-stat-label">Apartados</span></div>
           <div class="seat-stat is-green"><span class="seat-stat-value" id="stat-abordo">0</span><span class="seat-stat-label">A bordo</span></div>
-          <div class="seat-stat"><span class="seat-stat-value" id="stat-libres">40</span><span class="seat-stat-label">Libres</span></div>
+          <div class="seat-stat"><span class="seat-stat-value" id="stat-libres">0</span><span class="seat-stat-label">Libres</span></div>
         </div>
         <div class="bus bus-driver-view" id="driver-bus" data-reveal style="--i:3">
           <div class="bus-front" aria-hidden="true">
             <span class="bus-driver"><svg class="icon"><use href="#i-wheel"/></svg></span>
-            <span class="bus-name" id="driver-bus-name">Camión Rojo</span>
+            <span class="bus-name" id="driver-bus-name"></span>
             <span class="bus-door">Puerta<i></i></span>
           </div>
-          <div class="bus-seats" id="driver-bus-seats" role="group" aria-label="Asientos del camión"></div>
+          <div class="bus-seats" id="driver-bus-seats" role="group" aria-label="Asientos del vehículo"></div>
         </div>
         <div class="seat-legend" aria-hidden="true">
           <span><i class="legend-seat is-free"></i>Libre</span>
@@ -526,6 +526,18 @@
             <button type="button" class="btn btn-plain" id="btn-import-template"><svg class="icon"><use href="#i-download"/></svg>Descargar plantilla</button>
           </div>
           <input type="file" id="import-file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        </article>
+
+        <article class="card import-card vehiculos-card" data-reveal style="--i:3">
+          <div class="import-head">
+            <span class="row-icon tint-orange"><svg class="icon"><use href="#i-bus"/></svg></span>
+            <div class="import-head-text">
+              <h2 class="import-title">Vehículos</h2>
+              <p class="import-text" id="admin-vehiculos-meta">Aún no hay vehículos</p>
+            </div>
+          </div>
+          <div class="list" id="admin-vehiculos-ul"></div>
+          <button type="button" class="btn btn-tinted btn-block" id="btn-vehiculo-nuevo"><svg class="icon"><use href="#i-plus"/></svg>Agregar vehículo</button>
         </article>
       </div>
 
@@ -748,7 +760,7 @@
           <div class="scanner-check" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></div>
         </div>
         <p class="scan-feedback" id="scan-feedback" data-type="info" role="status" aria-live="polite">Iniciando cámara…</p>
-        <p class="scanner-count" id="scanner-count">0 de 40 a bordo</p>
+        <p class="scanner-count" id="scanner-count">0 a bordo</p>
         <button class="btn btn-scanner-manual" id="btn-scanner-manual"><svg class="icon"><use href="#i-hand"/></svg>¿No trae su código? Buscar alumno</button>
       </div>
     </div>
@@ -797,12 +809,121 @@
             <span class="bus-name" id="manual-seat-bus-name"></span>
             <span class="bus-door">Puerta<i></i></span>
           </div>
-          <div class="bus-seats" id="manual-seat-grid" role="group" aria-label="Asientos del camión"></div>
+          <div class="bus-seats" id="manual-seat-grid" role="group" aria-label="Asientos del vehículo"></div>
         </div>
       </div>
       <div class="sheet-footer">
         <button class="btn btn-primary btn-lg btn-block" id="btn-manual-seat-ok" disabled>Subir</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Vehículo de la jornada (chofer): se pregunta cada día antes de trabajar -->
+  <div class="sheet" id="sheet-jornada" role="dialog" aria-modal="true" aria-labelledby="sheet-jornada-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-jornada-title">¿En qué vehículo vas a trabajar hoy?</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <div class="sheet-body jornada-body">
+        <p class="sheet-lead" id="jornada-lead"></p>
+        <div class="list" id="jornada-list"></div>
+      </div>
+      <div class="sheet-footer" id="jornada-footer">
+        <button type="button" class="btn btn-plain btn-block" id="btn-jornada-logout" hidden>Cerrar sesión</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Editor visual de vehículos (admin) -->
+  <div class="sheet" id="sheet-vehiculo" role="dialog" aria-modal="true" aria-labelledby="sheet-vehiculo-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-vehiculo-title">Nuevo vehículo</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <div class="sheet-body veh-body" id="veh-body">
+        <!-- Paso 1: tipo -->
+        <div class="veh-paso" id="veh-paso-tipo">
+          <p class="sheet-lead">¿Qué tipo de vehículo es?</p>
+          <div class="veh-opciones">
+            <button type="button" class="veh-opcion" data-tipo="minivan">
+              <span class="veh-opcion-dibujo is-minivan" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <span class="veh-opcion-titulo">Minivan</span>
+              <span class="veh-opcion-sub">Pocos asientos, 4 de ancho</span>
+            </button>
+            <button type="button" class="veh-opcion" data-tipo="camion">
+              <span class="veh-opcion-dibujo is-camion" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <span class="veh-opcion-titulo">Camión</span>
+              <span class="veh-opcion-sub">Muchos asientos, 5 de ancho</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Paso 2: preajuste o personalizado -->
+        <div class="veh-paso" id="veh-paso-inicio" hidden>
+          <p class="sheet-lead" id="veh-inicio-lead">¿Cómo quieres empezar?</p>
+          <div class="veh-opciones">
+            <button type="button" class="veh-opcion" data-inicio="preajuste">
+              <span class="row-icon tint-blue"><svg class="icon"><use href="#i-seat"/></svg></span>
+              <span class="veh-opcion-titulo">Preajuste</span>
+              <span class="veh-opcion-sub" id="veh-preajuste-sub">Asientos ya acomodados. Puedes moverlos, quitarlos o agregar más.</span>
+            </button>
+            <button type="button" class="veh-opcion" data-inicio="vacio">
+              <span class="row-icon tint-orange"><svg class="icon"><use href="#i-plus"/></svg></span>
+              <span class="veh-opcion-titulo">Personalizado</span>
+              <span class="veh-opcion-sub">Empieza con el dibujo vacío y acomoda cada asiento.</span>
+            </button>
+          </div>
+          <button type="button" class="btn btn-plain" id="btn-veh-atras"><svg class="icon"><use href="#i-chevron-left"/></svg>Cambiar el tipo</button>
+        </div>
+
+        <!-- Paso 3: el dibujo -->
+        <div class="veh-paso" id="veh-paso-dibujo" hidden>
+          <div class="field">
+            <input id="veh-nombre" type="text" maxlength="40" placeholder=" " autocomplete="off">
+            <label for="veh-nombre">Nombre del vehículo</label>
+          </div>
+          <p class="veh-tipo-linea"><span id="veh-tipo-texto">Camión</span> · <button type="button" class="btn btn-plain veh-link" id="btn-veh-tipo">Cambiar tipo</button></p>
+          <p class="veh-editar-aviso" id="veh-editar-aviso" hidden>Si quitas un asiento que ya está apartado, ese alumno tendrá que volver a apartar; le llegará un aviso.</p>
+          <div class="veh-paleta" id="veh-paleta" role="toolbar" aria-label="Bloques para agregar">
+            <button type="button" class="veh-pieza" data-w="1" aria-pressed="false"><span class="veh-pieza-asientos"><i></i></span>Asiento</button>
+            <button type="button" class="veh-pieza" data-w="2" aria-pressed="false"><span class="veh-pieza-asientos"><i></i><i></i></span>Fila de 2</button>
+          </div>
+          <p class="veh-ayuda" id="veh-ayuda"></p>
+          <div class="bus veh-bus">
+            <div class="bus-front" aria-hidden="true">
+              <span class="bus-driver"><svg class="icon"><use href="#i-wheel"/></svg></span>
+              <span class="bus-name">Frente</span>
+              <span class="bus-door">Puerta<i></i></span>
+            </div>
+            <div class="veh-lienzo" id="veh-lienzo" role="group" aria-label="Dibujo de asientos"></div>
+          </div>
+          <div class="veh-herramientas">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-veh-preajuste">Usar preajuste</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-veh-vaciar">Vaciar</button>
+          </div>
+        </div>
+      </div>
+      <div class="sheet-footer veh-footer" id="veh-footer" hidden>
+        <div class="veh-barra-sel" id="veh-barra-sel" hidden>
+          <span id="veh-sel-texto"></span>
+          <button type="button" class="btn btn-danger btn-sm" id="btn-veh-quitar"><svg class="icon"><use href="#i-trash"/></svg>Quitar</button>
+        </div>
+        <div class="veh-footer-fila">
+          <span class="veh-contador" id="veh-contador">0 asientos</span>
+          <button type="button" class="btn btn-primary btn-lg" id="btn-veh-guardar">Guardar vehículo</button>
+        </div>
+      </div>
+      <div class="veh-basura" id="veh-basura" hidden><svg class="icon"><use href="#i-trash"/></svg>Suelta aquí para quitar</div>
     </div>
   </div>
 
@@ -970,10 +1091,10 @@
         <div class="bus" id="bus">
           <div class="bus-front" aria-hidden="true">
             <span class="bus-driver"><svg class="icon"><use href="#i-wheel"/></svg></span>
-            <span class="bus-name" id="bus-name">Camión Rojo</span>
+            <span class="bus-name" id="bus-name"></span>
             <span class="bus-door">Puerta<i></i></span>
           </div>
-          <div class="bus-seats" id="bus-seats" role="group" aria-label="Asientos del camión"></div>
+          <div class="bus-seats" id="bus-seats" role="group" aria-label="Asientos del vehículo"></div>
           <div class="bus-lock" id="bus-lock" hidden>
             <span class="bus-lock-icon"><svg class="icon"><use href="#i-lock"/></svg></span>
             <p class="bus-lock-label">El apartado abre en</p>

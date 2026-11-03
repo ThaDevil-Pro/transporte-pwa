@@ -2,7 +2,7 @@
 // Mapa de asientos del chofer: quién va en cada asiento y si ya subió.
 // Solo lectura; el apartado lo hacen los alumnos.
 // =====================================================================
-import { camionCorto } from './camiones.js'
+import { camionCorto, capacidad, plantillaColumnas, posicion, retrasoOla } from './camiones.js'
 import { $, $$, esc, icon, initials, haptic, alert } from './ui.js'
 import { TZ, claveSalida, splitHora, etiquetaDia } from './asientos.js'
 
@@ -21,8 +21,8 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
   async function cargar() {
     activo = true
     const bus = camion()
-    $('#driver-seats-eyebrow').textContent = `Camión ${camionCorto(bus)}`
-    $('#driver-bus-name').textContent = `Camión ${camionCorto(bus)}`
+    $('#driver-seats-eyebrow').textContent = `${camionCorto(bus)}`
+    $('#driver-bus-name').textContent = `${camionCorto(bus)}`
     const { data, error } = await rpc('chofer_salidas', { p_camion: bus })
     // Ignora la respuesta si el chofer cambió de camión mientras tanto
     if (error || !activo || bus !== camion()) return
@@ -44,7 +44,7 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
 
   function renderChips() {
     if (!salidas.length) {
-      chips.innerHTML = '<p class="seat-hint">No hay salidas próximas para este camión.</p>'
+      chips.innerHTML = '<p class="seat-hint">No hay salidas próximas para este vehículo. Agrégalas en la pestaña Horarios.</p>'
       return
     }
     chips.innerHTML = salidas.map(s => {
@@ -99,24 +99,20 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
     const contenido = estado === 'libre'
       ? a.n
       : `${esc(initials(a.nombre))}<span class="seat-num">${a.n}</span>${estado === 'abordo' ? `<span class="seat-check">${icon('i-check')}</span>` : ''}`
-    return `<button type="button" class="seat${a.con_pareja ? ' is-paired' : ''}" data-n="${a.n}" data-estado="${estado}" aria-label="${esc(etiqueta)}">${contenido}</button>`
+    return `<button type="button" class="seat${a.con_pareja ? ' is-paired' : ''}" style="${posicion(mapa.camion, a.n)}" data-n="${a.n}" data-estado="${estado}" aria-label="${esc(etiqueta)}">${contenido}</button>`
   }
 
   function render(anterior) {
-    const celdas = []
-    for (let r = 0; r < 10; r++) {
-      const fila = mapa.asientos.slice(r * 4, r * 4 + 4)
-      celdas.push(htmlAsiento(fila[0]), htmlAsiento(fila[1]), `<span class="bus-row-label" aria-hidden="true">${r + 1}</span>`, htmlAsiento(fila[2]), htmlAsiento(fila[3]))
-    }
-    seats.innerHTML = celdas.join('')
+    seats.style.gridTemplateColumns = plantillaColumnas(mapa.camion)
+    seats.innerHTML = mapa.asientos.map(htmlAsiento).join('')
 
     $$('.seat', seats).forEach(el => {
       const n = Number(el.dataset.n)
       if (!anterior) {
-        // Ola de entrada desde el frente del camión
+        // Ola de entrada desde el frente del vehículo
         el.animate(
           [{ opacity: 0, transform: 'translateY(10px) scale(0.85)' }, { opacity: 1, transform: 'none' }],
-          { duration: 480, delay: (Math.ceil(n / 4) - 1) * 35 + ((n - 1) % 4) * 12, easing: EASE, fill: 'backwards' }
+          { duration: 480, delay: retrasoOla(mapa.camion, n), easing: EASE, fill: 'backwards' }
         )
       } else if (estadoAsiento(anterior.asientos[n - 1]) !== el.dataset.estado) {
         el.classList.add('is-pulse')
@@ -130,7 +126,7 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
     const apartados = asientos.filter(a => a.nombre).length
     $('#stat-apartados').textContent = apartados
     $('#stat-abordo').textContent = asientos.filter(a => a.abordo).length
-    $('#stat-libres').textContent = 40 - apartados
+    $('#stat-libres').textContent = Math.max(0, capacidad(mapa?.camion ?? camion()) - apartados)
   }
 
   seats.addEventListener('click', e => {

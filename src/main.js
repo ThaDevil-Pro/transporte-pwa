@@ -10,7 +10,8 @@ import { initReportes } from './reportes.js'
 import { initAmbiente } from './ambiente.js'
 import { initBuzon } from './buzon.js'
 import { initDiesel, fmtLitros, ESTADO_CARGA } from './diesel.js'
-import { actualizarCamiones, camionCorto, existeCamion, idsCamiones, nombreCamion, puntoCamion } from './camiones.js'
+import { actualizarCamiones, actualizarCamion, camionCorto, nombreCamion, puntoCamion, capacidad, etiquetaVehiculo, listaCamiones, vehiculo, TIPOS } from './camiones.js'
+import { initEditorVehiculo } from './editor-vehiculo.js'
 import {
   $, $$, esc, icon, avatar, emptyState, skeletonRows, haptic,
   initScreens, showScreen, initTabs, selectTab, initSegmented,
@@ -23,7 +24,6 @@ import {
 // $60 por viaje redondo: el regreso del mismo día va incluido (lo calcula el servidor)
 const PRECIO_VIAJE = 60
 const ADEUDO_MAXIMO = 600
-const CAPACIDAD = 40
 const GAUGE_C = 339.292 // circunferencia del anillo (r = 54)
 const SESSION_KEY = 'camify.sesion'
 const DISPOSITIVO_KEY = 'camify.dispositivo'
@@ -59,19 +59,13 @@ let timerInterval = null
 let targetEndTime = null
 let timerTotalMs = 5 * 60 * 1000
 
-// Camiones: cada uno tiene su estado de viaje (estado_viaje.id = camión)
-// y un nombre y color (Rojo, Blanco, Amarillo, Gris) en camiones.js
-const CAMION_KEY = 'camify.camion'
+// Vehículos: cada uno tiene su estado de viaje (estado_viaje.id = vehículo)
+// y su nombre, color y acomodo de asientos en camiones.js
 let estados = {}
-let camionActual = leerCamion() // el que maneja el chofer
-let camionAlumno = 1 // el del próximo asiento apartado del alumno
-
-function leerCamion() {
-  try {
-    const n = Number(localStorage.getItem(CAMION_KEY))
-    return existeCamion(n) ? n : idsCamiones()[0]
-  } catch { return idsCamiones()[0] }
-}
+let camionActual = null // el de la jornada de hoy del chofer
+let camionAlumno = null // el del próximo asiento apartado del alumno
+// Cupo del vehículo del chofer (nunca 0, para no dividir entre cero)
+const cupo = () => capacidad(camionActual) || 1
 
 // --- 1. FORMATO ---
 const money = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -120,8 +114,8 @@ const asientos = initAsientos({
   // La tarjeta de viaje del alumno sigue al camión de su próximo asiento apartado
   alCambiarSalidas: salidas => {
     const s = salidas.find(x => x.mi_asiento) || salidas[0]
-    const nuevo = s?.camion || 1
-    $('#trip-bus-label').textContent = nombreCamion(nuevo)
+    const nuevo = s?.camion ?? null
+    $('#trip-bus-label').textContent = nuevo ? nombreCamion(nuevo) : 'Sin salidas'
     if (nuevo === camionAlumno) return
     camionAlumno = nuevo
     if (currentRole === 'Estudiante') sincronizarViaje()
@@ -198,6 +192,8 @@ async function rpc(nombre, params = {}) {
   }
   // El servidor exige cambiar la contraseña antes de seguir
   if (res.error?.code === 'CMF01') pedirCambioPassword({ obligatorio: true })
+  // El chofer todavía no elige el vehículo de su jornada (o cambió el día)
+  if (res.error?.code === 'CMF04' && currentRole === 'Chofer') verificarJornada()
   return res
 }
 
@@ -238,6 +234,7 @@ function cerrarSesion() {
   diesel.limpiar()
   passengers = []
   copyPassengers = []
+  camionActual = null
   currentRole = ''
   perfilActual = {}
   camionAlumno = 1
@@ -674,7 +671,7 @@ function renderStudentSchedule() {
       return `<div class="row schedule-row${esProxima ? ' is-next' : ''}">
         <span class="schedule-time">${t}<small>${p}</small></span>
         <span class="badge ${ida ? 'badge-ida' : 'badge-regreso'}">${icon(ida ? 'i-arrow-right' : 'i-arrow-left')}${ida ? 'Ida' : 'Regreso'}</span>
-        ${esProxima ? '<span class="next-tag is-live"><span class="status-dot"></span>Próxima</span>' : `<span class="badge badge-bus">${icon('i-bus')}Camión ${camionCorto(s.camion)}</span>`}
+        ${esProxima ? '<span class="next-tag is-live"><span class="status-dot"></span>Próxima</span>' : `<span class="badge badge-bus">${icon('i-bus')}${camionCorto(s.camion)}</span>`}
       </div>`
     },
     empty: emptyState('i-calendar', 'Sin salidas', `No hay salidas programadas el ${DIAS_NOMBRE[dia].toLowerCase()}.`)
@@ -686,7 +683,7 @@ function renderDriverSchedule() {
   const filas = scheduleRows
     .filter(r => (r.camion || 1) === camionActual)
     .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id)
-  $('#driver-schedule-eyebrow').textContent = `Camión ${camionCorto(camionActual)} · Semana`
+  $('#driver-schedule-eyebrow').textContent = `${camionCorto(camionActual)} · Semana`
   patchList($('#driver-schedule-list'), filas, {
     key: r => r.id,
     render: (r, i) => `<article class="card schedule-card" data-id="${esc(r.id)}">
@@ -705,7 +702,7 @@ function renderDriverSchedule() {
         </div>`
       }).join('')}
     </article>`,
-    empty: emptyState('i-calendar', 'Sin horarios', `Agrega la primera salida del camión ${camionCorto(camionActual)}.`)
+    empty: emptyState('i-calendar', 'Sin horarios', `Agrega la primera salida de ${camionCorto(camionActual)}.`)
   })
 }
 
@@ -812,44 +809,112 @@ function iniciarChofer(perfil) {
   $('#driver-license').textContent = `Licencia ${perfil.licencia}`
   selectTab($('#view-driver'), 'driver-tab-trip', { animate: false })
   buzon.chofer()
+  camionActual = null
   aplicarCamion()
-  renderDriverSchedule()
-
-  // Primera vez en este teléfono: que elija su camión
-  let elegido = null
-  try { elegido = localStorage.getItem(CAMION_KEY) } catch { /* modo privado */ }
-  if (!elegido) setTimeout(() => elegirCamion({ primeraVez: true }), 900)
+  verificarJornada()
 }
 
-// Carga todo lo del camión que maneja el chofer
+// Carga todo lo del vehículo de la jornada del chofer
 function aplicarCamion() {
-  $('#camion-label').innerHTML = `${puntoCamion(camionActual)}${camionCorto(camionActual)}`
+  $('#camion-label').innerHTML = camionActual ? `${puntoCamion(camionActual)}${esc(camionCorto(camionActual))}` : 'Elige vehículo'
   $('#passengers-count').dataset.value = '0'
-  $('#students-ul').innerHTML = skeletonRows(3)
   passengers = []
   sincronizarViaje()
+  renderDriverSchedule()
+  if (!camionActual) {
+    $('#students-ul').replaceChildren()
+    renderPassengersUI()
+    asientosChofer.limpiar()
+    return
+  }
+  $('#students-ul').innerHTML = skeletonRows(3)
   fetchPassengers()
   asientosChofer.cargar()
-  renderDriverSchedule()
   diesel.chofer()
 }
 
-async function elegirCamion({ primeraVez = false } = {}) {
-  const elegido = await actionSheet({
-    title: primeraVez ? '¿Qué camión manejas hoy?' : 'Cambiar de camión',
-    message: 'La lista de abordaje, el temporizador y el corte son de cada camión.',
-    actions: idsCamiones().map(n => ({ label: `${nombreCamion(n)}${n === camionActual ? ' ✓' : ''}`, value: n }))
-  })
-  if (!elegido) return
-  try { localStorage.setItem(CAMION_KEY, String(elegido)) } catch { /* modo privado */ }
-  if (elegido === camionActual) return
-  camionActual = elegido
-  haptic([10, 40, 14])
-  aplicarCamion()
-  toast(`Ahora manejas el camión ${camionCorto(elegido)}`, { type: 'success' })
+// --- JORNADA: cada día, antes de trabajar, el chofer elige su vehículo ---
+const sheetJornada = $('#sheet-jornada')
+let jornada = null
+
+async function verificarJornada({ cambiar = false } = {}) {
+  if (currentRole !== 'Chofer') return
+  const { data, error } = await rpc('chofer_jornada')
+  if (error || !data || currentRole !== 'Chofer') return
+  jornada = data
+  if (data.camion && !cambiar) {
+    if (data.camion !== camionActual) {
+      camionActual = data.camion
+      aplicarCamion()
+    }
+    return
+  }
+  if (!data.camion && camionActual) {
+    // Empezó otro día: se vuelve a preguntar
+    camionActual = null
+    aplicarCamion()
+  }
+  pedirVehiculo({ obligatorio: !data.camion })
 }
 
-$('#btn-camion').addEventListener('click', () => elegirCamion())
+function pedirVehiculo({ obligatorio }) {
+  const lista = $('#jornada-list')
+  const vehiculos = jornada?.vehiculos || []
+  if (obligatorio) sheetJornada.dataset.locked = '1'
+  else delete sheetJornada.dataset.locked
+  $('#sheet-jornada-title').textContent = obligatorio ? '¿En qué vehículo vas a trabajar hoy?' : 'Cambiar de vehículo'
+  $('#jornada-lead').textContent = obligatorio
+    ? 'Elige el vehículo de tu jornada para empezar. Mañana te lo volveremos a preguntar.'
+    : 'Solo puedes cambiar si no llevas pasajeros a bordo.'
+  $('#btn-jornada-logout').hidden = !obligatorio
+  lista.innerHTML = vehiculos.length
+    ? vehiculos.map(v => {
+        const ocupado = !!v.ocupado_por
+        const mio = v.id === camionActual
+        return `<button type="button" class="row jornada-row" data-vehiculo="${esc(v.id)}"${ocupado ? ' aria-disabled="true"' : ''}>
+          <span class="row-icon jornada-icon" style="--bus:${esc(v.color)}">${icon('i-bus')}</span>
+          <span class="row-text"><span class="row-title">${esc(v.nombre)} – ${esc(TIPOS[v.tipo] || 'Vehículo')}</span>
+            <span class="row-sub">${ocupado ? `Lo tiene ${esc(v.ocupado_por)} hoy` : `${plural(v.capacidad, 'asiento', 'asientos')}`}</span></span>
+          <span class="row-trailing">${icon(mio ? 'i-check' : ocupado ? 'i-lock' : 'i-chevron-right')}</span>
+        </button>`
+      }).join('')
+    : emptyState('i-bus', 'Aún no hay vehículos', 'Pide a la administración que dé de alta los vehículos en la app.')
+  if (!sheetJornada.classList.contains('is-open')) openSheet(sheetJornada)
+}
+
+$('#jornada-list').addEventListener('click', async e => {
+  const fila = e.target.closest('[data-vehiculo]')
+  if (!fila) return
+  const id = Number(fila.dataset.vehiculo)
+  const v = jornada?.vehiculos?.find(x => x.id === id)
+  if (v?.ocupado_por) {
+    toast(`${v.nombre} ya lo tiene ${v.ocupado_por} hoy`, { type: 'warning' })
+    return
+  }
+  setLoading(fila, true)
+  const { error } = await rpc('chofer_elegir_vehiculo', { p_camion: id })
+  setLoading(fila, false)
+  if (error) {
+    toast(error.message || 'No se pudo elegir el vehículo', { type: 'error', duration: 4000 })
+    verificarJornada({ cambiar: !!camionActual })
+    return
+  }
+  haptic([10, 40, 14])
+  await closeSheet(sheetJornada, { force: true })
+  delete sheetJornada.dataset.locked
+  const cambio = id !== camionActual
+  camionActual = id
+  if (cambio) aplicarCamion()
+  toast(`Hoy trabajas en ${etiquetaVehiculo(id)}`, { type: 'success' })
+})
+
+$('#btn-jornada-logout').addEventListener('click', async () => {
+  await closeSheet(sheetJornada, { force: true })
+  delete sheetJornada.dataset.locked
+  cerrarSesion()
+})
+
+$('#btn-camion').addEventListener('click', () => verificarJornada({ cambiar: true }))
 
 // El mapa del chofer se actualiza cada vez que abre la pestaña
 $('#view-driver').addEventListener('tabchange', e => {
@@ -874,10 +939,11 @@ async function fetchPassengers() {
 function renderPassengersUI() {
   const n = passengers.length
   animateNumber($('#passengers-count'), n, { duration: 700 })
-  $('#gauge-fill').style.strokeDashoffset = String(GAUGE_C * (1 - Math.min(n, CAPACIDAD) / CAPACIDAD))
-  $('#driver-hero').dataset.level = n >= CAPACIDAD ? 'full' : n >= CAPACIDAD - 5 ? 'high' : 'normal'
+  $('#gauge-fill').style.strokeDashoffset = String(GAUGE_C * (1 - Math.min(n, cupo()) / cupo()))
+  $('#gauge-max').textContent = camionActual ? `de ${cupo()}` : 'sin vehículo'
+  $('#driver-hero').dataset.level = n >= cupo() ? 'full' : n >= cupo() - 5 ? 'high' : 'normal'
   const dePie = passengers.filter(p => p.de_pie).length
-  $('#scanner-count').textContent = dePie ? `${n} a bordo · ${dePie} de pie` : `${n} de ${CAPACIDAD} a bordo`
+  $('#scanner-count').textContent = dePie ? `${n} a bordo · ${dePie} de pie` : `${n} de ${cupo()} a bordo`
   $('#btn-clear-list').hidden = n === 0 || isTripActive
 
   patchList($('#students-ul'), passengers, {
@@ -906,11 +972,11 @@ function renderDriverTrip() {
   hero.dataset.state = isTripActive ? 'enroute' : 'boarding'
   hero.classList.toggle('is-live', isTripActive)
   $('#driver-trip-status').textContent = isTripActive ? 'En camino' : 'Abordando'
-  $('#driver-trip-headline').textContent = isTripActive ? 'Viaje en curso' : n >= CAPACIDAD ? 'Unidad llena' : 'Lista abierta'
+  $('#driver-trip-headline').textContent = isTripActive ? 'Viaje en curso' : n >= cupo() ? 'Unidad llena' : 'Lista abierta'
   $('#driver-trip-sub').textContent = isTripActive
     ? 'Corte realizado. Finaliza el viaje al llegar.'
     : dePie ? `${plural(dePie, 'alumno va', 'alumnos van')} de pie.`
-      : n ? `Quedan ${Math.max(0, CAPACIDAD - n)} lugares disponibles.` : 'Escanea el código de cada alumno al subir.'
+      : n ? `Quedan ${Math.max(0, cupo() - n)} lugares disponibles.` : 'Escanea el código de cada alumno al subir.'
 
   const corte = $('#corte-card')
   corte.dataset.state = isTripActive ? 'active' : 'idle'
@@ -1008,7 +1074,7 @@ btnIniciarViaje.addEventListener('click', async () => {
 function renderComprobante() {
   const ahora = new Date()
   const n = copyPassengers.length
-  $('#comprobante-fecha-hora').textContent = `Camión ${camionCorto(camionActual)} · ${fmtFechaLarga(ahora)} · ${fmtHora(ahora)}`
+  $('#comprobante-fecha-hora').textContent = `${camionCorto(camionActual)} · ${fmtFechaLarga(ahora)} · ${fmtHora(ahora)}`
   $('#comprobante-total').textContent = fmtMoney(totalCorte(copyPassengers))
   $('#comprobante-detalle').textContent = plural(n, 'alumno', 'alumnos')
   $('#tbody-comprobante').innerHTML = n
@@ -1136,7 +1202,12 @@ async function onScanSuccess(decodedText) {
   if (data.de_pie) {
     flash('success')
     haptic([20, 60, 20, 60, 20])
-    setScanFeedback(`Camión lleno: ${primerNombre(data.nombre)} irá de pie`, 'warning', { volver: 3200 })
+    setScanFeedback(`Vehículo lleno: ${primerNombre(data.nombre)} irá de pie`, 'warning', { volver: 3200 })
+  } else if (data.asignado) {
+    // Debe más de $60 y no pudo apartar: el sistema le dio el primer asiento libre sin apartar
+    flash('success')
+    haptic([20, 60, 20])
+    setScanFeedback(`${primerNombre(data.nombre)} debe más de $60: dale el asiento ${data.asiento}`, 'warning', { volver: 3800 })
   } else {
     flash('success')
     haptic(30)
@@ -1220,9 +1291,10 @@ btnTimerStop.addEventListener('click', () => accionTemporizador('cancelar', btnT
 async function cargarEstadoViaje() {
   const { data } = await supabase
     .from('estado_viaje')
-    .select('id, estado, tiempo_salida, temporizador_activo, nombre, color')
+    .select('id, estado, tiempo_salida, temporizador_activo, nombre, color, tipo, cols, bloques, asientos, activo')
   if (!data) return
   actualizarCamiones(data)
+  pintarVehiculos()
   data.forEach(row => { estados[row.id] = row })
   sincronizarViaje()
 }
@@ -1258,8 +1330,61 @@ function aplicarRolRegistro(rol) {
   collapse($('#group-admin-initial-balance'), rol !== 'Estudiante')
 }
 
+// Vehículos (pestaña Registrar): lista, alta con el editor visual, edición y baja
+const editorVehiculo = initEditorVehiculo({ rpc, alGuardar: () => cargarEstadoViaje() })
+$('#btn-vehiculo-nuevo').addEventListener('click', () => editorVehiculo.nuevo())
+
+function pintarVehiculos() {
+  const lista = $('#admin-vehiculos-ul')
+  if (!lista) return
+  const vehiculos = listaCamiones()
+  $('#admin-vehiculos-meta').textContent = vehiculos.length
+    ? `${plural(vehiculos.length, 'vehículo', 'vehículos')} · ${plural(vehiculos.reduce((s, v) => s + v.asientos.length, 0), 'asiento', 'asientos')} en total`
+    : 'Aún no hay vehículos'
+  patchList(lista, vehiculos, {
+    key: v => `${v.id}-${v.nombre}-${v.asientos.length}-${v.tipo}`,
+    render: v => `<button class="row" data-vehiculo="${esc(v.id)}">
+      <span class="row-icon jornada-icon" style="--bus:${esc(v.color)}">${icon('i-bus')}</span>
+      <span class="row-text"><span class="row-title">${esc(v.nombre)}</span><span class="row-sub">${esc(TIPOS[v.tipo])} · ${plural(v.asientos.length, 'asiento', 'asientos')}</span></span>
+      ${icon('i-chevron-right', 'chevron')}
+    </button>`,
+    empty: emptyState('i-bus', 'Sin vehículos', 'Toca «Agregar vehículo» para dibujar el primero.')
+  })
+}
+
+$('#admin-vehiculos-ul').addEventListener('click', async e => {
+  const fila = e.target.closest('[data-vehiculo]')
+  if (!fila) return
+  const v = vehiculo(fila.dataset.vehiculo)
+  if (!v) return
+  const accion = await actionSheet({
+    title: v.nombre,
+    message: `${TIPOS[v.tipo]} · ${plural(v.asientos.length, 'asiento', 'asientos')}`,
+    actions: [
+      { label: 'Editar acomodo y nombre', value: 'editar' },
+      { label: 'Dar de baja', value: 'baja', style: 'destructive' }
+    ]
+  })
+  if (accion === 'editar') editorVehiculo.editar(v)
+  if (accion === 'baja') {
+    const ok = await confirm({
+      title: `¿Dar de baja ${v.nombre}?`,
+      message: 'Se borran sus horarios y los apartados de sus próximas salidas (se avisa a los alumnos). Su historial de viajes se conserva.',
+      confirmLabel: 'Dar de baja',
+      destructive: true
+    })
+    if (!ok) return
+    const { error } = await rpc('admin_vehiculo_eliminar', { p_id: v.id })
+    if (error) toast(error.message || 'No se pudo dar de baja', { type: 'error', duration: 4000 })
+    else toast(`${v.nombre} dado de baja`, { type: 'success' })
+    cargarEstadoViaje()
+  }
+})
+
 function iniciarAdmin() {
   selectTab($('#view-admin'), 'admin-tab-register', { animate: false })
+  pintarVehiculos()
+  cargarEstadoViaje()
   aplicarRolRegistro(adminRole.value)
   $('#admin-users-ul').innerHTML = skeletonRows(4)
   $('#admin-balances-ul').innerHTML = skeletonRows(4)
@@ -1614,29 +1739,32 @@ function detalleBloqueo(clave) {
 const fmtDetalle = {
   pago_registrado: ['Pago registrado', 'i-wallet', 'is-money', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${fmtMoney(d.monto)}${d.nota ? ` · ${d.nota}` : ''}`],
   saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${fmtSaldo(d.antes)} → ${fmtSaldo(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
-  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `Camión ${camionCorto(d.camion)} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}${d.de_pie ? ` · ${d.de_pie} de pie` : ''}`],
-  emergencia: ['Emergencia del camión', 'i-alert', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${d.motivo === 'descompuesto' ? 'Se descompuso' : 'No estará disponible'} · avisó a ${plural(d.avisados || 0, 'alumno', 'alumnos')}`],
-  abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}${d.asiento ? ` · Asiento ${d.asiento}` : ''}${d.de_pie ? ' · De pie' : ''}`],
+  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `${camionCorto(d.camion)} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}${d.de_pie ? ` · ${d.de_pie} de pie` : ''}`],
+  emergencia: ['Emergencia del camión', 'i-alert', 'is-alert', d => `${camionCorto(d.camion)} · ${d.motivo === 'descompuesto' ? 'Se descompuso' : 'No estará disponible'} · avisó a ${plural(d.avisados || 0, 'alumno', 'alumnos')}`],
+  abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `${camionCorto(d.camion)} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}${d.asiento ? ` · Asiento ${d.asiento}` : ''}${d.de_pie ? ' · De pie' : ''}`],
   usuarios_importados: ['Usuarios importados', 'i-sheet', '', d => [
     d.alumnos && plural(d.alumnos, 'alumno', 'alumnos'),
     d.choferes && plural(d.choferes, 'chofer', 'choferes'),
     d.fallidos && `${d.fallidos} con error`
   ].filter(Boolean).join(' · ') || 'Ningún usuario creado'],
-  viaje_finalizado: ['Viaje finalizado', 'i-flag', '', d => `Camión ${camionCorto(d.camion)}`],
-  lista_vaciada: ['Lista vaciada sin cobrar', 'i-trash', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${plural(d.alumnos || 0, 'alumno', 'alumnos')}`],
-  alumno_quitado: ['Alumno quitado de la lista', 'i-minus', '', d => `Camión ${camionCorto(d.camion)} · ${d.matricula}`],
-  qr_rechazado: ['Código QR rechazado', 'i-alert', 'is-alert', d => `${{ formato: 'No es de CAMIFY', firma: 'Falsificado', vencido: 'Vencido' }[d.motivo] || d.motivo}${d.matricula ? ` · ${d.matricula}` : ''} · Camión ${camionCorto(d.camion)}`],
+  viaje_finalizado: ['Viaje finalizado', 'i-flag', '', d => `${camionCorto(d.camion)}`],
+  lista_vaciada: ['Lista vaciada sin cobrar', 'i-trash', 'is-alert', d => `${camionCorto(d.camion)} · ${plural(d.alumnos || 0, 'alumno', 'alumnos')}`],
+  alumno_quitado: ['Alumno quitado de la lista', 'i-minus', '', d => `${camionCorto(d.camion)} · ${d.matricula}`],
+  qr_rechazado: ['Código QR rechazado', 'i-alert', 'is-alert', d => `${{ formato: 'No es de CAMIFY', firma: 'Falsificado', vencido: 'Vencido' }[d.motivo] || d.motivo}${d.matricula ? ` · ${d.matricula}` : ''} · ${camionCorto(d.camion)}`],
   login_bloqueado: ['Bloqueo por intentos fallidos', 'i-lock', 'is-alert', d => detalleBloqueo(String(d.clave || ''))],
   usuario_creado: ['Usuario creado', 'i-user-plus', '', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.nombre ? `${d.nombre} · ` : ''}${d.identificador}`],
   usuario_editado: ['Usuario editado', 'i-users', '', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.identificador}${d.password_restablecida ? ' · contraseña restablecida' : ''}`],
   usuario_eliminado: ['Usuario eliminado', 'i-trash', 'is-alert', d => `${ROL_ETIQUETA[d.rol] || d.rol} · ${d.nombre ? `${d.nombre} · ` : ''}${d.identificador}`],
   cambio_password: ['Cambio de contraseña', 'i-lock', '', () => ''],
-  falla_reportada: ['Falla del camión reportada', 'i-wrench', 'is-alert', d => `Camión ${camionCorto(d.camion)} · ${FALLA_TIPO[d.tipo] || d.tipo} · ${FALLA_GRAVEDAD[d.gravedad] || d.gravedad}`],
+  falla_reportada: ['Falla del camión reportada', 'i-wrench', 'is-alert', d => `${camionCorto(d.camion)} · ${FALLA_TIPO[d.tipo] || d.tipo} · ${FALLA_GRAVEDAD[d.gravedad] || d.gravedad}`],
   falla_actualizada: ['Falla del camión actualizada', 'i-wrench', '', d => `Reporte #${d.id} · ${{ abierta: 'Abierta', reparacion: 'En reparación', resuelta: 'Resuelta' }[d.estado] || d.estado}`],
   queja_actualizada: ['Queja atendida', 'i-inbox', '', d => `Queja #${d.id} · ${{ nueva: 'Nueva', revision: 'En revisión', atendida: 'Atendida' }[d.estado] || d.estado}${d.respondida ? ' · con respuesta' : ''}`],
-  diesel_registrado: ['Carga de diésel registrada', 'i-fuel', 'is-money', d => `Camión ${camionCorto(d.camion)} · ${fmtLitros(d.litros)} · ${fmtMoney(d.importe)}`],
-  diesel_actualizado: ['Carga de diésel revisada', 'i-fuel', '', d => `Carga #${d.id} · Camión ${camionCorto(d.camion)} · ${ESTADO_CARGA[d.estado]?.label || d.estado}${d.corregida ? ' · datos corregidos' : ''}`],
-  diesel_tanque: ['Capacidad del tanque', 'i-gauge', '', d => `Camión ${camionCorto(d.camion)} · ${d.litros ? fmtLitros(d.litros) : 'sin dato'}`]
+  diesel_registrado: ['Carga de diésel registrada', 'i-fuel', 'is-money', d => `${camionCorto(d.camion)} · ${fmtLitros(d.litros)} · ${fmtMoney(d.importe)}`],
+  diesel_actualizado: ['Carga de diésel revisada', 'i-fuel', '', d => `Carga #${d.id} · ${camionCorto(d.camion)} · ${ESTADO_CARGA[d.estado]?.label || d.estado}${d.corregida ? ' · datos corregidos' : ''}`],
+  diesel_tanque: ['Capacidad del tanque', 'i-gauge', '', d => `${camionCorto(d.camion)} · ${d.litros ? fmtLitros(d.litros) : 'sin dato'}`],
+  vehiculo_guardado: ['Vehículo guardado', 'i-bus', '', d => `${d.nombre} · ${TIPOS[d.tipo] || ''} · ${plural(d.asientos || 0, 'asiento', 'asientos')}${d.nuevo ? ' · nuevo' : ''}${d.avisados ? ` · ${plural(d.avisados, 'apartado liberado', 'apartados liberados')}` : ''}`],
+  vehiculo_eliminado: ['Vehículo dado de baja', 'i-trash', 'is-alert', d => d.nombre || camionCorto(d.camion)],
+  vehiculo_elegido: ['Vehículo de la jornada', 'i-wheel', '', d => camionCorto(d.camion)]
 }
 const FALLA_TIPO = { motor: 'Motor', frenos: 'Frenos', llantas: 'Llantas', luces: 'Luces', puertas: 'Puertas', clima: 'Clima', electrico: 'Eléctrico', otro: 'Otro' }
 const FALLA_GRAVEDAD = { baja: 'Puede seguir', media: 'Revisar pronto', alta: 'No puede circular' }
@@ -1670,7 +1798,12 @@ $('#view-admin').addEventListener('tabchange', e => {
 // --- 12. TIEMPO REAL ---
 supabase
   .channel('estado_viaje_channel')
-  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'estado_viaje' }, ({ new: row }) => {
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'estado_viaje' }, ({ new: row }) => {
+    if (!row?.id) return
+    actualizarCamion(row)
+    pintarVehiculos()
+    // Dieron de baja el vehículo del chofer: que elija otro
+    if (currentRole === 'Chofer' && row.id === camionActual && row.activo === false) verificarJornada()
     const cambio = aplicarEstadoViaje(row)
     if (!cambio || !sessionToken) return
     // El corte cambia el estado a EN_CAMINO: refrescar saldo e historial del alumno
@@ -1695,8 +1828,12 @@ document.addEventListener('visibilitychange', () => {
     asientos.cargar()
   }
   if (currentRole === 'Chofer') {
-    fetchPassengers()
-    asientosChofer.cargar()
+    // Si cambió el día, verificarJornada vuelve a preguntar el vehículo
+    verificarJornada()
+    if (camionActual) {
+      fetchPassengers()
+      asientosChofer.cargar()
+    }
   }
   if (currentRole === 'Financiero') cargarSaldosFinanzas()
   buzon.refrescar()

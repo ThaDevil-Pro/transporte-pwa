@@ -193,7 +193,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
         : `<span>${icon('i-fuel')}<b>${fmtPesos(p)}</b> por litro</span>`)
     }
     if (l > 0 && u?.tanque && l > u.tanque * 1.03) {
-      lineas.push(`<span class="is-warning">${icon('i-alert')}El tanque del camión ${camionCorto(bus)} es de ${fmtLitros(u.tanque)}</span>`)
+      lineas.push(`<span class="is-warning">${icon('i-alert')}El tanque de ${camionCorto(bus)} es de ${fmtLitros(u.tanque)}</span>`)
     }
     pistaPrecio.innerHTML = lineas.join('')
     pistaPrecio.hidden = !lineas.length
@@ -201,8 +201,8 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
     // Kilometraje contra la última carga del camión
     let html
     let aviso = false
-    if (u?.odometro == null) html = `Es la primera carga registrada del camión ${camionCorto(bus)}.`
-    else if (!(o >= 0)) html = `Última carga del camión ${camionCorto(bus)}: <b>${fmtKm(u.odometro)}</b>, ${hace(u.fecha)}.`
+    if (u?.odometro == null) html = `Es la primera carga registrada de ${camionCorto(bus)}.`
+    else if (!(o >= 0)) html = `Última carga de ${camionCorto(bus)}: <b>${fmtKm(u.odometro)}</b>, ${hace(u.fecha)}.`
     else if (o < u.odometro) {
       aviso = true
       html = `Es menos que la última carga (${fmtKm(u.odometro)}). Revisa el tablero.`
@@ -295,7 +295,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
     if (u?.odometro != null && o < u.odometro) {
       const seguir = await confirm({
         title: 'Kilometraje menor',
-        message: `La última carga del camión ${camionCorto(bus)} marcaba ${fmtKm(u.odometro)}. ¿Guardar ${fmtKm(o)} de todos modos?`,
+        message: `La última carga de ${camionCorto(bus)} marcaba ${fmtKm(u.odometro)}. ¿Guardar ${fmtKm(o)} de todos modos?`,
         confirmLabel: 'Guardar'
       })
       if (!seguir) return
@@ -366,15 +366,15 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
     $('#driver-diesel-sub').textContent = !choferListo
       ? 'Registra cada carga con la foto del ticket'
       : u?.fecha
-      ? `Última carga del camión ${camionCorto(bus)}: ${hace(u.fecha)} · ${fmtKm(u.odometro)}`
-      : `Aún no hay cargas registradas del camión ${camionCorto(bus)}`
+      ? `Última carga de ${camionCorto(bus)}: ${hace(u.fecha)} · ${fmtKm(u.odometro)}`
+      : `Aún no hay cargas registradas de ${camionCorto(bus)}`
     const lista = $('#driver-diesel-list')
     lista.hidden = !mias.length
     lista.innerHTML = mias.slice(0, 3).map(c => {
       const est = ESTADO_CARGA[c.estado] || ESTADO_CARGA.pendiente
       return `<div class="inbox-mine-item">
         <div class="inbox-mine-top">
-          <span class="inbox-mine-cat">${icon('i-fuel')}Camión ${camionCorto(c.camion)} · ${esc(fmtLitros(c.litros))} · ${esc(fmtPesos(c.importe))}</span>
+          <span class="inbox-mine-cat">${icon('i-fuel')}${camionCorto(c.camion)} · ${esc(fmtLitros(c.litros))} · ${esc(fmtPesos(c.importe))}</span>
           ${chip(est.corto || est.label, est.tono)}
         </div>
         ${c.nota ? `<p class="inbox-reply">${icon('i-reply')}<span>${esc(c.nota)}</span></p>` : ''}
@@ -437,7 +437,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
     return `<button type="button" class="row inbox-row diesel-row${c.estado === 'anulada' ? ' is-void' : ''}" data-carga="${c.id}">
       <span class="row-icon tono-${tono}">${icon('i-fuel')}</span>
       <span class="row-text">
-        <span class="inbox-row-top"><span class="row-title">Camión ${camionCorto(c.camion)} · ${esc(fmtLitros(c.litros))}</span>${chip(est.corto || est.label, est.tono)}</span>
+        <span class="inbox-row-top"><span class="row-title">${camionCorto(c.camion)} · ${esc(fmtLitros(c.litros))}</span>${chip(est.corto || est.label, est.tono)}</span>
         <span class="row-sub">${esc(fmtCuando(c.fecha))}${quien ? ` · ${esc(quien)}` : ''}</span>
         <span class="row-sub">${esc(datos)}</span>
         ${alertas.length ? `<span class="diesel-alert-line">${icon('i-alert')}${esc(ALERTAS[alertas[0]]?.texto || alertas[0])}${alertas.length > 1 ? ` y ${alertas.length - 1} más` : ''}</span>` : ''}
@@ -533,7 +533,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
     const extra = [c.lleno ? 'Tanque lleno' : 'Carga parcial', c.gasolinera, c.folio && `Folio ${c.folio}`].filter(Boolean).join(' · ')
     $('#diesel-revisar-detalle').innerHTML = `
       <div class="inbox-author">${avatar(c.chofer_nombre || 'Administración')}<span class="row-text"><span class="row-title">${esc(quien)}</span><span class="row-sub">${esc(sub)}</span></span></div>
-      <p class="inbox-detail-meta">${icon('i-bus')}Camión ${camionCorto(c.camion)} · ${esc(fmtCuando(c.fecha))}</p>
+      <p class="inbox-detail-meta">${icon('i-bus')}${camionCorto(c.camion)} · ${esc(fmtCuando(c.fecha))}</p>
       <div class="diesel-datos">
         ${datoCelda('Litros', fmtLitros(c.litros), c.tanque ? `Tanque de ${fmtLitros(c.tanque)}` : '', alertas.includes('sobre_tanque') ? 'orange' : '')}
         ${datoCelda('Total', fmtPesos(c.importe))}
@@ -676,7 +676,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
     $('#diesel-tanques-campos').innerHTML = (tanques.length ? tanques : listaCamiones().map(c => ({ camion: c.id }))).map(t => `
       <div class="field">
         <input id="diesel-tanque-${t.camion}" data-camion="${t.camion}" data-inicial="${t.litros ?? ''}" type="number" inputmode="decimal" step="1" min="20" max="1500" placeholder=" " value="${t.litros ?? ''}">
-        <label for="diesel-tanque-${t.camion}">Camión ${camionCorto(t.camion)} · litros</label>
+        <label for="diesel-tanque-${t.camion}">${camionCorto(t.camion)} · litros</label>
       </div>`).join('')
     openSheet('sheet-diesel-tanques')
   })

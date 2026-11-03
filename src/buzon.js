@@ -100,7 +100,7 @@ export function initBuzon({ rpc, supabase, camion }) {
         const cat = CATEGORIAS[q.categoria] || CATEGORIAS.otro
         return `<div class="inbox-mine-item">
           <div class="inbox-mine-top">
-            <span class="inbox-mine-cat">${icon(cat.icon)}${esc(cat.label)}${q.camion ? ` · Camión ${camionCorto(q.camion)}` : ''}</span>
+            <span class="inbox-mine-cat">${icon(cat.icon)}${esc(cat.label)}${q.camion ? ` · ${camionCorto(q.camion)}` : ''}</span>
             ${chip(est.label, est.tono)}
           </div>
           <p class="inbox-mine-text">${esc(q.mensaje)}</p>
@@ -182,7 +182,7 @@ export function initBuzon({ rpc, supabase, camion }) {
     return `<${conAutor ? 'button type="button"' : 'div'} class="row inbox-row${q.estado === 'nueva' && conAutor ? ' is-new' : ''}" data-queja="${esc(q.id)}">
       <span class="row-icon">${icon(cat.icon)}</span>
       <span class="row-text">
-        <span class="inbox-row-top"><span class="row-title">${esc(cat.label)}${q.camion ? ` · Camión ${camionCorto(q.camion)}` : ''}</span>${chip(conAutor ? est.admin : est.label, est.tono)}</span>
+        <span class="inbox-row-top"><span class="row-title">${esc(cat.label)}${q.camion ? ` · ${camionCorto(q.camion)}` : ''}</span>${chip(conAutor ? est.admin : est.label, est.tono)}</span>
         <span class="inbox-row-msg">${esc(q.mensaje)}</span>
         <span class="row-sub">${autor} · ${esc(cuando(q.creado_en))}</span>
       </span>
@@ -196,7 +196,7 @@ export function initBuzon({ rpc, supabase, camion }) {
     return `<${admin ? 'button type="button"' : 'div'} class="row inbox-row${f.estado === 'abierta' && admin ? ' is-new' : ''}" data-falla="${esc(f.id)}">
       <span class="row-icon tono-${g.tono}">${icon('i-wrench')}</span>
       <span class="row-text">
-        <span class="inbox-row-top"><span class="row-title">${esc(TIPOS_FALLA[f.tipo] || 'Falla')} · Camión ${camionCorto(f.camion)}</span>${chip(est.label, est.tono)}</span>
+        <span class="inbox-row-top"><span class="row-title">${esc(TIPOS_FALLA[f.tipo] || 'Falla')} · ${camionCorto(f.camion)}</span>${chip(est.label, est.tono)}</span>
         <span class="inbox-row-msg">${esc(f.descripcion)}</span>
         ${f.nota ? `<span class="inbox-reply">${icon('i-reply')}<span>${esc(f.nota)}</span></span>` : ''}
         <span class="row-sub"><span class="severity-dot tono-${g.tono}"></span>${esc(g.label)} · ${esc(quien || '')} · ${esc(cuando(f.creado_en))}</span>
@@ -287,7 +287,7 @@ export function initBuzon({ rpc, supabase, camion }) {
     formEmergencia.reset()
     motivo.reset()
     pintarContadorEmergencia()
-    $('#emergencia-lead').textContent = `Camión ${camionCorto(camion())}. Se avisará a todos los alumnos en su panel y la administración lo verá como falla urgente.`
+    $('#emergencia-lead').textContent = `${camionCorto(camion())}. Se avisará a todos los alumnos en su panel y la administración lo verá como falla urgente.`
     openSheet('sheet-emergencia')
   })
 
@@ -303,7 +303,7 @@ export function initBuzon({ rpc, supabase, camion }) {
     const bus = camion()
     const ok = await confirm({
       title: '¿Avisar a todos los alumnos?',
-      message: `Todos verán que el camión ${camionCorto(bus)} ${motivo.value === 'descompuesto' ? 'se descompuso' : 'no estará disponible'}.`,
+      message: `Todos verán que ${camionCorto(bus)} ${motivo.value === 'descompuesto' ? 'se descompuso' : 'no estará disponible'}.`,
       confirmLabel: 'Avisar',
       destructive: true
     })
@@ -406,7 +406,7 @@ export function initBuzon({ rpc, supabase, camion }) {
       const cat = CATEGORIAS[item.categoria] || CATEGORIAS.otro
       $('#atender-detalle').innerHTML = `
         <div class="inbox-author">${avatar(item.nombre || '?')}<span class="row-text"><span class="row-title">${esc(item.nombre || 'Alumno dado de baja')}</span><span class="row-sub">${item.matricula ? `Matrícula ${esc(item.matricula)}` : 'Ya no está registrado'}</span></span></div>
-        <p class="inbox-detail-meta">${icon(cat.icon)}${esc(cat.label)}${item.camion ? ` · Camión ${camionCorto(item.camion)}` : ''} · ${esc(mayus(fechaCompleta(item.creado_en)))}</p>
+        <p class="inbox-detail-meta">${icon(cat.icon)}${esc(cat.label)}${item.camion ? ` · ${camionCorto(item.camion)}` : ''} · ${esc(mayus(fechaCompleta(item.creado_en)))}</p>
         <p class="inbox-detail-text">${esc(item.mensaje)}</p>
         ${item.censurada ? `<p class="field-hint">Se ocultaron groserías del mensaje original.</p>` : ''}`
       pintarOpcionesEstado(ESTADO_QUEJA)
@@ -417,7 +417,7 @@ export function initBuzon({ rpc, supabase, camion }) {
       const g = GRAVEDAD[item.gravedad] || GRAVEDAD.media
       $('#atender-detalle').innerHTML = `
         <div class="inbox-author">${avatar(item.chofer_nombre || '?')}<span class="row-text"><span class="row-title">${esc(item.chofer_nombre || 'Chofer')}</span><span class="row-sub">Licencia ${esc(item.chofer)}</span></span></div>
-        <p class="inbox-detail-meta">${icon('i-wrench')}${esc(TIPOS_FALLA[item.tipo] || 'Falla')} · Camión ${camionCorto(item.camion)} · ${esc(mayus(fechaCompleta(item.creado_en)))}</p>
+        <p class="inbox-detail-meta">${icon('i-wrench')}${esc(TIPOS_FALLA[item.tipo] || 'Falla')} · ${camionCorto(item.camion)} · ${esc(mayus(fechaCompleta(item.creado_en)))}</p>
         <p class="inbox-detail-severity tono-${g.tono}"><span class="severity-dot tono-${g.tono}"></span>${esc(g.label)} · ${esc(g.sub)}</p>
         <p class="inbox-detail-text">${esc(item.descripcion)}</p>`
       pintarOpcionesEstado(ESTADO_FALLA)

@@ -1,16 +1,15 @@
 // =====================================================================
 // Asientos y parejas (vista del alumno)
 // · Tarjetas "Tu asiento" y "Pareja de viaje" y mensajes del panel.
-// · Mapa interactivo del camión: 10 filas × (A B | pasillo | C D).
+// · Mapa interactivo del vehículo con el acomodo que dibujó la administración.
 // Toda la lógica de reglas vive en Supabase; aquí solo se presenta.
 // =====================================================================
-import { camionCorto } from './camiones.js'
+import { camionCorto, vecino as vecinoDe, esVentana as ventanaDe, filaDe, capacidad, plantillaColumnas, posicion, retrasoOla } from './camiones.js'
 import {
   $, $$, esc, icon, avatar, haptic, openSheet, closeSheet, confirm, toast, setLoading, shake, patchList
 } from './ui.js'
 
 export const TZ = 'America/Mexico_City'
-const FILAS = 10
 const EASE = 'cubic-bezier(0.25, 1, 0.5, 1)'
 const ESQUELETO = '<div class="skeleton" style="height:72px;margin-top:14px;border-radius:16px"></div>'
 
@@ -26,8 +25,6 @@ const AVISO_UI = {
 }
 
 // --- FORMATO ---
-export const vecino = n => (n % 2 === 1 ? n + 1 : n - 1)
-const esVentana = n => n % 4 === 1 || n % 4 === 0
 // Igual que la clave de la tabla "actividad": salida:<fecha>T<hora>:<camión>
 export const claveSalida = s => `${s.fecha}T${s.hora}:${s.camion}`
 const fechaISO = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -233,23 +230,23 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
 
     if (conAsiento) {
       const s = conAsiento
-      const junto = s.asiento_pareja && vecino(s.mi_asiento) === s.asiento_pareja
+      const junto = s.asiento_pareja && vecinoDe(s.camion, s.mi_asiento) === s.asiento_pareja
       seatBody.innerHTML = `<div class="seat-summary">
           <span class="seat-badge"><small>Asiento</small><strong>${s.mi_asiento}</strong></span>
           <div>
             <p class="seat-when">${esc(etiquetaDia(s.fecha))} · ${esc(horaTexto(s.hora))}</p>
-            <p class="seat-sub">Camión ${camionCorto(s.camion)} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'} · ${esVentana(s.mi_asiento) ? 'Ventana' : 'Pasillo'} · Fila ${Math.ceil(s.mi_asiento / 4)}</p>
+            <p class="seat-sub">${camionCorto(s.camion)} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'} · ${ventanaDe(s.camion, s.mi_asiento) ? 'Ventana' : 'Pasillo'} · Fila ${filaDe(s.camion, s.mi_asiento)}</p>
             ${junto ? `<p class="seat-sub"><b>Junto a ${esc(pareja.activa?.nombre || 'tu pareja')}</b> · asiento ${s.asiento_pareja}</p>` : ''}
           </div>
         </div>
         <button class="btn btn-secondary btn-block" data-abrir-asientos="${esc(claveSalida(s))}">Ver o cambiar asiento</button>`
     } else if (abierta) {
       seatBody.innerHTML = `<p class="seat-cta-title">Ya puedes apartar tu lugar</p>
-        <p class="seat-cta-sub">Camión ${camionCorto(abierta.camion)}, ${esc(etiquetaDia(abierta.fecha).toLowerCase())} a las ${esc(horaTexto(abierta.hora))} · ${40 - abierta.ocupados} asientos libres</p>
+        <p class="seat-cta-sub">${camionCorto(abierta.camion)}, ${esc(etiquetaDia(abierta.fecha).toLowerCase())} a las ${esc(horaTexto(abierta.hora))} · ${Math.max(0, capacidad(abierta.camion) - abierta.ocupados)} asientos libres</p>
         <button class="btn btn-primary btn-block" data-abrir-asientos="${esc(claveSalida(abierta))}">${icon('i-seat')}Elegir asiento</button>`
     } else if (proxima) {
       seatBody.innerHTML = `<p class="seat-cta-title">El apartado abre en <span class="countdown-inline" data-cuenta="${esc(proxima.abre_en)}">${formatCuenta(new Date(proxima.abre_en) - Date.now())}</span></p>
-        <p class="seat-cta-sub">Para el camión ${camionCorto(proxima.camion)}, ${esc(etiquetaDia(proxima.fecha).toLowerCase())} a las ${esc(horaTexto(proxima.hora))}. Se abre 12 horas antes.</p>
+        <p class="seat-cta-sub">Para ${camionCorto(proxima.camion)}, ${esc(etiquetaDia(proxima.fecha).toLowerCase())} a las ${esc(horaTexto(proxima.hora))}. Se abre 12 horas antes.</p>
         <button class="btn btn-secondary btn-block" data-abrir-asientos="${esc(claveSalida(proxima))}">Ver el camión</button>`
     } else {
       seatBody.innerHTML = `<p class="seat-cta-title">Sin salidas próximas</p>
@@ -387,12 +384,12 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
       const estado = s.mi_asiento
         ? `${icon('i-check')}Asiento ${s.mi_asiento}`
         : s.abierta
-          ? `${40 - s.ocupados} libres`
+          ? `${Math.max(0, capacidad(s.camion) - s.ocupados)} libres`
           : `${icon('i-lock')}${esc(new Date(s.abre_en).toLocaleTimeString('es-MX', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true }))}`
-      return `<button class="departure${s.mi_asiento ? ' is-mine' : ''}" role="tab" aria-selected="${k === salidaSel}" data-salida="${esc(k)}" aria-label="Camión ${camionCorto(s.camion)}, ${esc(etiquetaDia(s.fecha))} ${esc(horaTexto(s.hora))}">
+      return `<button class="departure${s.mi_asiento ? ' is-mine' : ''}" role="tab" aria-selected="${k === salidaSel}" data-salida="${esc(k)}" aria-label="${camionCorto(s.camion)}, ${esc(etiquetaDia(s.fecha))} ${esc(horaTexto(s.hora))}">
         <span class="departure-day">${esc(etiquetaDia(s.fecha))} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'}</span>
         <span class="departure-time">${t}<small>${p}</small></span>
-        <span class="departure-status"><span class="departure-bus">${icon('i-bus')}${s.camion}</span>${estado}</span>
+        <span class="departure-status"><span class="departure-bus">${icon('i-bus')}${esc(camionCorto(s.camion))}</span>${estado}</span>
       </button>`
     }).join('')
   }
@@ -431,33 +428,28 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
     if (mapa.abierta && a.estado === 'libre' && !a.sel) cls += ' is-off'
     if (mapa.abierta && a.sel && a.mover) cls += ' is-move'
     if (seleccion === a.n) cls += ' is-selected'
-    else if (enPareja && seleccion && a.n === vecino(seleccion)) cls += ' is-partner-pick'
+    else if (enPareja && seleccion && a.n === vecinoDe(mapa.camion, seleccion)) cls += ' is-partner-pick'
     return cls
   }
 
   function etiquetaAsiento(a) {
     const estados = { libre: 'libre', ocupado: 'ocupado', mio: 'tu asiento', pareja: 'asiento de tu pareja' }
-    return `Asiento ${a.n}, ${esVentana(a.n) ? 'ventana' : 'pasillo'}, ${estados[a.estado]}`
+    return `Asiento ${a.n}, ${ventanaDe(mapa.camion, a.n) ? 'ventana' : 'pasillo'}, ${estados[a.estado]}`
   }
 
   function htmlAsiento(a) {
     const bloqueado = !mapa.abierta || !a.sel
-    return `<button type="button" class="seat${clasesAsiento(a)}" data-n="${a.n}" data-estado="${a.estado}" aria-label="${esc(etiquetaAsiento(a))}" aria-pressed="${seleccion === a.n}" aria-disabled="${bloqueado}">${a.n}</button>`
+    return `<button type="button" class="seat${clasesAsiento(a)}" style="${posicion(mapa.camion, a.n)}" data-n="${a.n}" data-estado="${a.estado}" aria-label="${esc(etiquetaAsiento(a))}" aria-pressed="${seleccion === a.n}" aria-disabled="${bloqueado}">${a.n}</button>`
   }
 
   function construirAsientos() {
-    const celdas = []
-    for (let r = 0; r < FILAS; r++) {
-      const fila = mapa.asientos.slice(r * 4, r * 4 + 4)
-      celdas.push(htmlAsiento(fila[0]), htmlAsiento(fila[1]), `<span class="bus-row-label" aria-hidden="true">${r + 1}</span>`, htmlAsiento(fila[2]), htmlAsiento(fila[3]))
-    }
-    busSeats.innerHTML = celdas.join('')
-    // Ola de entrada desde el frente del camión
+    busSeats.style.gridTemplateColumns = plantillaColumnas(mapa.camion)
+    busSeats.innerHTML = mapa.asientos.map(htmlAsiento).join('')
+    // Ola de entrada desde el frente del vehículo
     $$('.seat', busSeats).forEach(el => {
-      const n = Number(el.dataset.n)
       el.animate(
         [{ opacity: 0, transform: 'translateY(10px) scale(0.85)' }, { opacity: 1, transform: 'none' }],
-        { duration: 480, delay: (Math.ceil(n / 4) - 1) * 35 + ((n - 1) % 4) * 12, easing: EASE, fill: 'backwards' }
+        { duration: 480, delay: retrasoOla(mapa.camion, el.dataset.n), easing: EASE, fill: 'backwards' }
       )
     })
   }
@@ -482,7 +474,7 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
 
   function renderMapa(anterior) {
     renderHint()
-    $('#bus-name').textContent = `Camión ${camionCorto(mapa.camion)}`
+    $('#bus-name').textContent = `${camionCorto(mapa.camion)}`
     $('#legend-pair').hidden = !mapa.pareja
     bus.classList.toggle('is-locked', !mapa.abierta)
     $('#bus-lock').hidden = mapa.abierta
@@ -500,8 +492,8 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
   function renderHint() {
     const hint = $('#seat-hint')
     const nombre = esc(mapa.pareja?.nombre || '')
-    if (!mapa.abierta) hint.innerHTML = 'Así se ve el camión. El apartado abre <b>12 horas antes</b> de la salida.'
-    else if (mapa.modo === 'pareja') hint.innerHTML = `Viajas con <b>${nombre}</b>: elige una banca y se apartarán los dos asientos.`
+    if (!mapa.abierta) hint.innerHTML = 'Así se ve el vehículo. El apartado abre <b>12 horas antes</b> de la salida.'
+    else if (mapa.modo === 'pareja') hint.innerHTML = `Viajas con <b>${nombre}</b>: elige una fila de dos y se apartarán los dos asientos.`
     else if (mapa.modo === 'pareja_reacomodo') hint.innerHTML = 'Ya no quedan bancas libres. Elige una con un compañero sin pareja: <b>lo moveremos junto a otro compañero</b> y le avisaremos.'
     else if (mapa.modo === 'pareja_sin_banca') hint.innerHTML = 'Ya no hay forma de sentarse juntos en esta salida. <b>Puedes apartar solo tu asiento.</b>'
     else hint.textContent = 'Toca un asiento libre para apartarlo.'
@@ -527,13 +519,13 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
     if (seleccion) {
       const a = mapa.asientos[seleccion - 1]
       if (enPareja) {
-        const otro = vecino(seleccion)
+        const otro = vecinoDe(mapa.camion, seleccion)
         texto.innerHTML = `Asientos ${Math.min(seleccion, otro)} y ${Math.max(seleccion, otro)}
           <small>Tú en el ${seleccion} · ${esc(mapa.pareja.nombre)} en el ${otro}</small>
           ${a.mover ? '<small class="is-warning">Un compañero sin pareja cambiará de lugar</small>' : ''}`
         btnConfirm.textContent = mio ? 'Cambiar a esta banca' : 'Apartar para los dos'
       } else {
-        texto.innerHTML = `Asiento ${seleccion}<small>${esVentana(seleccion) ? 'Ventana' : 'Pasillo'} · Fila ${Math.ceil(seleccion / 4)}</small>`
+        texto.innerHTML = `Asiento ${seleccion}<small>${ventanaDe(mapa.camion, seleccion) ? 'Ventana' : 'Pasillo'} · Fila ${filaDe(mapa.camion, seleccion)}</small>`
         btnConfirm.textContent = mio ? 'Cambiar a este asiento' : 'Apartar asiento'
       }
       btnConfirm.disabled = false

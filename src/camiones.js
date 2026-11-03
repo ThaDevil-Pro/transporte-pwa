@@ -1,63 +1,131 @@
 // =====================================================================
-// Camiones con nombre y color (Rojo, Blanco, Amarillo, Gris).
-// La lista vive en estado_viaje; aquí hay una copia para pintar las
-// pantallas al instante y se actualiza cuando llega la de Supabase.
+// Vehículos (minivan o camión) con nombre, color y acomodo de asientos.
+// La lista vive en estado_viaje y la da de alta la administración. Aquí
+// hay una copia para pintar las pantallas; los dados de baja se conservan
+// solo para mostrar su nombre en el historial.
+// Asiento: { n, r, c, par } — fila r y columna c del dibujo; par es el
+// asiento de al lado en su fila de dos (null si va suelto).
 // =====================================================================
 import { esc, opciones } from './ui.js'
 
-let lista = [
-  { id: 1, nombre: 'Rojo', color: '#ff3b30' },
-  { id: 2, nombre: 'Blanco', color: '#f2f2f7' },
-  { id: 3, nombre: 'Amarillo', color: '#ffcc00' },
-  { id: 4, nombre: 'Gris', color: '#8e8e93' }
-]
+let todos = []
+const selectores = new Set()
 
-export const listaCamiones = () => lista
-export const idsCamiones = () => lista.map(c => c.id)
-export const existeCamion = id => lista.some(c => c.id === Number(id))
+const activos = () => todos.filter(v => v.activo)
+const buscar = id => todos.find(x => x.id === Number(id))
 
-// "Rojo" (o el número si no se conoce)
+export const listaCamiones = activos
+export const idsCamiones = () => activos().map(c => c.id)
+export const existeCamion = id => activos().some(c => c.id === Number(id))
+export const vehiculo = buscar
+
+export const TIPOS = { minivan: 'Minivan', camion: 'Camión' }
+
+// "Vehículo 1" (o el número si no se conoce)
 export function camionCorto(id) {
-  const c = lista.find(x => x.id === Number(id))
-  return c ? c.nombre : String(id ?? '')
+  return buscar(id)?.nombre ?? String(id ?? '')
 }
 
-// "Camión Rojo"
-export const nombreCamion = id => `Camión ${camionCorto(id)}`
+export const nombreCamion = camionCorto
+
+// "Vehículo 1 – Minivan"
+export function etiquetaVehiculo(id) {
+  const v = buscar(id)
+  return v ? `${v.nombre} – ${TIPOS[v.tipo] || 'Vehículo'}` : String(id ?? '')
+}
 
 export function colorCamion(id) {
-  return lista.find(x => x.id === Number(id))?.color || '#8e8e93'
+  return buscar(id)?.color || '#8e8e93'
 }
 
 // Punto de color para usar dentro de un texto
 export const puntoCamion = id => `<span class="bus-dot" style="--bus:${esc(colorCamion(id))}" aria-hidden="true"></span>`
 
-// Filas de estado_viaje con nombre y color
-export function actualizarCamiones(filas) {
-  const nuevos = (filas || [])
-    .filter(f => f?.id != null && f.nombre)
-    .map(f => ({ id: Number(f.id), nombre: f.nombre, color: f.color || '#8e8e93' }))
-    .sort((a, b) => a.id - b.id)
-  if (nuevos.length) lista = nuevos
+// --- Acomodo de asientos ---
+export const asientosDe = id => buscar(id)?.asientos || []
+export const capacidad = id => asientosDe(id).length
+export const asiento = (id, n) => asientosDe(id).find(a => a.n === Number(n))
+export const vecino = (id, n) => asiento(id, n)?.par ?? null
+export function esVentana(id, n) {
+  const a = asiento(id, n)
+  const cols = buscar(id)?.cols || 5
+  return !!a && (a.c === 0 || a.c === cols - 1)
+}
+export const filaDe = (id, n) => (asiento(id, n)?.r ?? 0) + 1
+
+// Columnas de la cuadrícula: las que nunca tienen asiento (pasillo) van angostas
+export function plantillaColumnas(id) {
+  const v = buscar(id)
+  if (!v) return ''
+  return Array.from({ length: v.cols }, (_, c) => (v.asientos.some(a => a.c === c) ? 'minmax(0, 1fr)' : '18px')).join(' ')
 }
 
-// Selector de camión con botones de color. Devuelve { value, set, reset }.
-// noSe: agrega la opción "No sé" (valor '0').
+// Ubicación de un asiento dentro de la cuadrícula del mapa
+export function posicion(id, n) {
+  const a = asiento(id, n)
+  return a ? `grid-row:${a.r + 1};grid-column:${a.c + 1}` : ''
+}
+
+// Retraso de la ola de entrada, de adelante hacia atrás
+export function retrasoOla(id, n) {
+  const a = asiento(id, n)
+  return a ? a.r * 35 + a.c * 12 : 0
+}
+
+// Filas de estado_viaje (lectura pública)
+function normalizar(f) {
+  return {
+    id: Number(f.id),
+    nombre: f.nombre || `Vehículo ${f.id}`,
+    color: f.color || '#8e8e93',
+    tipo: f.tipo === 'minivan' ? 'minivan' : 'camion',
+    cols: Number(f.cols) || 5,
+    bloques: Array.isArray(f.bloques) ? f.bloques : [],
+    asientos: Array.isArray(f.asientos) ? f.asientos : [],
+    activo: f.activo !== false
+  }
+}
+
+export function actualizarCamiones(filas) {
+  todos = (filas || []).filter(f => f?.id != null).map(normalizar).sort((a, b) => a.id - b.id)
+  selectores.forEach(rehacer => rehacer())
+}
+
+// Un cambio en vivo de una fila (tiempo real)
+export function actualizarCamion(fila) {
+  if (fila?.id == null || fila.nombre === undefined) return
+  const v = normalizar(fila)
+  const i = todos.findIndex(x => x.id === v.id)
+  if (i >= 0) todos[i] = v
+  else todos.push(v)
+  todos.sort((a, b) => a.id - b.id)
+  selectores.forEach(rehacer => rehacer())
+}
+
+// Selector de vehículo con botones de color. Devuelve { value, set, reset }.
+// noSe: agrega la opción "No sé" (valor '0'). Se rehace solo cuando cambia la lista.
 export function selectorCamion(contenedor, { noSe = false, alElegir } = {}) {
   const items = () => [
-    ...lista.map(c => ({ value: String(c.id), label: c.nombre })),
+    ...activos().map(c => ({ value: String(c.id), label: c.nombre })),
     ...(noSe ? [{ value: '0', label: 'No sé' }] : [])
   ]
   contenedor.classList.add('choices-bus')
   const control = opciones(contenedor, items(), alElegir)
-  const pintarColores = () => {
+  const pintar = () => {
     contenedor.querySelectorAll('.choice').forEach(b => {
       if (b.dataset.value === '0') return
       b.style.setProperty('--bus', colorCamion(b.dataset.value))
       if (!b.querySelector('.bus-dot')) b.insertAdjacentHTML('afterbegin', '<span class="bus-dot" aria-hidden="true"></span>')
     })
   }
-  pintarColores()
+  pintar()
+  // Mismo marcado que opciones(); el clic ya lo escucha el contenedor
+  selectores.add(() => {
+    const actual = control.value
+    contenedor.innerHTML = items().map(it => `<button type="button" class="choice" role="radio" aria-checked="false" data-value="${esc(it.value)}"><span class="choice-text"><span class="choice-label">${esc(it.label)}</span></span></button>`).join('')
+    pintar()
+    control.set(actual && items().some(it => it.value === actual) ? actual : null)
+  })
   return {
     get value() { return control.value },
     set(v) { control.set(v == null ? null : String(v)) },

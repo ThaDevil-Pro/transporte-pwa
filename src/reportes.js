@@ -325,7 +325,7 @@ export function initReportes({ rpc, abrirCarga }) {
         ? `<div class="list">${movs.slice(0, MAX_FILAS).map(m => fila({
             iconId: m.pago ? 'i-wallet' : 'i-bus',
             tono: m.pago ? 'is-money' : '',
-            titulo: m.pago ? 'Pago registrado' : `${Number(m.monto) ? 'Viaje' : 'Regreso incluido'} · Camión ${camionCorto(m.camion ?? 1)}`,
+            titulo: m.pago ? 'Pago registrado' : `${Number(m.monto) ? 'Viaje' : 'Regreso incluido'} · ${camionCorto(m.camion ?? 1)}`,
             sub: `${fmtFechaHora(m.f)}${m.pago && m.nota ? ` · ${m.nota}` : ''}${m.manual ? ' · A mano' : ''}`,
             monto: `${m.pago ? '−' : ''}${fmtDinero(m.monto)}`,
             montoTono: m.pago ? 'is-positive' : ''
@@ -356,7 +356,7 @@ export function initReportes({ rpc, abrirCarga }) {
         : `<p class="report-empty">Ningún chofer hizo cortes en este periodo.</p>`
       if (d.camiones.length) {
         html += encabezado('Por camión')
-        html += `<div class="list">${d.camiones.map(c => fila({ iconId: 'i-bus', titulo: `Camión ${camionCorto(c.camion)}`, sub: plural(c.viajes, 'viaje', 'viajes'), monto: fmtDinero(c.cargado) })).join('')}</div>`
+        html += `<div class="list">${d.camiones.map(c => fila({ iconId: 'i-bus', titulo: `${camionCorto(c.camion)}`, sub: plural(c.viajes, 'viaje', 'viajes'), monto: fmtDinero(c.cargado) })).join('')}</div>`
       }
       html += encabezado('Por alumno', d.alumnos.length ? plural(d.alumnos.length, 'alumno', 'alumnos') : '')
       html += d.alumnos.length
@@ -383,7 +383,7 @@ export function initReportes({ rpc, abrirCarga }) {
       html += cortes.length
         ? `<div class="list">${[...cortes].reverse().slice(0, MAX_FILAS).map(c => fila({
             iconId: 'i-receipt',
-            titulo: `Corte · Camión ${camionCorto(c.camion)}`,
+            titulo: `Corte · ${camionCorto(c.camion)}`,
             sub: `${estado.periodo === 'dia' ? fmtHora(c.creado_en) : fmtFechaHora(c.creado_en)} · ${plural(c.alumnos, 'pasajero', 'pasajeros')}${c.manuales ? ` (${c.manuales} a mano)` : ''}${c.de_pie ? ` · ${c.de_pie} de pie` : ''}`,
             monto: fmtDinero(c.total),
             data: ` data-corte="${c.id}" role="button" tabindex="0" aria-expanded="false"`
@@ -448,7 +448,7 @@ export function initReportes({ rpc, abrirCarga }) {
         const r = rendimiento(c.km_lleno, c.litros_lleno)
         return fila({
           iconId: 'i-bus',
-          titulo: `Camión ${camionCorto(c.camion)}`,
+          titulo: `${camionCorto(c.camion)}`,
           sub: [plural(c.cargas, 'carga', 'cargas'), fmtLitros(c.litros), r && fmtRend(r), r && Number(c.litros) > 0 && `${fmtDinero(Number(c.importe) / Number(c.litros) / r)}/km`].filter(Boolean).join(' · '),
           monto: fmtDinero(c.importe)
         })
@@ -474,7 +474,7 @@ export function initReportes({ rpc, abrirCarga }) {
           return fila({
             iconId: 'i-fuel',
             tono: alertas.length ? 'tono-orange' : c.estado === 'verificada' ? 'tono-green' : '',
-            titulo: `Camión ${camionCorto(c.camion)} · ${fmtLitros(c.litros)}`,
+            titulo: `${camionCorto(c.camion)} · ${fmtLitros(c.litros)}`,
             sub: [fmtFechaHora(c.fecha), c.chofer_nombre, alertas.length ? `⚠ ${ALERTAS[alertas[0]]?.texto || alertas[0]}` : est.label].filter(Boolean).join(' · '),
             monto: fmtDinero(c.importe),
             data: ` data-carga="${c.id}" role="button" tabindex="0"`

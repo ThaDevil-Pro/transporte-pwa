@@ -426,7 +426,7 @@ export async function pdfChofer(datos, periodo) {
     cortes.forEach((c, i) => {
       // Las listas cortas no se parten entre dos páginas
       asegurar(ctx, Math.min(64 + c.pasajeros.length * 25, 420))
-      texto(ctx, `Corte ${i + 1} · Camión ${camionCorto(c.camion)}`, M, ctx.y + 4, { size: 11, bold: true })
+      texto(ctx, `Corte ${i + 1} · ${camionCorto(c.camion)}`, M, ctx.y + 4, { size: 11, bold: true })
       texto(ctx, `${mayus(fecha(c.creado_en, { weekday: 'long', day: 'numeric', month: 'long' }))}, ${hora(c.creado_en)} · ${fmtDinero(c.total)}`,
         ctx.ancho - M, ctx.y + 4, { size: 9, color: C.gris, align: 'right' })
       ctx.y += 12
@@ -490,7 +490,7 @@ export async function pdfGastos(datos, periodo, { admin } = {}) {
     seccion(ctx, 'Por camión')
     tabla(ctx,
       [{ titulo: 'Camión' }, { titulo: 'Viajes', alinear: 'center' }, { titulo: 'Cobrado', alinear: 'right' }],
-      datos.camiones.map(c => [`Camión ${camionCorto(c.camion)}`, c.viajes, fmtDinero(c.cargado)]),
+      datos.camiones.map(c => [`${camionCorto(c.camion)}`, c.viajes, fmtDinero(c.cargado)]),
       { pie: ['Total', r.viajes, fmtDinero(r.cobrado)] }
     )
   }
@@ -609,7 +609,7 @@ export async function pdfDiesel(datos, periodo, { admin, fotos } = {}) {
       camiones.map(c => {
         const r = rendimiento(c.km_lleno, c.litros_lleno)
         const p = Number(c.litros) ? Number(c.importe) / Number(c.litros) : null
-        return [`Camión ${camionCorto(c.camion)}${c.tanque ? ` (tanque ${fmtLitros(c.tanque)})` : ''}`, c.cargas, fmtLitros(c.litros), fmtDinero(c.importe),
+        return [`${camionCorto(c.camion)}${c.tanque ? ` (tanque ${fmtLitros(c.tanque)})` : ''}`, c.cargas, fmtLitros(c.litros), fmtDinero(c.importe),
           Number(c.km) ? fmtKm(c.km) : '-', r ? fmtRend(r).replace(' km/L', '') : '-', p && r ? fmtDinero(p / r) : '-', c.salidas]
       }),
       { pie: ['Total', t.cargas, fmtLitros(litros), fmtDinero(importe), Number(t.km) ? fmtKm(t.km) : '-', rend ? fmtRend(rend).replace(' km/L', '') : '-', precio && rend ? fmtDinero(precio / rend) : '-', t.salidas] }
@@ -652,7 +652,7 @@ export async function pdfDiesel(datos, periodo, { admin, fotos } = {}) {
     tabla(ctx,
       [{ titulo: 'Carga' }, { titulo: 'Alerta' }, { titulo: 'Qué puede significar' }, { titulo: 'Revisión' }],
       alertas.map(({ c, a }) => [
-        `${mayus(fecha(c.fecha, { day: 'numeric', month: 'short' }))} · Camión ${camionCorto(c.camion)} · ${fmtLitros(c.litros)}`,
+        `${mayus(fecha(c.fecha, { day: 'numeric', month: 'short' }))} · ${camionCorto(c.camion)} · ${fmtLitros(c.litros)}`,
         ALERTAS[a]?.texto || a,
         a === 'rendimiento_bajo' || a === 'rendimiento_alto'
           ? `${ALERTAS[a].detalle} Rindió ${fmtRend(c.rendimiento)}${c.rendimiento_normal ? `; lo normal es ${fmtRend(c.rendimiento_normal)}` : ''}.`
@@ -712,7 +712,7 @@ function anexoTickets(ctx, cargas, fotos) {
     doc.addImage(foto.data, 'JPEG', x + (cw - w) / 2, ctx.y + (ih - h) / 2, w, h)
     const conAlerta = (c.alertas || []).length > 0
     texto(ctx, `${i + 1}. ${mayus(fecha(c.fecha, { weekday: 'short', day: 'numeric', month: 'short' }))}, ${hora(c.fecha)}`, x, ctx.y + ih + 14, { size: 8.5, bold: true, color: conAlerta ? C.naranja : C.tinta })
-    texto(ctx, `Camión ${camionCorto(c.camion)} · ${fmtLitros(c.litros)} · ${fmtDinero(c.importe)}`, x, ctx.y + ih + 27, { size: 8, color: C.gris })
+    texto(ctx, `${camionCorto(c.camion)} · ${fmtLitros(c.litros)} · ${fmtDinero(c.importe)}`, x, ctx.y + ih + 27, { size: 8, color: C.gris })
     texto(ctx, `${c.folio ? `Folio ${c.folio}` : c.gasolinera || ''}`.slice(0, 40), x, ctx.y + ih + 39, { size: 8, color: C.gris })
   })
   ctx.y += alto + gap

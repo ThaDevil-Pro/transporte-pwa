@@ -4479,6 +4479,342 @@ button.row:active {
   margin-top: 4px;
 }
 
+/* --- 16i. VEHÍCULOS: EDITOR VISUAL Y JORNADA DEL CHOFER ---
+   Los mapas de asientos se arman con la cuadrícula de cada vehículo
+   (columnas en línea desde JS; el pasillo es una columna angosta). */
+.vehiculos-card .list {
+  margin: 0;
+}
+
+.jornada-icon {
+  --tint: var(--bus, var(--blue));
+}
+
+.jornada-row[aria-disabled="true"] {
+  opacity: 0.5;
+}
+
+.jornada-row.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.veh-body {
+  display: grid;
+  align-content: start;
+}
+
+.veh-paso {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.veh-opciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.veh-opcion {
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--fill);
+  text-align: left;
+  transition: transform 0.3s var(--ease), box-shadow 0.25s var(--ease);
+}
+
+.veh-opcion:hover {
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+
+.veh-opcion:active {
+  transform: scale(0.97);
+}
+
+.veh-opcion-titulo {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.veh-opcion-sub {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--label-2);
+}
+
+.veh-opcion-dibujo {
+  display: grid;
+  gap: 3px;
+  padding: 10px 8px 8px;
+  border-radius: 16px 16px 8px 8px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px var(--separator);
+}
+
+.veh-opcion-dibujo.is-minivan { grid-template-columns: repeat(3, 12px); }
+.veh-opcion-dibujo.is-camion { grid-template-columns: repeat(4, 12px); }
+
+.veh-opcion-dibujo i {
+  height: 13px;
+  border-radius: 4px 4px 3px 3px;
+  background: color-mix(in srgb, var(--blue) 30%, var(--fill-2));
+}
+
+.veh-tipo-linea {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 0;
+  font-size: 14px;
+  color: var(--label-2);
+}
+
+.veh-link {
+  height: auto;
+  font-size: 14px;
+}
+
+.veh-editar-aviso {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--fill);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--label-2);
+}
+
+.veh-paleta {
+  position: sticky;
+  top: -8px;
+  z-index: 3;
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 0 0 0.5px var(--separator), 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.veh-pieza {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 58px;
+  border-radius: 14px;
+  background: var(--fill);
+  font-size: 15px;
+  font-weight: 600;
+  touch-action: none;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background-color 0.25s, box-shadow 0.25s, color 0.25s, transform 0.3s var(--ease);
+}
+
+.veh-pieza:active {
+  transform: scale(0.96);
+  cursor: grabbing;
+}
+
+.veh-pieza[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--blue) 14%, transparent);
+  color: var(--blue);
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+
+.veh-pieza-asientos {
+  display: flex;
+  gap: 3px;
+}
+
+.veh-pieza-asientos i {
+  width: 18px;
+  height: 21px;
+  border-radius: 6px 6px 4px 4px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px var(--blue);
+}
+
+.veh-ayuda {
+  margin: -4px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--label-2);
+}
+
+.veh-bus {
+  --veh-celda: 46px;
+  width: min(100%, 340px);
+}
+
+.veh-lienzo {
+  display: grid;
+  gap: 6px;
+}
+
+.veh-celda {
+  border-radius: 10px;
+  border: 1.5px dashed color-mix(in srgb, var(--label) 13%, transparent);
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.veh-lienzo.is-placing .veh-celda {
+  border-color: color-mix(in srgb, var(--blue) 45%, transparent);
+  cursor: copy;
+}
+
+.veh-celda.is-ok {
+  border-style: solid;
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 22%, transparent);
+}
+
+.veh-celda.is-bad {
+  border-color: var(--red);
+  background: color-mix(in srgb, var(--red) 14%, transparent);
+}
+
+.veh-bloque {
+  z-index: 1;
+  display: flex;
+  gap: 6px;
+  border-radius: 12px;
+  touch-action: none;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: transform 0.25s var(--ease), opacity 0.2s;
+}
+
+.veh-asiento {
+  position: relative;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  border-radius: 12px 12px 9px 9px;
+  background: var(--surface);
+  color: var(--label-2);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 0 0 1.5px var(--separator), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.veh-asiento::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 22%;
+  right: 22%;
+  height: 4px;
+  border-radius: 3px;
+  background: currentColor;
+  opacity: 0.2;
+}
+
+.veh-bloque.is-selected {
+  transform: scale(1.04);
+}
+
+.veh-bloque.is-selected .veh-asiento {
+  background: color-mix(in srgb, var(--blue) 14%, var(--surface));
+  color: var(--blue);
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+
+.veh-bloque.is-origin {
+  opacity: 0.3;
+}
+
+.veh-lienzo.is-dragging .veh-bloque {
+  pointer-events: none;
+}
+
+.veh-fantasma {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.25));
+}
+
+.veh-fantasma .veh-asiento {
+  color: var(--blue);
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+
+.veh-herramientas {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.veh-footer {
+  display: grid;
+  gap: 10px;
+}
+
+.veh-barra-sel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.veh-footer-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.veh-contador {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--label-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.veh-basura {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 22px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--red) 15%, var(--surface));
+  color: var(--red-text);
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  transform: translateX(-50%);
+  transition: transform 0.2s var(--ease), background-color 0.2s, color 0.2s;
+}
+
+.veh-basura.is-over {
+  background: var(--red);
+  color: #fff;
+  transform: translateX(-50%) scale(1.1);
+}
+
 /* --- 17. DOCK: TAB BAR FLOTANTE + ACCIÓN --- */
 .dock {
   position: absolute;
