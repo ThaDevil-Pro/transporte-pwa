@@ -729,40 +729,14 @@ async function guardarDia(card, dia) {
 
 const driverScheduleList = $('#driver-schedule-list')
 
-// Al enfocar una hora vacía se propone la de un día vecino
+// Sin horas sugeridas: una hora sugerida que no se cambiaba se borraba al pasar al siguiente día
 driverScheduleList.addEventListener('focusin', e => {
-  if (!e.target.classList.contains('schedule-time-input')) return
-  isEditingSchedule = true
-  delete e.target.dataset.propuesta
-  delete e.target.dataset.tocada
-  if (e.target.value) return
-
-  const inputs = $$('.schedule-time-input', e.target.closest('.schedule-card'))
-  const idx = inputs.indexOf(e.target)
-  const vecino = [...inputs.slice(0, idx).reverse(), ...inputs.slice(idx + 1)].find(i => i.value)
-  if (vecino) {
-    e.target.value = vecino.value
-    e.target.dataset.propuesta = vecino.value
-  }
-})
-
-// Solo cuenta como cambio si el chofer eligió o escribió una hora
-driverScheduleList.addEventListener('input', e => {
-  if (e.target.classList.contains('schedule-time-input')) e.target.dataset.tocada = '1'
-})
-driverScheduleList.addEventListener('change', e => {
-  if (e.target.classList.contains('schedule-time-input')) e.target.dataset.tocada = '1'
+  if (e.target.classList.contains('schedule-time-input')) isEditingSchedule = true
 })
 
 driverScheduleList.addEventListener('focusout', e => {
   if (!e.target.classList.contains('schedule-time-input')) return
   isEditingSchedule = false
-  // Tocar un día vacío y salir sin elegir no crea una salida
-  if (e.target.dataset.propuesta && !e.target.dataset.tocada) {
-    e.target.value = e.target.dataset.saved
-    delete e.target.dataset.propuesta
-    return
-  }
   if (e.target.value !== e.target.dataset.saved) guardarDia(e.target.closest('.schedule-card'), e.target.dataset.dia)
 })
 
