@@ -214,7 +214,7 @@
 
         <div class="stack">
           <!-- Mensajes: reacomodos, invitaciones de pareja, etc. -->
-          <div class="alerts" id="push-aviso"></div>
+          <div class="alerts push-aviso"></div>
           <div class="alerts" id="student-alerts" aria-live="polite"></div>
 
           <article class="card trip-card" id="trip-card" data-state="waiting" data-reveal style="--i:1">
@@ -314,6 +314,7 @@
         </div>
 
         <div class="stack">
+          <div class="alerts push-aviso"></div>
           <article class="card hero-card" id="driver-hero" data-state="boarding" data-level="normal" data-reveal style="--i:1">
             <div class="gauge" aria-hidden="true">
               <svg viewBox="0 0 120 120">
@@ -484,6 +485,8 @@
           <p class="eyebrow">Administración</p>
           <h1 class="large-title">Nuevo usuario</h1>
         </div>
+
+        <div class="alerts push-aviso"></div>
 
         <form id="form-create-user" class="card form-card" novalidate data-reveal style="--i:1">
           <div class="segmented" id="admin-role-seg" style="--n:4">

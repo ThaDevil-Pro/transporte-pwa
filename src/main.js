@@ -114,7 +114,7 @@ initTabs($('#view-finanzas'))
 
 // Instalar la app (bienvenida) y notificaciones push del alumno
 initInstalar({ boton: $('#btn-instalar') })
-const push = initPush({ rpc, contenedor: $('#push-aviso') })
+const push = initPush({ rpc })
 
 // Asientos y parejas del alumno (rpc es una declaración de función, ya disponible)
 const asientos = initAsientos({
@@ -476,7 +476,7 @@ function iniciarAlumno(perfil) {
   $('#student-schedule-list').replaceChildren()
   renderStudentSchedule()
   renderTripCard()
-  push.alEntrar()
+  push.alEntrar('Estudiante')
   refrescarAlumno()
   asientos.cargar(perfil.nombre)
   buzon.alumno()
@@ -860,6 +860,7 @@ function iniciarChofer(perfil) {
   camionActual = null
   aplicarCamion()
   verificarJornada()
+  push.alEntrar('Chofer')
 }
 
 // Carga todo lo del vehículo de la jornada del chofer
@@ -1455,6 +1456,7 @@ function iniciarAdmin() {
   loadAdminData()
   buzon.admin()
   diesel.admin()
+  push.alEntrar('Admin')
 }
 
 formCreateUser.addEventListener('submit', async e => {

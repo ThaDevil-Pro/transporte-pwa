@@ -7005,3 +7005,7 @@ button.row:active {
   font-size: 10px;
   font-weight: 700;
 }
+
+#view-admin .push-aviso {
+  margin-bottom: 16px;
+}

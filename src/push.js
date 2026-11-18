@@ -86,7 +86,16 @@ async function suscribir(rpc) {
   if (error) throw new Error(error.message)
 }
 
-export function initPush({ rpc, contenedor }) {
+// Qué recibe cada rol (texto de la tarjeta para activar)
+const PARA_QUE = {
+  Estudiante: 'Te avisamos cuando tu camión esté abordando, cuando se cobre tu viaje, si cambia tu asiento o si hay una emergencia.',
+  Chofer: 'Te avisamos de emergencias de otros camiones, quejas de tu camión y cuando revisen tus fallas o cargas de diesel.',
+  Admin: 'Te avisamos al momento de emergencias, fallas, quejas, cargas de diesel por revisar y cortes de cada camión.'
+}
+const VISTA = { Estudiante: 'view-student', Chofer: 'view-driver', Admin: 'view-admin' }
+
+export function initPush({ rpc }) {
+  let contenedor = document.createElement('div')
   const leer = () => { try { return Number(localStorage.getItem(POSPUESTO_KEY)) || 0 } catch { return 0 } }
   const pospuesto = () => Date.now() - leer() < UNA_SEMANA
   const ocultar = () => { contenedor.innerHTML = '' }
@@ -105,8 +114,8 @@ export function initPush({ rpc, contenedor }) {
     </article>`
   }
 
-  contenedor.addEventListener('click', async e => {
-    const btn = e.target.closest('[data-push]')
+  document.addEventListener('click', async e => {
+    const btn = e.target.closest('.push-aviso [data-push]')
     if (!btn) return
     if (btn.dataset.push === 'despues') {
       try { localStorage.setItem(POSPUESTO_KEY, String(Date.now())) } catch { /* modo privado */ }
@@ -136,12 +145,13 @@ export function initPush({ rpc, contenedor }) {
   })
 
   return {
-    // Al entrar el alumno: si ya dio permiso, se vuelve a ligar el teléfono a su cuenta en silencio
-    async alEntrar() {
+    // Al entrar (alumno, chofer o admin): si ya dio permiso, se vuelve a ligar el teléfono a su cuenta en silencio
+    async alEntrar(rol) {
       ocultar()
+      contenedor = document.querySelector(`#${VISTA[rol]} .push-aviso`) || contenedor
       if (!pushSoportado()) {
         if (esIOS() && !instalada() && !pospuesto()) {
-          tarjeta({ titulo: 'Recibe avisos en tu iPhone', texto: 'Instala CAMIFY en tu pantalla de inicio para que te avise cuando tu camión esté abordando.', boton: 'Cómo instalar', accion: 'instalar' })
+          tarjeta({ titulo: 'Recibe avisos en tu iPhone', texto: 'Instala CAMIFY en tu pantalla de inicio para recibir avisos al momento.', boton: 'Cómo instalar', accion: 'instalar' })
         }
         return
       }
@@ -150,7 +160,7 @@ export function initPush({ rpc, contenedor }) {
         return
       }
       if (Notification.permission === 'default' && !pospuesto()) {
-        tarjeta({ titulo: 'Activa las notificaciones', texto: 'Te avisamos cuando tu camión esté abordando, si cambia tu asiento o si hay una emergencia.', boton: 'Activar', accion: 'activar' })
+        tarjeta({ titulo: 'Activa las notificaciones', texto: PARA_QUE[rol], boton: 'Activar', accion: 'activar' })
       }
     },
     // Antes de cerrar sesión: este teléfono deja de recibir los avisos de esta cuenta
