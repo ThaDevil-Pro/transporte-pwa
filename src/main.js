@@ -13,6 +13,7 @@ import { initDiesel, fmtLitros, ESTADO_CARGA } from './diesel.js'
 import { actualizarCamiones, actualizarCamion, camionCorto, nombreCamion, puntoCamion, capacidad, etiquetaVehiculo, listaCamiones, vehiculo, TIPOS, UBICACIONES, ubicacionNombre, siFaltaVehiculo, alCambiarVehiculos } from './camiones.js'
 import { initEditorVehiculo } from './editor-vehiculo.js'
 import { initFotos, selectorFoto, urlFoto } from './fotos.js'
+import { initInstalar, initPush } from './push.js'
 import {
   $, $$, esc, icon, avatar, emptyState, skeletonRows, haptic,
   initScreens, showScreen, initTabs, selectTab, initSegmented,
@@ -110,6 +111,10 @@ initPasswordToggles()
 initTabs($('#view-driver'))
 initTabs($('#view-admin'))
 initTabs($('#view-finanzas'))
+
+// Instalar la app (bienvenida) y notificaciones push del alumno
+initInstalar({ boton: $('#btn-instalar') })
+const push = initPush({ rpc, contenedor: $('#push-aviso') })
 
 // Asientos y parejas del alumno (rpc es una declaración de función, ya disponible)
 const asientos = initAsientos({
@@ -231,8 +236,10 @@ function cerrarSesion() {
   qrDatos = null
   clearInterval(qrTimer)
   try { localStorage.removeItem(QR_KEY) } catch { /* modo privado */ }
-  // supabase-js solo envía la petición al consumir la promesa
-  if (sessionToken) supabase.rpc('logout', { p_token: sessionToken }).then(() => {}, () => {})
+  // supabase-js solo envía la petición al consumir la promesa.
+  // Primero se desliga este teléfono de las notificaciones (necesita la sesión viva) y luego se cierra.
+  const token = sessionToken
+  if (token) push.alSalir(token).finally(() => supabase.rpc('logout', { p_token: token }).then(() => {}, () => {}))
   borrarSesion()
   stopScanner()
   closeAllSheets({ force: true })
@@ -469,6 +476,7 @@ function iniciarAlumno(perfil) {
   $('#student-schedule-list').replaceChildren()
   renderStudentSchedule()
   renderTripCard()
+  push.alEntrar()
   refrescarAlumno()
   asientos.cargar(perfil.nombre)
   buzon.alumno()

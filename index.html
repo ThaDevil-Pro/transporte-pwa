@@ -75,6 +75,10 @@
     <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
     <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
     <symbol id="i-sheet" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M12 11v8"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/></symbol>
+    <symbol id="i-plus-square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="4"/><path d="M8 12h8"/><path d="M12 8v8"/></symbol>
+    <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
     <symbol id="i-hand" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v6"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></symbol>
   </svg>
 
@@ -147,7 +151,8 @@
               <svg class="icon chevron"><use href="#i-chevron-right"/></svg>
             </button>
           </div>
-          <p class="footnote" data-reveal style="--i:10">CAMIFY · Transporte escolar<br><a class="legal-link" href="/privacidad.html">Aviso de privacidad</a> · <a class="legal-link" href="/terminos.html">Términos de uso</a></p>
+          <button type="button" class="btn btn-tinted btn-lg btn-block install-btn" id="btn-instalar" data-reveal style="--i:10" hidden><svg class="icon"><use href="#i-download"/></svg>Instalar app</button>
+          <p class="footnote" data-reveal style="--i:11">CAMIFY · Transporte escolar<br><a class="legal-link" href="/privacidad.html">Aviso de privacidad</a> · <a class="legal-link" href="/terminos.html">Términos de uso</a></p>
         </div>
       </div>
     </section>
@@ -209,6 +214,7 @@
 
         <div class="stack">
           <!-- Mensajes: reacomodos, invitaciones de pareja, etc. -->
+          <div class="alerts" id="push-aviso"></div>
           <div class="alerts" id="student-alerts" aria-live="polite"></div>
 
           <article class="card trip-card" id="trip-card" data-state="waiting" data-reveal style="--i:1">
@@ -1265,6 +1271,40 @@
     </div>
   </div>
 
+  <!-- Instalar la app: pasos para iPhone o para navegadores que no la ofrecen solos -->
+  <div class="sheet" id="sheet-instalar" role="dialog" aria-modal="true" aria-labelledby="sheet-instalar-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-instalar-title">Instala CAMIFY</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <div class="sheet-body install-body">
+        <p class="sheet-lead">Queda en tu pantalla de inicio como cualquier app, abre a pantalla completa y te puede mandar notificaciones.</p>
+        <ol class="install-steps" id="instalar-otra-app" hidden>
+          <li><span class="install-icon"><svg class="icon"><use href="#i-dots"/></svg></span><span>Estás dentro de otra app (WhatsApp, Instagram, Facebook…). Toca el menú de arriba (los tres puntos).</span></li>
+          <li><span class="install-icon"><svg class="icon"><use href="#i-share"/></svg></span><span>Toca <b>Abrir en el navegador</b> (Chrome en Android, Safari en iPhone).</span></li>
+          <li><span class="install-icon"><svg class="icon"><use href="#i-download"/></svg></span><span>Ahí vuelve a tocar <b>Instalar app</b>.</span></li>
+        </ol>
+        <ol class="install-steps" id="instalar-ios">
+          <li><span class="install-icon"><svg class="icon"><use href="#i-share"/></svg></span><span>Toca <b>Compartir</b>, el cuadro con una flecha hacia arriba. En Safari está abajo; en Chrome, arriba a la derecha.</span></li>
+          <li><span class="install-icon"><svg class="icon"><use href="#i-plus-square"/></svg></span><span>Baja y toca <b>Agregar a inicio</b>.</span></li>
+          <li><span class="install-icon install-text">Agregar</span><span>Toca <b>Agregar</b>, arriba a la derecha.</span></li>
+          <li><span class="install-icon"><svg class="icon"><use href="#i-bell"/></svg></span><span>Abre CAMIFY desde el ícono nuevo y activa las notificaciones.</span></li>
+        </ol>
+        <ol class="install-steps" id="instalar-android" hidden>
+          <li><span class="install-icon"><svg class="icon"><use href="#i-dots"/></svg></span><span>Toca el menú de tu navegador: los tres puntos de arriba a la derecha.</span></li>
+          <li><span class="install-icon"><svg class="icon"><use href="#i-download"/></svg></span><span>Toca <b>Instalar app</b> o <b>Agregar a la pantalla principal</b>.</span></li>
+          <li><span class="install-icon install-text">OK</span><span>Confirma con <b>Instalar</b>.</span></li>
+          <li><span class="install-icon"><svg class="icon"><use href="#i-bell"/></svg></span><span>Abre CAMIFY desde el ícono nuevo y activa las notificaciones.</span></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
   <!-- Reportes en PDF (alumno, chofer y administración) -->
   <div class="sheet" id="sheet-report" role="dialog" aria-modal="true" aria-labelledby="sheet-report-title">
     <div class="sheet-backdrop" data-close></div>
@@ -1337,7 +1377,7 @@
           <label for="queja-mensaje">Tu mensaje</label>
           <span class="field-count" id="queja-contador">0/600</span>
         </div>
-        <p class="inbox-privacy"><svg class="icon"><use href="#i-lock"/></svg><span>El chofer la lee <b>sin tu nombre</b>. La administración sí sabe que fue tuya, para darle seguimiento y responderte. Las groserías se ocultan automáticamente.</span></p>
+        <p class="inbox-privacy"><svg class="icon"><use href="#i-lock"/></svg><span>El chofer la lee <b>sin tu nombre</b>. La administración sí sabe que fue tuya, para darle seguimiento y responderte. Los mensajes con groserías o insultos no se envían.</span></p>
         <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-queja-send"><svg class="icon"><use href="#i-send"/></svg>Enviar</button>
       </form>
     </div>

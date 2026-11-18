@@ -4,7 +4,7 @@
 // · Chofer: lee las quejas sin autor y reporta fallas del camión.
 // · Administración: ve quién escribió cada queja, la atiende y responde,
 //   y da seguimiento a las fallas.
-// La censura de groserías y los límites viven en Supabase.
+// El filtro de groserías (bloquea el envío) y los límites viven en Supabase.
 // =====================================================================
 import {
   $, $$, esc, icon, avatar, haptic, toast, openSheet, closeSheet, setLoading, shake, patchList,
@@ -147,13 +147,13 @@ export function initBuzon({ rpc, supabase, camion }) {
     })
     setLoading(btn, false)
     if (error) {
-      toast(error.message || 'No se pudo enviar', { type: 'error', duration: 4000 })
+      toast(error.message || 'No se pudo enviar', { type: 'error', duration: error.code === 'CMF06' ? 7000 : 4000 })
       return
     }
     mensajeQueja.blur()
     await closeSheet('sheet-queja')
     haptic([10, 40, 14])
-    toast(data?.censurada ? 'Enviada. Ocultamos algunas palabras.' : 'Queja enviada. ¡Gracias!', { type: 'success' })
+    toast('Queja enviada. ¡Gracias!', { type: 'success' })
     cargarAlumno()
   })
 

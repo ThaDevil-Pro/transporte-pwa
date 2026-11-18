@@ -3,7 +3,7 @@
 // - Archivos estáticos (JS/CSS/imágenes/video): caché primero
 // - Supabase y otros orígenes: nunca se cachean (datos en vivo)
 
-const CACHE = 'camify-v9'
+const CACHE = 'camify-v10'
 const PRECACHE = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/favicon.svg']
 
 self.addEventListener('install', (event) => {
@@ -54,6 +54,32 @@ self.addEventListener('fetch', (event) => {
         }
         return res
       })
+    })
+  )
+})
+
+// Notificaciones push: la base manda {titulo, cuerpo, etiqueta, url}
+self.addEventListener('push', (event) => {
+  let datos = {}
+  try { datos = event.data ? event.data.json() : {} } catch { datos = { cuerpo: event.data?.text() || '' } }
+  event.waitUntil(self.registration.showNotification(datos.titulo || 'CAMIFY', {
+    body: datos.cuerpo || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/badge-96.png',
+    tag: datos.etiqueta || 'camify',
+    renotify: true,
+    data: { url: datos.url || '/' }
+  }))
+})
+
+// Al tocar la notificación: abre la app (o la trae al frente si ya está abierta)
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = new URL(event.notification.data?.url || '/', self.location.origin).href
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(ventanas => {
+      const abierta = ventanas.find(v => v.url.startsWith(self.location.origin))
+      return abierta ? abierta.focus() : self.clients.openWindow(url)
     })
   )
 })
