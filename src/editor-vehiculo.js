@@ -8,7 +8,7 @@
 // derecha; el servidor vuelve a validar y numerar al guardar.
 // =====================================================================
 import { $, $$, haptic, toast, confirm, openSheet, closeSheet, setLoading, shake } from './ui.js'
-import { TIPOS, listaCamiones } from './camiones.js'
+import { TIPOS, listaCamiones, vehiculo } from './camiones.js'
 
 const COLS = { minivan: 4, camion: 5 }
 const FILAS_MIN = 6
@@ -28,6 +28,7 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
   const footer = $('#veh-footer')
   const basura = $('#veh-basura')
   const nombre = $('#veh-nombre')
+  const exclusivo = $('#veh-exclusivo')
   const btnGuardar = $('#btn-veh-guardar')
 
   let id = null
@@ -56,6 +57,7 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
     sel = null
     herramienta = null
     nombre.value = `Vehículo ${listaCamiones().length + 1}`
+    exclusivo.checked = false
     $('#sheet-vehiculo-title').textContent = 'Nuevo vehículo'
     $('#veh-editar-aviso').hidden = true
     mostrar('tipo')
@@ -69,6 +71,7 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
     sel = null
     herramienta = null
     nombre.value = v.nombre
+    exclusivo.checked = !!v.exclusivo
     $('#sheet-vehiculo-title').textContent = 'Editar vehículo'
     $('#veh-editar-aviso').hidden = false
     mostrar('dibujo')
@@ -389,13 +392,22 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
       toast('Agrega al menos un asiento', { type: 'warning' })
       return
     }
+    if (id != null && exclusivo.checked && !vehiculo(id)?.exclusivo) {
+      const ok = await confirm({
+        title: 'Hacerlo exclusivo de Chinacates',
+        message: 'Los alumnos que no son de Chinacates y ya apartaron en este vehículo perderán su lugar (sin cobro) y les llegará un aviso para apartar en otro.',
+        confirmLabel: 'Hacerlo exclusivo'
+      })
+      if (!ok) return
+    }
     setLoading(btnGuardar, true)
     const { error } = await rpc('admin_vehiculo_guardar', {
       p_id: id,
       p_nombre: texto,
       p_tipo: tipo,
       p_cols: cols(),
-      p_bloques: bloques.map(({ r, c, w }) => ({ r, c, w }))
+      p_bloques: bloques.map(({ r, c, w }) => ({ r, c, w })),
+      p_exclusivo: exclusivo.checked
     })
     setLoading(btnGuardar, false)
     if (error) {

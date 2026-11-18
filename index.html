@@ -60,6 +60,9 @@
     <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol>
     <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></symbol>
     <symbol id="i-timer" viewBox="0 0 24 24"><path d="M10 2h4"/><path d="m12 14 3-3"/><circle cx="12" cy="14" r="8"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
     <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
     <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
     <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></symbol>
@@ -201,6 +204,7 @@
           <p class="eyebrow" id="student-greeting">Hola</p>
           <h1 class="large-title" id="student-name">—</h1>
           <span class="chip-id" id="student-control">—</span>
+          <span class="chip-id chip-ubic" id="student-ubicacion" hidden></span>
         </div>
 
         <div class="stack">
@@ -398,7 +402,10 @@
           <span><i class="legend-seat is-taken"></i>Apartado</span>
           <span><i class="legend-seat is-boarded"></i>A bordo</span>
           <span><i class="legend-seat is-pair"></i>En pareja</span>
+          <span><i class="legend-ubic ubic-nuevo_ideal">NI</i>Nuevo Ideal</span>
+          <span><i class="legend-ubic ubic-chinacates">CH</i>Chinacates</span>
         </div>
+        <p class="seat-hint seat-hint-tap">Toca un asiento apartado para ver la ficha del alumno.</p>
       </div>
 
       <!-- Pestaña: Horarios -->
@@ -506,6 +513,16 @@
                   <input id="admin-new-balance" type="number" inputmode="decimal" step="0.01" min="0" placeholder=" " value="0">
                   <label for="admin-new-balance">Saldo inicial ($)</label>
                 </div>
+                <div class="form-group">
+                  <p class="form-label">Ubicación (opcional: si no la eliges, la elige el alumno al entrar)</p>
+                  <div class="choices choices-ubic" id="admin-new-ubicacion" role="radiogroup" aria-label="Ubicación del alumno"></div>
+                </div>
+                <div class="foto-picker">
+                  <span class="foto-picker-vista" id="admin-new-foto-vista"></span>
+                  <span class="switch-text"><b>Foto (opcional)</b><small>Se reduce sola antes de guardarla</small></span>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-admin-new-foto">Elegir</button>
+                  <input type="file" id="admin-new-foto" accept="image/*" hidden>
+                </div>
               </div>
             </div>
           </div>
@@ -528,7 +545,24 @@
           <input type="file" id="import-file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
         </article>
 
-        <article class="card import-card vehiculos-card" data-reveal style="--i:3">
+        <article class="card import-card fotos-card" data-reveal style="--i:3">
+          <div class="import-head">
+            <span class="row-icon tint-blue"><svg class="icon"><use href="#i-camera"/></svg></span>
+            <div class="import-head-text">
+              <h2 class="import-title">Fotos de alumnos</h2>
+              <p class="import-text">Carga una carpeta completa: cada foto debe llamarse con el <b>número de control</b> del alumno, por ejemplo <b>26010024.jpg</b>. La app las encuentra, las reduce y las asigna sola.</p>
+            </div>
+          </div>
+          <div class="import-actions">
+            <button type="button" class="btn btn-tinted" id="btn-fotos-carpeta"><svg class="icon"><use href="#i-folder"/></svg>Elegir carpeta</button>
+            <button type="button" class="btn btn-plain" id="btn-fotos-archivos"><svg class="icon"><use href="#i-image"/></svg>Elegir fotos</button>
+          </div>
+          <p class="import-text" id="fotos-meta"></p>
+          <input type="file" id="fotos-carpeta" webkitdirectory multiple hidden>
+          <input type="file" id="fotos-archivos" accept="image/jpeg,image/png,image/webp" multiple hidden>
+        </article>
+
+        <article class="card import-card vehiculos-card" data-reveal style="--i:4">
           <div class="import-head">
             <span class="row-icon tint-orange"><svg class="icon"><use href="#i-bus"/></svg></span>
             <div class="import-head-text">
@@ -839,6 +873,75 @@
     </div>
   </div>
 
+  <!-- Ficha del alumno (chofer): foto y datos al tocar su asiento -->
+  <div class="sheet" id="sheet-ficha" role="dialog" aria-modal="true" aria-labelledby="ficha-nombre">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-compact" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title">Alumno</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <div class="sheet-body ficha-body">
+        <div class="ficha-foto" id="ficha-foto"></div>
+        <p class="ficha-nombre" id="ficha-nombre"></p>
+        <p class="ficha-mat"><span id="ficha-mat"></span> · <span class="ficha-ubic" id="ficha-ubic"></span></p>
+        <div class="ficha-datos" id="ficha-datos"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ubicación del alumno: se elige una sola vez -->
+  <div class="sheet" id="sheet-ubicacion" role="dialog" aria-modal="true" aria-labelledby="sheet-ubicacion-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-ubicacion-title">¿Dónde tomas el camión?</h2>
+        </div>
+      </div>
+      <div class="sheet-body ubicacion-body">
+        <p class="sheet-lead">Elige tu punto de subida. <b>Solo puedes elegirlo una vez</b>; si después necesitas cambiarlo, la administración lo hace en las oficinas.</p>
+        <div class="ubicacion-opciones" id="ubicacion-opciones">
+          <button type="button" class="ubicacion-opcion ubic-nuevo_ideal" data-ubicacion="nuevo_ideal">
+            <span class="ubicacion-codigo">NI</span>
+            <span class="ubicacion-texto"><span class="ubicacion-nombre">Nuevo Ideal</span><span class="ubicacion-precio">Boleto de $60</span></span>
+            <svg class="icon"><use href="#i-chevron-right"/></svg>
+          </button>
+          <button type="button" class="ubicacion-opcion ubic-chinacates" data-ubicacion="chinacates">
+            <span class="ubicacion-codigo">CH</span>
+            <span class="ubicacion-texto"><span class="ubicacion-nombre">Chinacates</span><span class="ubicacion-precio">Boleto de $40 · trayecto más corto</span></span>
+            <svg class="icon"><use href="#i-chevron-right"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="sheet-footer">
+        <button type="button" class="btn btn-plain btn-block" id="btn-ubicacion-logout">Cerrar sesión</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fotos de los alumnos en lote (admin) -->
+  <div class="sheet" id="sheet-fotos" role="dialog" aria-modal="true" aria-labelledby="sheet-fotos-title">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel sheet-tall" tabindex="-1">
+      <div class="sheet-drag">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-fotos-title">Fotos de alumnos</h2>
+          <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <div class="sheet-body import-body" id="fotos-body"></div>
+      <div class="sheet-footer">
+        <button class="btn btn-primary btn-lg btn-block" id="btn-fotos-run">Cargar fotos</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Editor visual de vehículos (admin) -->
   <div class="sheet" id="sheet-vehiculo" role="dialog" aria-modal="true" aria-labelledby="sheet-vehiculo-title">
     <div class="sheet-backdrop" data-close></div>
@@ -893,6 +996,10 @@
             <label for="veh-nombre">Nombre del vehículo</label>
           </div>
           <p class="veh-tipo-linea"><span id="veh-tipo-texto">Camión</span> · <button type="button" class="btn btn-plain veh-link" id="btn-veh-tipo">Cambiar tipo</button></p>
+          <label class="switch-row veh-exclusivo-row">
+            <span class="switch-text"><b>Exclusivo para alumnos de Chinacates</b><small>Solo ellos apartan y suben. Si ese día hay una salida exclusiva con lugar, deben apartar ahí primero.</small></span>
+            <input type="checkbox" class="switch" id="veh-exclusivo">
+          </label>
           <p class="veh-editar-aviso" id="veh-editar-aviso" hidden>Si quitas un asiento que ya está apartado, ese alumno tendrá que volver a apartar; le llegará un aviso.</p>
           <div class="veh-paleta" id="veh-paleta" role="toolbar" aria-label="Bloques para agregar">
             <button type="button" class="veh-pieza" data-w="1" aria-pressed="false"><span class="veh-pieza-asientos"><i></i></span>Asiento</button>
@@ -993,6 +1100,20 @@
             <input id="edit-user-password" type="password" placeholder=" " autocomplete="new-password">
             <label for="edit-user-password">Contraseña temporal nueva (opcional)</label>
             <button type="button" class="field-action" data-toggle-password aria-label="Mostrar contraseña"><svg class="icon"><use href="#i-eye"/></svg></button>
+          </div>
+          <div class="edit-alumno-extra" id="edit-user-alumno" hidden>
+            <div class="form-group">
+              <p class="form-label">Ubicación de subida</p>
+              <div class="choices choices-ubic" id="edit-user-ubicacion" role="radiogroup" aria-label="Ubicación del alumno"></div>
+              <p class="field-hint">Solo la administración puede cambiarla. Desde Chinacates el boleto cuesta $40; desde Nuevo Ideal, $60.</p>
+            </div>
+            <div class="foto-picker">
+              <span class="foto-picker-vista" id="edit-user-foto-vista"></span>
+              <span class="switch-text"><b>Foto</b><small id="edit-user-foto-nota">La ve el chofer en la ficha del alumno</small></span>
+              <button type="button" class="btn btn-plain btn-sm" id="btn-edit-user-foto-quitar" hidden>Quitar</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-user-foto">Elegir</button>
+              <input type="file" id="edit-user-foto" accept="image/*" hidden>
+            </div>
           </div>
         </div>
         <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-save-user">Guardar cambios</button>
@@ -1380,7 +1501,7 @@
               </div>
               <div class="field">
                 <input id="diesel-corr-odometro" type="number" inputmode="numeric" step="1" min="0" placeholder=" ">
-                <label for="diesel-corr-odometro">Kilometraje del tablero</label>
+                <label for="diesel-corr-odometro">Kilometraje del tablero (opcional)</label>
               </div>
               <div class="field field-date">
                 <input id="diesel-corr-fecha" type="datetime-local">
@@ -1468,7 +1589,7 @@
         <div class="form-group">
           <div class="field">
             <input id="diesel-odometro" type="number" inputmode="numeric" step="1" min="0" placeholder=" ">
-            <label for="diesel-odometro">Kilometraje del tablero</label>
+            <label for="diesel-odometro">Kilometraje del tablero (opcional)</label>
           </div>
           <p class="field-hint diesel-odo-hint" id="diesel-odo-hint" aria-live="polite"></p>
         </div>

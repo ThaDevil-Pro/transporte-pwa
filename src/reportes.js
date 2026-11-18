@@ -310,7 +310,7 @@ export function initReportes({ rpc, abrirCarga }) {
       const cobrado = d.viajes.reduce((s, v) => s + Number(v.monto), 0)
       const pagado = d.pagos.reduce((s, x) => s + Number(x.monto), 0)
       html += stats([
-        { etiqueta: 'Viajes', valor: String(d.viajes.length), numero: d.viajes.length },
+        { etiqueta: 'Viajes', valor: String(d.viajes.filter(v => !v.perdido).length), numero: d.viajes.filter(v => !v.perdido).length },
         { etiqueta: 'Cobrado', valor: fmtDinero(cobrado), numero: cobrado, dinero: true },
         { etiqueta: 'Pagado', valor: fmtDinero(pagado), numero: pagado, dinero: true, tono: pagado ? 'green' : '' },
         // Saldo negativo = a favor del alumno
@@ -323,9 +323,9 @@ export function initReportes({ rpc, abrirCarga }) {
       html += encabezado('Movimientos', movs.length ? plural(movs.length, 'registro', 'registros') : '')
       html += movs.length
         ? `<div class="list">${movs.slice(0, MAX_FILAS).map(m => fila({
-            iconId: m.pago ? 'i-wallet' : 'i-bus',
-            tono: m.pago ? 'is-money' : '',
-            titulo: m.pago ? 'Pago registrado' : `${Number(m.monto) ? 'Viaje' : 'Regreso incluido'} · ${camionCorto(m.camion ?? 1)}`,
+            iconId: m.pago ? 'i-wallet' : m.perdido ? 'i-alert' : 'i-bus',
+            tono: m.pago ? 'is-money' : m.perdido ? 'is-alert' : '',
+            titulo: m.pago ? 'Pago registrado' : `${m.perdido ? 'Apartado perdido' : Number(m.monto) ? 'Viaje' : 'Regreso incluido'} · ${camionCorto(m.camion ?? 1)}`,
             sub: `${fmtFechaHora(m.f)}${m.pago && m.nota ? ` · ${m.nota}` : ''}${m.manual ? ' · A mano' : ''}`,
             monto: `${m.pago ? '−' : ''}${fmtDinero(m.monto)}`,
             montoTono: m.pago ? 'is-positive' : ''

@@ -313,6 +313,8 @@ async function terminar(ctx, nombreArchivo) {
 }
 
 const registro = manual => (manual ? 'A mano' : 'Código QR')
+// Apartado perdido: se cobró el boleto aunque no subió (no cuenta como viaje)
+const registroViaje = v => (v.perdido ? 'Apartado perdido' : registro(v.manual))
 
 // =====================================================================
 // Reporte del alumno
@@ -329,7 +331,7 @@ export async function pdfAlumno(datos, periodo) {
   })
 
   tarjetas(ctx, [
-    { etiqueta: 'Viajes', valor: String(viajes.length) },
+    { etiqueta: 'Viajes', valor: String(viajes.filter(v => !v.perdido).length) },
     { etiqueta: 'Cobrado', valor: fmtDinero(cobrado) },
     { etiqueta: 'Pagado', valor: fmtDinero(pagado), color: pagado ? C.verde : C.tinta },
     { etiqueta: Number(alumno.saldo) < 0 ? 'Saldo a favor' : 'Saldo pendiente', valor: fmtDinero(Math.abs(alumno.saldo)), nota: 'Al día de hoy', color: Number(alumno.saldo) > 0 ? C.naranja : Number(alumno.saldo) < 0 ? C.verde : C.tinta }
@@ -339,7 +341,7 @@ export async function pdfAlumno(datos, periodo) {
   if (viajes.length) {
     tabla(ctx,
       [{ titulo: '#', ancho: 26 }, { titulo: 'Fecha' }, { titulo: 'Hora' }, { titulo: 'Camión', alinear: 'center' }, { titulo: 'Registro' }, { titulo: 'Monto', alinear: 'right' }],
-      viajes.map((v, i) => [i + 1, mayus(fecha(v.fecha_hora, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })), hora(v.fecha_hora), camionCorto(v.camion ?? 1), registro(v.manual), fmtDinero(v.monto)]),
+      viajes.map((v, i) => [i + 1, mayus(fecha(v.fecha_hora, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })), hora(v.fecha_hora), camionCorto(v.camion ?? 1), registroViaje(v), fmtDinero(v.monto)]),
       { pie: ['', 'Total', '', '', '', fmtDinero(cobrado)] }
     )
   } else {
@@ -433,7 +435,7 @@ export async function pdfChofer(datos, periodo) {
       if (c.pasajeros.length) {
         tabla(ctx,
           [{ titulo: '#', ancho: 26 }, { titulo: 'Nombre' }, { titulo: 'Matrícula' }, { titulo: 'Registro', alinear: 'right' }],
-          c.pasajeros.map((p, j) => [j + 1, p.nombre, p.matricula, [registro(p.manual), p.de_pie && 'De pie', p.monto != null && !Number(p.monto) && 'Regreso'].filter(Boolean).join(' · ')])
+          c.pasajeros.map((p, j) => [j + 1, p.nombre, p.matricula, p.perdido ? `No llegó · se cobró ${fmtDinero(p.monto)}` : [registro(p.manual), p.de_pie && 'De pie', p.monto != null && !Number(p.monto) && 'Regreso'].filter(Boolean).join(' · ')])
         )
       } else {
         parrafo(ctx, 'Sin detalle de pasajeros para este corte.')
@@ -638,7 +640,7 @@ export async function pdfDiesel(datos, periodo, { admin, fotos } = {}) {
       fmtLitros(c.litros).replace(' L', ''),
       dinero.format(Number(c.precio_litro)),
       fmtDinero(c.importe),
-      fmtKm(c.odometro).replace(' km', ''),
+      c.odometro != null ? fmtKm(c.odometro).replace(' km', '') : '-',
       c.rendimiento != null ? dinero.format(Number(c.rendimiento)) : '-',
       `${(ESTADO_CARGA[c.estado] || ESTADO_CARGA.pendiente).label}${conAlerta[i] ? ' (!)' : ''}${c.tiene_foto ? '' : ' · sin ticket'}`
     ]),

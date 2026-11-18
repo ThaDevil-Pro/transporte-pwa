@@ -3,7 +3,7 @@
 // control y lo sube a la lista sin QR (para quien no trae su código).
 // El servidor marca el abordaje como manual y lo anota en la bitácora.
 // =====================================================================
-import { camionCorto, plantillaColumnas, posicion } from './camiones.js'
+import { camionCorto, plantillaColumnas, posicion, UBICACIONES } from './camiones.js'
 import { $, $$, esc, icon, avatar, initials, haptic, toast, confirm, openSheet, closeSheet } from './ui.js'
 
 const MINIMO = 2
@@ -87,10 +87,11 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
 
     lista.innerHTML = resultados.map((a, i) => {
       const abordo = !disponible(a)
+      const mat = `${esc(a.matricula)}${UBICACIONES[a.ubicacion] ? ` · ${UBICACIONES[a.ubicacion].nombre}` : ''}`
       const sub = a.camion != null
-        ? `${esc(a.matricula)} · Ya va en el camión ${esc(camionCorto(a.camion))}`
-        : a.bloqueado ? `${esc(a.matricula)} · No puede subir: debe más de $600`
-          : a.sin_apartar ? `${esc(a.matricula)} · Debe más de $60: solo un asiento que nadie apartó` : esc(a.matricula)
+        ? `${mat} · Ya va en el camión ${esc(camionCorto(a.camion))}`
+        : a.bloqueado ? `${mat} · No puede subir: debe más de $600`
+          : a.sin_apartar ? `${mat} · Debe más de $60: solo un asiento que nadie apartó` : mat
       return `<button type="button" class="row" role="option" id="manual-opt-${i}" data-i="${i}" aria-selected="${i === activo}"${abordo ? ' aria-disabled="true"' : ''} tabindex="-1">
         ${avatar(a.nombre)}
         <span class="row-text"><span class="row-title">${esc(a.nombre)}</span><span class="row-sub">${sub}</span></span>

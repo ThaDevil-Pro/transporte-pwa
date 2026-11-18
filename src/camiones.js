@@ -11,8 +11,22 @@ import { esc, opciones } from './ui.js'
 let todos = []
 const selectores = new Set()
 
+// Un vehículo que no está en la copia (se dio de alta con la app abierta) pide recargar la lista
+let alFaltar = null
+const pedidos = new Set()
+export const siFaltaVehiculo = fn => { alFaltar = fn }
+// Las pantallas que muestran nombres o acomodos se vuelven a pintar cuando la lista cambia
+export const alCambiarVehiculos = fn => selectores.add(fn)
+
 const activos = () => todos.filter(v => v.activo)
-const buscar = id => todos.find(x => x.id === Number(id))
+function buscar(id) {
+  const v = todos.find(x => x.id === Number(id))
+  if (!v && Number(id) > 0 && !pedidos.has(Number(id))) {
+    pedidos.add(Number(id))
+    queueMicrotask(() => alFaltar?.())
+  }
+  return v
+}
 
 export const listaCamiones = activos
 export const idsCamiones = () => activos().map(c => c.id)
@@ -82,20 +96,34 @@ function normalizar(f) {
     cols: Number(f.cols) || 5,
     bloques: Array.isArray(f.bloques) ? f.bloques : [],
     asientos: Array.isArray(f.asientos) ? f.asientos : [],
-    activo: f.activo !== false
+    activo: f.activo !== false,
+    exclusivo: f.exclusivo_chinacates === true
   }
 }
+
+// --- Ubicación de origen de los alumnos ---
+export const UBICACIONES = {
+  nuevo_ideal: { nombre: 'Nuevo Ideal', corto: 'NI', precio: 60 },
+  chinacates: { nombre: 'Chinacates', corto: 'CH', precio: 40 }
+}
+export const ubicacionNombre = u => UBICACIONES[u]?.nombre || 'Sin ubicación'
 
 export function actualizarCamiones(filas) {
   todos = (filas || []).filter(f => f?.id != null).map(normalizar).sort((a, b) => a.id - b.id)
   selectores.forEach(rehacer => rehacer())
 }
 
-// Un cambio en vivo de una fila (tiempo real)
+// Un cambio en vivo de una fila (tiempo real). Si el aviso no trae el acomodo
+// (columnas grandes que no cambiaron), se conserva el que ya se tenía.
 export function actualizarCamion(fila) {
   if (fila?.id == null || fila.nombre === undefined) return
-  const v = normalizar(fila)
-  const i = todos.findIndex(x => x.id === v.id)
+  const i = todos.findIndex(x => x.id === Number(fila.id))
+  const previo = i >= 0 ? todos[i] : null
+  const v = normalizar({
+    ...fila,
+    bloques: Array.isArray(fila.bloques) ? fila.bloques : previo?.bloques,
+    asientos: Array.isArray(fila.asientos) ? fila.asientos : previo?.asientos
+  })
   if (i >= 0) todos[i] = v
   else todos.push(v)
   todos.sort((a, b) => a.id - b.id)

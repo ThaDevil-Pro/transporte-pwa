@@ -10,19 +10,23 @@ import { initReportes } from './reportes.js'
 import { initAmbiente } from './ambiente.js'
 import { initBuzon } from './buzon.js'
 import { initDiesel, fmtLitros, ESTADO_CARGA } from './diesel.js'
-import { actualizarCamiones, actualizarCamion, camionCorto, nombreCamion, puntoCamion, capacidad, etiquetaVehiculo, listaCamiones, vehiculo, TIPOS } from './camiones.js'
+import { actualizarCamiones, actualizarCamion, camionCorto, nombreCamion, puntoCamion, capacidad, etiquetaVehiculo, listaCamiones, vehiculo, TIPOS, UBICACIONES, ubicacionNombre, siFaltaVehiculo, alCambiarVehiculos } from './camiones.js'
 import { initEditorVehiculo } from './editor-vehiculo.js'
+import { initFotos, selectorFoto, urlFoto } from './fotos.js'
 import {
   $, $$, esc, icon, avatar, emptyState, skeletonRows, haptic,
   initScreens, showScreen, initTabs, selectTab, initSegmented,
   initSheets, openSheet, closeSheet, closeAllSheets,
-  confirm, actionSheet, toast, setLoading, shake, collapse,
+  confirm, actionSheet, toast, setLoading, shake, collapse, opciones,
   animateNumber, setDigits, revealWords, patchList, initPasswordToggles, ocultarPasswords
 } from './ui.js'
 
 // --- 0. CONFIGURACIÓN Y ESTADO GLOBAL ---
 // $60 por viaje redondo: el regreso del mismo día va incluido (lo calcula el servidor)
 const PRECIO_VIAJE = 60
+// Desde Chinacates el boleto cuesta $40 (el servidor lo manda en el perfil)
+const precioAlumno = () => Number(perfilActual.precio) || PRECIO_VIAJE
+const OPCIONES_UBICACION = Object.entries(UBICACIONES).map(([value, u]) => ({ value, label: u.nombre, sub: `Boleto $${u.precio}` }))
 const ADEUDO_MAXIMO = 600
 const GAUGE_C = 339.292 // circunferencia del anillo (r = 54)
 const SESSION_KEY = 'camify.sesion'
@@ -111,6 +115,8 @@ initTabs($('#view-finanzas'))
 const asientos = initAsientos({
   rpc,
   supabase,
+  precio: () => precioAlumno(),
+  alCobrar: () => refrescarAlumno(),
   // La tarjeta de viaje del alumno sigue al camión de su próximo asiento apartado
   alCambiarSalidas: salidas => {
     const s = salidas.find(x => x.mi_asiento) || salidas[0]
@@ -194,6 +200,8 @@ async function rpc(nombre, params = {}) {
   if (res.error?.code === 'CMF01') pedirCambioPassword({ obligatorio: true })
   // El chofer todavía no elige el vehículo de su jornada (o cambió el día)
   if (res.error?.code === 'CMF04' && currentRole === 'Chofer') verificarJornada()
+  // El alumno todavía no dice dónde toma el camión
+  if (res.error?.code === 'CMF05' && currentRole === 'Estudiante') pedirUbicacion()
   return res
 }
 
@@ -472,12 +480,19 @@ function renderPerfilAlumno(perfil) {
   $('#student-control').textContent = perfil.matricula
   $('#qr-name').textContent = perfil.nombre
   $('#modal-student-id').textContent = perfil.matricula
+  const ubic = UBICACIONES[perfil.ubicacion]
+  const chipUbic = $('#student-ubicacion')
+  chipUbic.hidden = !ubic
+  if (ubic) {
+    chipUbic.className = `chip-id chip-ubic ubic-${perfil.ubicacion}`
+    chipUbic.textContent = `${ubic.nombre} · boleto $${Number(perfil.precio) || ubic.precio}`
+  }
 
   const saldo = Number(perfil.saldo) || 0
   animateNumber($('#student-balance'), Math.abs(saldo), { decimals: 2 })
   $('#student-balance-card').dataset.state = saldo > 0 ? 'due' : 'clear'
   $('#student-balance-label').textContent = saldo < 0 ? 'Saldo a favor' : 'Saldo pendiente'
-  const viajes = saldo / PRECIO_VIAJE
+  const viajes = saldo / (Number(perfil.precio) || PRECIO_VIAJE)
   $('#student-balance-status').textContent = saldo < 0
     ? 'Se descuenta de tus próximos viajes'
     : saldo === 0
@@ -490,24 +505,69 @@ function renderPerfilAlumno(perfil) {
 // Refresca saldo e historial del alumno (por ejemplo, después de un corte)
 async function refrescarAlumno() {
   const { data: perfil } = await rpc('alumno_perfil')
-  if (perfil) renderPerfilAlumno(perfil)
+  if (perfil && currentRole === 'Estudiante') {
+    perfilActual = { ...perfilActual, ...perfil }
+    renderPerfilAlumno(perfil)
+    if (!perfil.ubicacion) pedirUbicacion()
+  }
   cargarHistorialAlumno()
 }
+
+// --- UBICACIÓN: el alumno elige una sola vez dónde toma el camión ---
+const sheetUbicacion = $('#sheet-ubicacion')
+
+function pedirUbicacion() {
+  if (currentRole !== 'Estudiante' || sheetUbicacion.classList.contains('is-open')) return
+  sheetUbicacion.dataset.locked = '1'
+  openSheet(sheetUbicacion)
+}
+
+$('#ubicacion-opciones').addEventListener('click', async e => {
+  const b = e.target.closest('[data-ubicacion]')
+  if (!b) return
+  const u = UBICACIONES[b.dataset.ubicacion]
+  const ok = await confirm({
+    title: `¿Tomas el camión en ${u.nombre}?`,
+    message: `Tu boleto costará ${fmtMoney(u.precio)}. No podrás cambiarla después: solo la administración puede hacerlo en las oficinas.`,
+    confirmLabel: `Sí, ${u.nombre}`
+  })
+  if (!ok) return
+  setLoading(b, true)
+  const { error } = await rpc('alumno_elegir_ubicacion', { p_ubicacion: b.dataset.ubicacion })
+  setLoading(b, false)
+  delete sheetUbicacion.dataset.locked
+  await closeSheet(sheetUbicacion, { force: true })
+  if (error) toast(error.message, { type: 'error', duration: 4000 })
+  else {
+    haptic([10, 40, 14])
+    toast(`Listo: subes en ${u.nombre}`, { type: 'success' })
+  }
+  // Si ya tenía una (otra pestaña), el perfil la trae; si no, se vuelve a pedir
+  refrescarAlumno()
+  asientos.cargar()
+})
+
+$('#btn-ubicacion-logout').addEventListener('click', async () => {
+  delete sheetUbicacion.dataset.locked
+  await closeSheet(sheetUbicacion, { force: true })
+  cerrarSesion()
+})
 
 async function cargarHistorialAlumno() {
   const { data: movimientos, error } = await rpc('alumno_historial')
   if (error || !Array.isArray(movimientos)) return
 
-  const viajes = movimientos.filter(m => m.tipo !== 'pago').length
+  const viajes = movimientos.filter(m => m.tipo !== 'pago' && !m.perdido).length
   $('#student-history-meta').textContent = viajes ? plural(viajes, 'viaje', 'viajes') : ''
   patchList($('#student-history-list'), movimientos, {
     key: m => m.id,
     render: m => {
       const f = new Date(m.fecha_hora)
       const pago = m.tipo === 'pago'
+      const perdido = !pago && m.perdido
       return `<div class="row">
-        <span class="row-icon${pago ? ' is-money' : ''}">${icon(pago ? 'i-wallet' : 'i-bus')}</span>
-        <span class="row-text"><span class="row-title">${pago ? 'Pago registrado' : Number(m.monto) ? 'Viaje cobrado' : 'Regreso incluido'}</span><span class="row-sub">${esc(fmtFecha(f))} · ${esc(fmtHora(f))}${pago && m.nota ? ` · ${esc(m.nota)}` : ''}${m.manual ? ' · Registrado a mano por el chofer' : ''}</span></span>
+        <span class="row-icon${pago ? ' is-money' : perdido ? ' is-alert' : ''}">${icon(pago ? 'i-wallet' : perdido ? 'i-alert' : 'i-bus')}</span>
+        <span class="row-text"><span class="row-title">${pago ? 'Pago registrado' : perdido ? 'Apartado perdido' : Number(m.monto) ? 'Viaje cobrado' : 'Regreso incluido'}</span><span class="row-sub">${esc(fmtFecha(f))} · ${esc(fmtHora(f))}${perdido ? ' · Apartaste y no subiste' : ''}${pago && m.nota ? ` · ${esc(m.nota)}` : ''}${m.manual ? ' · Registrado a mano por el chofer' : ''}</span></span>
         <span class="row-trailing${pago ? ' is-positive' : ''}">${pago ? '−' : ''}${fmtMoney(m.monto)}</span>
       </div>`
     },
@@ -789,8 +849,14 @@ function iniciarChofer(perfil) {
 }
 
 // Carga todo lo del vehículo de la jornada del chofer
+// Nombre del vehículo: de la lista o, si todavía no llega, de la jornada del chofer
+const nombreDeJornada = id => vehiculo(id)?.nombre || jornada?.vehiculos?.find(v => v.id === id)?.nombre || camionCorto(id)
+const pintarNombreCamion = () => {
+  $('#camion-label').innerHTML = camionActual ? `${puntoCamion(camionActual)}${esc(nombreDeJornada(camionActual))}` : 'Elige vehículo'
+}
+
 function aplicarCamion() {
-  $('#camion-label').innerHTML = camionActual ? `${puntoCamion(camionActual)}${esc(camionCorto(camionActual))}` : 'Elige vehículo'
+  pintarNombreCamion()
   $('#passengers-count').dataset.value = '0'
   passengers = []
   sincronizarViaje()
@@ -848,7 +914,7 @@ function pedirVehiculo({ obligatorio }) {
         return `<button type="button" class="row jornada-row" data-vehiculo="${esc(v.id)}"${ocupado ? ' aria-disabled="true"' : ''}>
           <span class="row-icon jornada-icon" style="--bus:${esc(v.color)}">${icon('i-bus')}</span>
           <span class="row-text"><span class="row-title">${esc(v.nombre)} – ${esc(TIPOS[v.tipo] || 'Vehículo')}</span>
-            <span class="row-sub">${ocupado ? `Lo tiene ${esc(v.ocupado_por)} hoy` : `${plural(v.capacidad, 'asiento', 'asientos')}`}</span></span>
+            <span class="row-sub">${ocupado ? `Lo tiene ${esc(v.ocupado_por)} hoy` : `${plural(v.capacidad, 'asiento', 'asientos')}${v.exclusivo ? ' · Exclusivo Chinacates' : ''}`}</span></span>
           <span class="row-trailing">${icon(mio ? 'i-check' : ocupado ? 'i-lock' : 'i-chevron-right')}</span>
         </button>`
       }).join('')
@@ -879,7 +945,7 @@ $('#jornada-list').addEventListener('click', async e => {
   const cambio = id !== camionActual
   camionActual = id
   if (cambio) aplicarCamion()
-  toast(`Hoy trabajas en ${etiquetaVehiculo(id)}`, { type: 'success' })
+  toast(`Hoy trabajas en ${v ? `${v.nombre} – ${TIPOS[v.tipo] || 'Vehículo'}` : etiquetaVehiculo(id)}`, { type: 'success' })
 })
 
 $('#btn-jornada-logout').addEventListener('click', async () => {
@@ -924,7 +990,8 @@ function renderPassengersUI() {
     key: p => p.id,
     render: p => `<div class="row">
       ${avatar(p.nombre)}
-      <span class="row-text"><span class="row-title">${esc(p.nombre)}</span><span class="row-sub">${esc(p.matricula)}</span></span>
+      <span class="row-text"><span class="row-title">${esc(p.nombre)}</span><span class="row-sub">${esc(p.matricula)}${UBICACIONES[p.ubicacion] ? ` · ${ubicacionNombre(p.ubicacion)}` : ''}</span></span>
+      ${UBICACIONES[p.ubicacion] ? `<span class="badge badge-ubic ubic-${p.ubicacion}" title="${ubicacionNombre(p.ubicacion)}">${UBICACIONES[p.ubicacion].corto}</span>` : ''}
       ${p.de_pie ? '<span class="badge badge-standing">De pie</span>' : ''}
       ${p.manual ? '<span class="badge badge-manual" title="Registrado a mano, sin código QR">A mano</span>' : ''}
       <button class="icon-btn icon-btn-sm icon-btn-danger btn-remove-student" data-id="${esc(p.id)}" aria-label="Quitar a ${esc(p.nombre)}">${icon('i-minus')}</button>
@@ -935,9 +1002,14 @@ function renderPassengersUI() {
   renderDriverTrip()
 }
 
-// Cobro de cada pasajero en el corte: $60 o $0 si es su regreso del día
+// Cobro de cada pasajero en el corte: su boleto ($60, o $40 desde Chinacates) o $0 si es su regreso del día
 const totalCorte = lista => lista.reduce((s, p) => s + (Number(p.cobro) || 0), 0)
-const regresos = lista => lista.filter(p => Number(p.cobro) === 0).length
+// "3 × $60 · 2 × $40 · 1 de regreso"
+function detalleCobro(lista) {
+  const porMonto = new Map()
+  lista.forEach(p => porMonto.set(Number(p.cobro) || 0, (porMonto.get(Number(p.cobro) || 0) || 0) + 1))
+  return [...porMonto].sort((a, b) => b[0] - a[0]).map(([m, n]) => (m ? `${n} × ${fmtMoney(m)}` : `${n} de regreso`)).join(' · ')
+}
 
 function renderDriverTrip() {
   const n = passengers.length
@@ -958,9 +1030,8 @@ function renderDriverTrip() {
   $('#students-ul').classList.toggle('is-locked', isTripActive)
   $('#btn-clear-list').hidden = !passengers.length || isTripActive
   $('#corte-label').textContent = isTripActive ? 'Cobrado en este viaje' : 'Total del corte'
-  const libres = regresos(passengers)
   $('#corte-total').textContent = fmtMoney(totalCorte(passengers))
-  $('#corte-detail').textContent = libres ? `${n - libres} × ${fmtMoney(PRECIO_VIAJE)} · ${libres} de regreso` : `${n} × ${fmtMoney(PRECIO_VIAJE)}`
+  $('#corte-detail').textContent = n ? detalleCobro(passengers) : `0 × ${fmtMoney(PRECIO_VIAJE)}`
   if (!btnIniciarViaje.classList.contains('is-loading')) {
     btnIniciarViaje.textContent = isTripActive ? 'Finalizar viaje' : 'Hacer corte'
     btnIniciarViaje.disabled = !isTripActive && n === 0
@@ -1018,9 +1089,7 @@ btnIniciarViaje.addEventListener('click', async () => {
   if (!n) return
   const ok = await confirm({
     title: 'Hacer corte',
-    message: regresos(passengers)
-      ? `Se cobrarán ${fmtMoney(PRECIO_VIAJE)} a ${plural(n - regresos(passengers), 'alumno', 'alumnos')}. ${plural(regresos(passengers), 'va', 'van')} de regreso y ya ${regresos(passengers) === 1 ? 'pagó' : 'pagaron'} su viaje redondo hoy.`
-      : `Se cobrarán ${fmtMoney(PRECIO_VIAJE)} a cada uno de los ${plural(n, 'alumno', 'alumnos')} a bordo.`,
+    message: `A bordo: ${plural(n, 'alumno', 'alumnos')} (${detalleCobro(passengers)}). Quien apartó en esta salida y no subió pagará su boleto completo.`,
     confirmLabel: `Cobrar ${fmtMoney(totalCorte(passengers))}`
   })
   if (!ok) return
@@ -1265,7 +1334,7 @@ btnTimerStop.addEventListener('click', () => accionTemporizador('cancelar', btnT
 async function cargarEstadoViaje() {
   const { data } = await supabase
     .from('estado_viaje')
-    .select('id, estado, tiempo_salida, temporizador_activo, nombre, color, tipo, cols, bloques, asientos, activo')
+    .select('id, estado, tiempo_salida, temporizador_activo, nombre, color, tipo, cols, bloques, asientos, activo, exclusivo_chinacates')
   if (!data) return
   actualizarCamiones(data)
   pintarVehiculos()
@@ -1297,6 +1366,11 @@ function aplicarEstadoViaje(row) {
 // --- 11. ADMINISTRACIÓN ---
 const adminRole = initSegmented($('#admin-role-seg'), aplicarRolRegistro)
 const formCreateUser = $('#form-create-user')
+const ubicNueva = opciones($('#admin-new-ubicacion'), OPCIONES_UBICACION)
+const fotoNueva = selectorFoto({ boton: $('#btn-admin-new-foto'), input: $('#admin-new-foto'), vista: $('#admin-new-foto-vista'), nombre: () => $('#admin-new-name').value })
+fotoNueva.reset()
+// Fotos en lote: el nombre de cada archivo (número de control) dice de quién es
+initFotos({ rpc, alumnos: () => alumnosCache, alTerminar: () => loadAdminData() })
 
 function aplicarRolRegistro(rol) {
   $('#label-admin-identifier').textContent = ROLES[rol].idLabel
@@ -1316,10 +1390,10 @@ function pintarVehiculos() {
     ? `${plural(vehiculos.length, 'vehículo', 'vehículos')} · ${plural(vehiculos.reduce((s, v) => s + v.asientos.length, 0), 'asiento', 'asientos')} en total`
     : 'Aún no hay vehículos'
   patchList(lista, vehiculos, {
-    key: v => `${v.id}-${v.nombre}-${v.asientos.length}-${v.tipo}`,
+    key: v => `${v.id}-${v.nombre}-${v.asientos.length}-${v.tipo}-${v.exclusivo}`,
     render: v => `<button class="row" data-vehiculo="${esc(v.id)}">
       <span class="row-icon jornada-icon" style="--bus:${esc(v.color)}">${icon('i-bus')}</span>
-      <span class="row-text"><span class="row-title">${esc(v.nombre)}</span><span class="row-sub">${esc(TIPOS[v.tipo])} · ${plural(v.asientos.length, 'asiento', 'asientos')}</span></span>
+      <span class="row-text"><span class="row-title">${esc(v.nombre)}</span><span class="row-sub">${esc(TIPOS[v.tipo])} · ${plural(v.asientos.length, 'asiento', 'asientos')}${v.exclusivo ? ' · Exclusivo Chinacates' : ''}</span></span>
       ${icon('i-chevron-right', 'chevron')}
     </button>`,
     empty: emptyState('i-bus', 'Sin vehículos', 'Toca «Agregar vehículo» para dibujar el primero.')
@@ -1333,7 +1407,7 @@ $('#admin-vehiculos-ul').addEventListener('click', async e => {
   if (!v) return
   const accion = await actionSheet({
     title: v.nombre,
-    message: `${TIPOS[v.tipo]} · ${plural(v.asientos.length, 'asiento', 'asientos')}`,
+    message: `${TIPOS[v.tipo]} · ${plural(v.asientos.length, 'asiento', 'asientos')}${v.exclusivo ? ' · Exclusivo para Chinacates' : ''}`,
     actions: [
       { label: 'Editar acomodo y nombre', value: 'editar' },
       { label: 'Dar de baja', value: 'baja', style: 'destructive' }
@@ -1408,11 +1482,20 @@ formCreateUser.addEventListener('submit', async e => {
     toast(duplicado ? `Ya existe un usuario con ese ${ROLES[role].idLabel.toLowerCase()}` : `Error: ${error.message}`, { type: 'error' })
     return
   }
+  // Ubicación y foto del alumno, si se eligieron
+  const extras = role !== 'Estudiante' ? [] : [
+    ubicNueva.value && rpc('admin_alumno_ubicacion', { p_matricula: identifier, p_ubicacion: ubicNueva.value }),
+    fotoNueva.valor && rpc('admin_foto_guardar', { p_matricula: identifier, p_foto: fotoNueva.valor })
+  ].filter(Boolean)
+  const fallo = (await Promise.all(extras)).find(r => r.error)
   haptic([10, 40, 14])
-  toast(`${ROL_ETIQUETA[role]} creado`, { type: 'success' })
+  if (fallo) toast(`${ROL_ETIQUETA[role]} creado, pero: ${fallo.error.message}`, { type: 'warning', duration: 4500 })
+  else toast(`${ROL_ETIQUETA[role]} creado`, { type: 'success' })
   formCreateUser.reset()
   ocultarPasswords(formCreateUser)
   $('#admin-new-balance').value = '0'
+  ubicNueva.reset()
+  fotoNueva.reset()
   loadAdminData()
 })
 
@@ -1426,6 +1509,7 @@ async function loadAdminData() {
   }
   const { alumnos, choferes, financieros = [], admins } = data
   alumnosCache = alumnos
+  $('#fotos-meta').textContent = alumnos.length ? `${alumnos.filter(a => a.foto).length} de ${plural(alumnos.length, 'alumno tiene', 'alumnos tienen')} foto.` : ''
   allUsersCache = [
     ...alumnos.map(u => ({ ...u, rol: 'Estudiante', idStr: u.matricula })),
     ...choferes.map(u => ({ ...u, rol: 'Chofer', idStr: u.licencia })),
@@ -1456,7 +1540,7 @@ function renderUsersList() {
     key: u => `${u.rol}-${u.id}`,
     render: u => `<button class="row" data-role="${esc(u.rol)}" data-id="${esc(u.id)}">
       ${avatar(u.nombre)}
-      <span class="row-text"><span class="row-title">${esc(u.nombre)}</span><span class="row-sub">${ROL_ETIQUETA[u.rol]} · ${esc(u.idStr)}</span></span>
+      <span class="row-text"><span class="row-title">${esc(u.nombre)}</span><span class="row-sub">${ROL_ETIQUETA[u.rol]} · ${esc(u.idStr)}${u.rol === 'Estudiante' ? ` · ${ubicacionNombre(u.ubicacion)}${u.foto ? '' : ' · sin foto'}` : ''}</span></span>
       ${icon('i-chevron-right', 'chevron')}
     </button>`,
     empty: emptyState('i-search', 'Sin resultados', query ? 'Prueba con otro nombre o ID.' : 'Aún no hay usuarios en esta categoría.')
@@ -1493,8 +1577,28 @@ function personaHTML(nombre, detalle) {
   return `${avatar(nombre)}<span class="row-text"><span class="row-title">${esc(nombre)}</span><span class="row-sub">${esc(detalle)}</span></span>`
 }
 
+const ubicEdit = opciones($('#edit-user-ubicacion'), OPCIONES_UBICACION)
+const fotoEdit = selectorFoto({
+  boton: $('#btn-edit-user-foto'), input: $('#edit-user-foto'), vista: $('#edit-user-foto-vista'),
+  quitar: $('#btn-edit-user-foto-quitar'), nombre: () => editingUser?.nombre
+})
+
 function abrirEditarUsuario(user) {
   editingUser = user
+  const alumno = user.rol === 'Estudiante'
+  $('#edit-user-alumno').hidden = !alumno
+  if (alumno) {
+    ubicEdit.set(user.ubicacion || null)
+    fotoEdit.cargar(null)
+    $('#edit-user-foto-nota').textContent = user.foto ? 'Cargando la foto…' : 'Sin foto: elige una o cárgalas en lote'
+    if (user.foto) {
+      rpc('admin_foto', { p_matricula: user.matricula }).then(({ data, error }) => {
+        if (editingUser !== user) return
+        if (!error && data) fotoEdit.cargar(urlFoto(data))
+        $('#edit-user-foto-nota').textContent = error ? 'No se pudo cargar la foto' : 'La ve el chofer al tocar su asiento'
+      })
+    }
+  }
   $('#sheet-edit-user-title').textContent = `Editar ${ROL_ETIQUETA[user.rol].toLowerCase()}`
   $('#edit-user-person').innerHTML = personaHTML(user.nombre, `${ROL_ETIQUETA[user.rol]} · ${user.idStr}`)
   $('#edit-user-name-label').textContent = user.rol === 'Admin' ? 'Usuario' : 'Nombre completo'
@@ -1522,13 +1626,23 @@ $('#form-edit-user').addEventListener('submit', async e => {
     p_nombre: nombre,
     p_password: passwordNueva || null
   })
-  setLoading(btn, false)
   if (error) {
+    setLoading(btn, false)
     toast(`Error al editar: ${error.message}`, { type: 'error' })
     return
   }
+  // Ubicación y foto del alumno
+  const u = editingUser
+  const extras = u.rol !== 'Estudiante' ? [] : [
+    ubicEdit.value && ubicEdit.value !== u.ubicacion && rpc('admin_alumno_ubicacion', { p_matricula: u.matricula, p_ubicacion: ubicEdit.value }),
+    fotoEdit.valor === null && rpc('admin_foto_borrar', { p_matricula: u.matricula }),
+    fotoEdit.valor && rpc('admin_foto_guardar', { p_matricula: u.matricula, p_foto: fotoEdit.valor })
+  ].filter(Boolean)
+  const fallo = (await Promise.all(extras)).find(r => r.error)
+  setLoading(btn, false)
   await closeSheet('sheet-edit-user')
-  toast(passwordNueva ? 'Contraseña restablecida: se le pedirá cambiarla al entrar' : 'Cambios guardados', { type: 'success' })
+  if (fallo) toast(`Se guardó lo demás, pero: ${fallo.error.message}`, { type: 'warning', duration: 4500 })
+  else toast(passwordNueva ? 'Contraseña restablecida: se le pedirá cambiarla al entrar' : 'Cambios guardados', { type: 'success' })
   loadAdminData()
 })
 
@@ -1570,7 +1684,7 @@ function renderBalancesList() {
       const saldo = Number(a.saldo) || 0
       return `<button class="row" data-id="${esc(a.id)}">
         ${avatar(a.nombre)}
-        <span class="row-text"><span class="row-title">${esc(a.nombre)}</span><span class="row-sub">${esc(a.matricula)}</span></span>
+        <span class="row-text"><span class="row-title">${esc(a.nombre)}</span><span class="row-sub">${esc(a.matricula)}${UBICACIONES[a.ubicacion] ? ` · ${ubicacionNombre(a.ubicacion)}` : ''}</span></span>
         <span class="row-trailing${saldo > ADEUDO_MAXIMO ? ' is-warning' : saldo < 0 ? ' is-positive' : saldo > 0 ? '' : ' is-muted'}">${fmtSaldo(saldo)}</span>
         ${icon('i-chevron-right', 'chevron')}
       </button>`
@@ -1713,7 +1827,12 @@ function detalleBloqueo(clave) {
 const fmtDetalle = {
   pago_registrado: ['Pago registrado', 'i-wallet', 'is-money', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${fmtMoney(d.monto)}${d.nota ? ` · ${d.nota}` : ''}`],
   saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${fmtSaldo(d.antes)} → ${fmtSaldo(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
-  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `${camionCorto(d.camion)} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}${d.de_pie ? ` · ${d.de_pie} de pie` : ''}`],
+  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `${camionCorto(d.camion)} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}${d.de_pie ? ` · ${d.de_pie} de pie` : ''}${d.perdidos ? ` · ${plural(d.perdidos, 'apartado perdido', 'apartados perdidos')}` : ''}`],
+  apartado_cancelado_tarde: ['Apartado cancelado en la última hora', 'i-alert', 'is-money', d => `${camionCorto(d.camion)} · salida de las ${d.hora} · se cobró ${fmtMoney(d.monto)}`],
+  ubicacion_elegida: ['Ubicación elegida por el alumno', 'i-pin', '', d => ubicacionNombre(d.ubicacion)],
+  ubicacion_cambiada: ['Ubicación del alumno cambiada', 'i-pin', 'is-alert', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${d.antes ? ubicacionNombre(d.antes) : 'Sin ubicación'} → ${ubicacionNombre(d.despues)}`],
+  fotos_cargadas: ['Fotos de alumnos cargadas', 'i-camera', '', d => plural(d.fotos || 0, 'foto', 'fotos')],
+  foto_borrada: ['Foto de alumno quitada', 'i-camera', '', d => d.matricula || ''],
   emergencia: ['Emergencia del camión', 'i-alert', 'is-alert', d => `${camionCorto(d.camion)} · ${d.motivo === 'descompuesto' ? 'Se descompuso' : 'No estará disponible'} · avisó a ${plural(d.avisados || 0, 'alumno', 'alumnos')}`],
   abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `${camionCorto(d.camion)} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}${d.asiento ? ` · Asiento ${d.asiento}` : ''}${d.de_pie ? ' · De pie' : ''}`],
   usuarios_importados: ['Usuarios importados', 'i-sheet', '', d => [
@@ -1736,7 +1855,7 @@ const fmtDetalle = {
   diesel_registrado: ['Carga de diésel registrada', 'i-fuel', 'is-money', d => `${camionCorto(d.camion)} · ${fmtLitros(d.litros)} · ${fmtMoney(d.importe)}`],
   diesel_actualizado: ['Carga de diésel revisada', 'i-fuel', '', d => `Carga #${d.id} · ${camionCorto(d.camion)} · ${ESTADO_CARGA[d.estado]?.label || d.estado}${d.corregida ? ' · datos corregidos' : ''}`],
   diesel_tanque: ['Capacidad del tanque', 'i-gauge', '', d => `${camionCorto(d.camion)} · ${d.litros ? fmtLitros(d.litros) : 'sin dato'}`],
-  vehiculo_guardado: ['Vehículo guardado', 'i-bus', '', d => `${d.nombre} · ${TIPOS[d.tipo] || ''} · ${plural(d.asientos || 0, 'asiento', 'asientos')}${d.nuevo ? ' · nuevo' : ''}${d.avisados ? ` · ${plural(d.avisados, 'apartado liberado', 'apartados liberados')}` : ''}`],
+  vehiculo_guardado: ['Vehículo guardado', 'i-bus', '', d => `${d.nombre} · ${TIPOS[d.tipo] || ''} · ${plural(d.asientos || 0, 'asiento', 'asientos')}${d.exclusivo ? ' · exclusivo Chinacates' : ''}${d.nuevo ? ' · nuevo' : ''}${d.avisados ? ` · ${plural(d.avisados, 'apartado liberado', 'apartados liberados')}` : ''}`],
   vehiculo_eliminado: ['Vehículo dado de baja', 'i-trash', 'is-alert', d => d.nombre || camionCorto(d.camion)],
   vehiculo_elegido: ['Vehículo de la jornada', 'i-wheel', '', d => camionCorto(d.camion)]
 }
@@ -1767,6 +1886,28 @@ $('#view-admin').addEventListener('tabchange', e => {
   if (e.detail === 'admin-tab-log') cargarBitacora()
   if (e.detail === 'admin-tab-inbox') buzon.adminAbrir()
   if (e.detail === 'admin-tab-balance') diesel.refrescar()
+})
+
+// Si una pantalla pide un vehículo que la app todavía no conoce, se recarga la lista
+siFaltaVehiculo(() => cargarEstadoViaje())
+// Solo se repinta si cambió el vehículo que se ve (el temporizador también actualiza la fila)
+let firmaVisible = ''
+alCambiarVehiculos(() => {
+  const id = currentRole === 'Chofer' ? camionActual : currentRole === 'Estudiante' ? camionAlumno : null
+  const v = id ? vehiculo(id) : null
+  const firma = v ? `${id}|${v.nombre}|${v.color}|${v.cols}|${v.asientos.length}|${v.exclusivo}` : ''
+  if (firma === firmaVisible) return
+  firmaVisible = firma
+  if (currentRole === 'Chofer' && camionActual) {
+    pintarNombreCamion()
+    renderDriverSchedule()
+    renderPassengersUI()
+    asientosChofer.repintar()
+  }
+  if (currentRole === 'Estudiante') {
+    $('#trip-bus-label').textContent = camionAlumno ? nombreCamion(camionAlumno) : 'Sin salidas'
+    asientos.repintar()
+  }
 })
 
 // --- 12. TIEMPO REAL ---

@@ -10,6 +10,7 @@ import {
 } from './ui.js'
 
 export const TZ = 'America/Mexico_City'
+const fmtPesos = n => `$${Number(n).toLocaleString('es-MX')}`
 const EASE = 'cubic-bezier(0.25, 1, 0.5, 1)'
 const ESQUELETO = '<div class="skeleton" style="height:72px;margin-top:14px;border-radius:16px"></div>'
 
@@ -21,7 +22,9 @@ const AVISO_UI = {
   pareja_terminada: { titulo: 'Pareja de viaje terminada', icono: 'i-link', tint: 'gray' },
   queja_respondida: { titulo: 'Respondieron tu queja', icono: 'i-inbox', tint: 'blue' },
   queja_atendida: { titulo: 'Tu queja fue atendida', icono: 'i-inbox', tint: 'green' },
-  emergencia: { titulo: 'Aviso de emergencia del camión', icono: 'i-alert', tint: 'red' }
+  emergencia: { titulo: 'Aviso de emergencia del camión', icono: 'i-alert', tint: 'red' },
+  apartado_perdido: { titulo: 'Perdiste tu apartado', icono: 'i-alert', tint: 'red' },
+  ubicacion_cambiada: { titulo: 'Cambiaron tu ubicación', icono: 'i-pin', tint: 'blue' }
 }
 
 // --- FORMATO ---
@@ -73,7 +76,8 @@ function tiempoAtras(iso) {
   return relativo.format(Math.round(seg / 86400), 'day')
 }
 
-export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
+// precio(): boleto del alumno ($60 o $40) · alCobrar(): refresca su saldo tras un cobro
+export function initAsientos({ rpc, supabase, alCambiarSalidas, precio = () => 60, alCobrar }) {
   let activo = false
   let miNombre = ''
   let salidas = []
@@ -387,7 +391,7 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
           ? `${Math.max(0, capacidad(s.camion) - s.ocupados)} libres`
           : `${icon('i-lock')}${esc(new Date(s.abre_en).toLocaleTimeString('es-MX', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true }))}`
       return `<button class="departure${s.mi_asiento ? ' is-mine' : ''}" role="tab" aria-selected="${k === salidaSel}" data-salida="${esc(k)}" aria-label="${camionCorto(s.camion)}, ${esc(etiquetaDia(s.fecha))} ${esc(horaTexto(s.hora))}">
-        <span class="departure-day">${esc(etiquetaDia(s.fecha))} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'}</span>
+        <span class="departure-day">${esc(etiquetaDia(s.fecha))} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'}${s.exclusivo ? ' · Exclusiva' : ''}</span>
         <span class="departure-time">${t}<small>${p}</small></span>
         <span class="departure-status"><span class="departure-bus">${icon('i-bus')}${esc(camionCorto(s.camion))}</span>${estado}</span>
       </button>`
@@ -493,6 +497,7 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
     const hint = $('#seat-hint')
     const nombre = esc(mapa.pareja?.nombre || '')
     if (!mapa.abierta) hint.innerHTML = 'Así se ve el vehículo. El apartado abre <b>12 horas antes</b> de la salida.'
+    else if (mapa.restriccion) hint.innerHTML = `<b>${esc(mapa.restriccion)}</b>`
     else if (mapa.modo === 'pareja') hint.innerHTML = `Viajas con <b>${nombre}</b>: elige una fila de dos y se apartarán los dos asientos.`
     else if (mapa.modo === 'pareja_reacomodo') hint.innerHTML = 'Ya no quedan bancas libres. Elige una con un compañero sin pareja: <b>lo moveremos junto a otro compañero</b> y le avisaremos.'
     else if (mapa.modo === 'pareja_sin_banca') hint.innerHTML = 'Ya no hay forma de sentarse juntos en esta salida. <b>Puedes apartar solo tu asiento.</b>'
@@ -508,6 +513,11 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
 
     if (!mapa) {
       texto.innerHTML = ''
+      btnConfirm.textContent = 'Apartar asiento'
+      return
+    }
+    if (mapa.abierta && mapa.restriccion && !mio) {
+      texto.innerHTML = '<small>No puedes apartar en esta salida</small>'
       btnConfirm.textContent = 'Apartar asiento'
       return
     }
@@ -580,28 +590,35 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
       ? `Asientos ${Math.min(n, data.asiento_pareja)} y ${Math.max(n, data.asiento_pareja)} apartados`
       : data.pareja_debe
         ? `Asiento ${n} apartado solo para ti: tu pareja no está al corriente`
-        : `Asiento ${n} apartado`, { type: data.pareja_debe ? 'warning' : 'success', duration: data.pareja_debe ? 4500 : 2800 })
+        : data.pareja_fuera
+          ? `Asiento ${n} apartado solo para ti: tu pareja no puede viajar en este vehículo`
+          : `Asiento ${n} apartado`, { type: data.pareja_debe || data.pareja_fuera ? 'warning' : 'success', duration: data.pareja_debe || data.pareja_fuera ? 4500 : 2800 })
     setTimeout(() => closeSheet('sheet-seats'), 1200)
   })
 
   btnRelease.addEventListener('click', async () => {
     const s = salidas.find(x => claveSalida(x) === salidaSel)
     if (!s) return
+    const tarde = new Date(s.salida_en) - Date.now() <= 60 * 60 * 1000
     const ok = await confirm({
-      title: 'Liberar asiento',
-      message: `Tu lugar quedará disponible para otros compañeros.${mapa?.pareja ? ' El asiento de tu pareja se conserva.' : ''}`,
-      confirmLabel: 'Liberar',
+      title: tarde ? 'Liberar con cobro' : 'Liberar asiento',
+      message: tarde
+        ? `Falta menos de una hora para la salida: si lo liberas se te cobra tu boleto completo (${fmtPesos(precio())}) como apartado perdido.`
+        : `Tu lugar quedará disponible para otros compañeros.${mapa?.pareja ? ' El asiento de tu pareja se conserva.' : ''}`,
+      confirmLabel: tarde ? `Liberar y pagar ${fmtPesos(precio())}` : 'Liberar',
       destructive: true
     })
     if (!ok) return
     setLoading(btnRelease, true)
-    const { error } = await rpc('alumno_liberar_asiento', { p_fecha: s.fecha, p_hora: s.hora })
+    const { data, error } = await rpc('alumno_liberar_asiento', { p_fecha: s.fecha, p_hora: s.hora })
     setLoading(btnRelease, false)
     if (error) {
       toast(error.message, { type: 'error' })
       return
     }
-    toast('Asiento liberado', { type: 'success' })
+    const cobro = Number(data?.cobro) || 0
+    toast(cobro ? `Asiento liberado · se cobraron ${fmtPesos(cobro)}` : 'Asiento liberado', { type: cobro ? 'warning' : 'success' })
+    if (cobro) alCobrar?.()
     seleccion = null
     await Promise.all([cargarMapa(), cargarSalidas()])
   })
@@ -621,5 +638,15 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas }) {
     })
     .subscribe()
 
-  return { cargar, limpiar }
+  function repintar() {
+    if (!activo) return
+    renderSeatCard()
+    if (salidaSel) renderDepartures()
+    if (mapa) {
+      busSeats.replaceChildren()
+      renderMapa(null)
+    }
+  }
+
+  return { cargar, limpiar, repintar }
 }

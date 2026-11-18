@@ -6656,3 +6656,298 @@ button.row:active {
     max-width: 380px;
   }
 }
+
+/* =====================================================================
+   Ubicación de subida (Nuevo Ideal / Chinacates), ficha del alumno y fotos
+   ===================================================================== */
+.ubic-nuevo_ideal { --ubic: var(--blue); }
+.ubic-chinacates { --ubic: var(--orange-text); }
+
+.choices-ubic {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Chip del alumno en su encabezado */
+.chip-ubic {
+  background: color-mix(in srgb, var(--ubic, var(--blue)) 13%, transparent);
+  color: var(--ubic, var(--label-2));
+}
+
+/* Lista de abordaje del chofer */
+.badge-ubic {
+  --tint: var(--ubic, var(--blue));
+  min-width: 34px;
+  justify-content: center;
+  letter-spacing: 0.04em;
+}
+
+/* Asientos del chofer: iniciales, de dónde viene y número */
+.bus-driver-view .seat .seat-ini {
+  margin-top: -7px;
+  line-height: 1;
+}
+
+.seat-ubic {
+  position: absolute;
+  left: 4px;
+  bottom: 3px;
+  padding: 1px 3px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ubic, var(--label-3)) 18%, transparent);
+  color: var(--ubic, var(--label-2));
+  font-size: 8.5px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+}
+
+.bus-driver-view .seat.ubic-chinacates[data-estado="apartado"] {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--orange) 55%, transparent);
+}
+
+.bus-driver-view .seat.ubic-chinacates.is-paired {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--indigo) 75%, transparent);
+}
+
+.legend-ubic {
+  display: inline-grid;
+  place-items: center;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ubic) 18%, transparent);
+  color: var(--ubic);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.seat-hint-tap {
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* Ficha del alumno (chofer) */
+.ficha-body {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding-bottom: 20px;
+  text-align: center;
+}
+
+.ficha-foto {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  margin-bottom: 10px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--fill);
+  box-shadow: 0 0 0 4px var(--surface), 0 0 0 5px var(--separator);
+}
+
+.ficha-foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ficha-foto .avatar {
+  width: 100%;
+  height: 100%;
+  font-size: 44px;
+}
+
+.ficha-foto-cargando .avatar {
+  animation: shimmer 1.5s ease-in-out infinite;
+  opacity: 0.7;
+}
+
+.ficha-foto-cargando {
+  width: 100%;
+  height: 100%;
+}
+
+.ficha-sin-foto {
+  position: absolute;
+  bottom: 14px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--label-2);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ficha-nombre {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.ficha-mat {
+  color: var(--label-2);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ficha-ubic {
+  color: var(--ubic, var(--label-2));
+  font-weight: 700;
+}
+
+.ficha-datos {
+  width: 100%;
+  margin-top: 14px;
+  display: grid;
+  border-radius: var(--r-md);
+  background: var(--fill);
+  text-align: left;
+}
+
+.ficha-dato {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.ficha-dato + .ficha-dato {
+  border-top: 1px solid var(--separator);
+}
+
+.ficha-dato .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--label-2);
+}
+
+.ficha-dato-k {
+  color: var(--label-2);
+  font-size: 15px;
+}
+
+.ficha-dato-v {
+  font-size: 15px;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Elegir ubicación (alumno, una sola vez) */
+.ubicacion-body {
+  display: grid;
+  gap: 16px;
+  padding-bottom: 8px;
+}
+
+.ubicacion-opciones {
+  display: grid;
+  gap: 10px;
+}
+
+.ubicacion-opcion {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 14px 14px 12px;
+  border-radius: var(--r-md);
+  background: var(--fill);
+  color: var(--label);
+  text-align: left;
+  transition: transform 0.2s var(--ease), background-color 0.2s;
+}
+
+.ubicacion-opcion:active {
+  transform: scale(0.98);
+}
+
+.ubicacion-codigo {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--ubic) 15%, transparent);
+  color: var(--ubic);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.ubicacion-texto {
+  display: grid;
+  gap: 2px;
+}
+
+.ubicacion-nombre {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.ubicacion-precio {
+  color: var(--label-2);
+  font-size: 14px;
+}
+
+.ubicacion-opcion > .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--label-3);
+}
+
+/* Foto del alumno (registrar / editar) */
+.foto-picker {
+  display: grid;
+  grid-template-columns: 56px 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--fill);
+}
+
+.foto-picker-vista {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.foto-picker-vista .avatar {
+  width: 100%;
+  height: 100%;
+  font-size: 19px;
+}
+
+.foto-picker-vista img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.edit-alumno-extra {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* Fotos en lote: también se puede soltar la carpeta sobre la tarjeta */
+.fotos-card {
+  transition: box-shadow 0.2s var(--ease);
+}
+
+.fotos-card.is-drop {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 45%, transparent);
+}
+
+.veh-exclusivo-row {
+  margin-top: 4px;
+}

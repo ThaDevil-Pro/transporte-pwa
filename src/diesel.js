@@ -198,11 +198,11 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
     pistaPrecio.innerHTML = lineas.join('')
     pistaPrecio.hidden = !lineas.length
 
-    // Kilometraje contra la última carga del camión
+    // Kilometraje (opcional) contra la última carga del camión que lo tiene
     let html
     let aviso = false
-    if (u?.odometro == null) html = `Es la primera carga registrada de ${camionCorto(bus)}.`
-    else if (!(o >= 0)) html = `Última carga de ${camionCorto(bus)}: <b>${fmtKm(u.odometro)}</b>, ${hace(u.fecha)}.`
+    if (u?.odometro == null) html = u?.fecha ? 'Opcional. Las cargas anteriores no tienen kilometraje.' : `Opcional. Es la primera carga registrada de ${camionCorto(bus)}.`
+    else if (!(o >= 0)) html = `Opcional. Última carga con kilometraje: <b>${fmtKm(u.odometro)}</b>.`
     else if (o < u.odometro) {
       aviso = true
       html = `Es menos que la última carga (${fmtKm(u.odometro)}). Revisa el tablero.`
@@ -266,12 +266,12 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
       modo === 'chofer' && !foto && fotoBox,
       !(l > 0) && litros.closest('.field'),
       !(i > 0) && importe.closest('.field'),
-      !(Number.isInteger(o) && o >= 0) && odometro.closest('.field')
+      odometro.value !== '' && !(Number.isInteger(o) && o >= 0) && odometro.closest('.field')
     ].filter(Boolean)
     if (faltan.length) {
       faltan.forEach(el => el.classList.add('is-invalid'))
       shake(faltan[0])
-      toast(!bus ? 'Elige el camión' : faltan[0] === fotoBox ? 'Toma la foto del ticket' : !(l > 0) ? 'Escribe los litros' : !(i > 0) ? 'Escribe el total del ticket' : 'Escribe el kilometraje del tablero (sin decimales)', { type: 'warning' })
+      toast(!bus ? 'Elige el camión' : faltan[0] === fotoBox ? 'Toma la foto del ticket' : !(l > 0) ? 'Escribe los litros' : !(i > 0) ? 'Escribe el total del ticket' : 'Revisa el kilometraje (sin decimales) o déjalo vacío', { type: 'warning' })
       return
     }
     const p = i / l
@@ -292,7 +292,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
       return
     }
     const u = ultimaDe(bus)
-    if (u?.odometro != null && o < u.odometro) {
+    if (u?.odometro != null && o >= 0 && o < u.odometro) {
       const seguir = await confirm({
         title: 'Kilometraje menor',
         message: `La última carga de ${camionCorto(bus)} marcaba ${fmtKm(u.odometro)}. ¿Guardar ${fmtKm(o)} de todos modos?`,
@@ -317,7 +317,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
       p_fecha: fecha.value && fecha.value !== fecha.dataset.inicial ? cuandoFue.toISOString() : null,
       p_litros: l,
       p_importe: i,
-      p_odometro: o,
+      p_odometro: Number.isInteger(o) ? o : null,
       p_lleno: lleno.checked,
       p_gasolinera: gasolinera.value,
       p_folio: folio.value,
@@ -366,7 +366,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
     $('#driver-diesel-sub').textContent = !choferListo
       ? 'Registra cada carga con la foto del ticket'
       : u?.fecha
-      ? `Última carga de ${camionCorto(bus)}: ${hace(u.fecha)} · ${fmtKm(u.odometro)}`
+      ? `Última carga de ${camionCorto(bus)}: ${hace(u.fecha)}${u.odometro != null ? ` · ${fmtKm(u.odometro)}` : ''}`
       : `Aún no hay cargas registradas de ${camionCorto(bus)}`
     const lista = $('#driver-diesel-list')
     lista.hidden = !mias.length
@@ -378,7 +378,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
           ${chip(est.corto || est.label, est.tono)}
         </div>
         ${c.nota ? `<p class="inbox-reply">${icon('i-reply')}<span>${esc(c.nota)}</span></p>` : ''}
-        <p class="inbox-time">${esc(fmtCuando(c.fecha))} · ${esc(fmtKm(c.odometro))}</p>
+        <p class="inbox-time">${esc(fmtCuando(c.fecha))}${c.odometro != null ? ` · ${esc(fmtKm(c.odometro))}` : ''}</p>
       </div>`
     }).join('')
   }
@@ -423,7 +423,8 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
     // Última carga válida de cada camión, para las pistas del formulario
     contexto = tanques.map(t => {
       const u = cargas.find(c => c.camion === t.camion && c.estado !== 'anulada')
-      return { camion: t.camion, tanque: t.litros, odometro: u?.odometro ?? null, fecha: u?.fecha ?? null }
+      const k = cargas.find(c => c.camion === t.camion && c.estado !== 'anulada' && c.odometro != null)
+      return { camion: t.camion, tanque: t.litros, odometro: k?.odometro ?? null, fecha: u?.fecha ?? null }
     })
     pintarCargas()
   }
@@ -538,7 +539,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
         ${datoCelda('Litros', fmtLitros(c.litros), c.tanque ? `Tanque de ${fmtLitros(c.tanque)}` : '', alertas.includes('sobre_tanque') ? 'orange' : '')}
         ${datoCelda('Total', fmtPesos(c.importe))}
         ${datoCelda('Precio por litro', fmtPesos(c.precio_litro), '', alertas.includes('precio') ? 'orange' : '')}
-        ${datoCelda('Tablero', fmtKm(c.odometro), c.odo_prev != null ? `Antes: ${fmtKm(c.odo_prev)}` : 'Primera carga', alertas.includes('odometro') ? 'orange' : '')}
+        ${datoCelda('Tablero', c.odometro != null ? fmtKm(c.odometro) : 'Sin dato', c.odo_prev != null ? `Antes: ${fmtKm(c.odo_prev)}` : 'Primera carga', alertas.includes('odometro') ? 'orange' : '')}
         ${datoCelda('Recorrido', c.km != null ? fmtKm(c.km) : '—', 'Desde la anterior', alertas.includes('carga_faltante') ? 'orange' : '')}
         ${datoCelda('Rendimiento', fmtRend(c.rendimiento), c.rendimiento_normal ? `Normal: ${fmtRend(c.rendimiento_normal)}` : c.rendimiento != null ? 'Aún sin promedio' : c.lleno ? 'Falta otro llenado' : 'Se calcula al llenar', rendBajo ? 'orange' : '')}
       </div>
@@ -594,7 +595,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
     corrCamion.set(c.camion)
     corr.litros.value = c.litros
     corr.importe.value = c.importe
-    corr.odometro.value = c.odometro
+    corr.odometro.value = c.odometro ?? ''
     corr.fecha.value = aLocal(c.fecha)
     corr.fecha.dataset.inicial = corr.fecha.value
     corr.fecha.max = aLocal(Date.now())
@@ -624,7 +625,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
       const i = corr.importe.valueAsNumber
       const o = corr.odometro.valueAsNumber
       const malos = [
-        !(l > 0) && corr.litros, !(i > 0) && corr.importe, !(Number.isInteger(o) && o >= 0) && corr.odometro
+        !(l > 0) && corr.litros, !(i > 0) && corr.importe, corr.odometro.value !== '' && !(Number.isInteger(o) && o >= 0) && corr.odometro
       ].filter(Boolean).map(el => el.closest('.field'))
       if (malos.length) {
         malos.forEach(el => el.classList.add('is-invalid'))
@@ -636,7 +637,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
         p_camion: Number(corrCamion.value),
         p_litros: l,
         p_importe: i,
-        p_odometro: o,
+        p_odometro: Number.isInteger(o) ? o : null,
         p_lleno: corr.lleno.checked,
         p_fecha: corr.fecha.value && corr.fecha.value !== corr.fecha.dataset.inicial ? new Date(corr.fecha.value).toISOString() : null
       })

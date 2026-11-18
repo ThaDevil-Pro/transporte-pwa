@@ -1,9 +1,10 @@
 // =====================================================================
-// Mapa de asientos del chofer: quién va en cada asiento y si ya subió.
-// Solo lectura; el apartado lo hacen los alumnos.
+// Mapa de asientos del chofer: quién va en cada asiento, de dónde viene
+// (Nuevo Ideal o Chinacates) y si ya subió. Al tocar un asiento se abre la
+// ficha del alumno con su foto. Solo lectura; el apartado lo hacen los alumnos.
 // =====================================================================
-import { camionCorto, capacidad, plantillaColumnas, posicion, retrasoOla } from './camiones.js'
-import { $, $$, esc, icon, initials, haptic, alert } from './ui.js'
+import { camionCorto, capacidad, plantillaColumnas, posicion, retrasoOla, UBICACIONES, ubicacionNombre } from './camiones.js'
+import { $, $$, esc, icon, initials, avatar, haptic, openSheet } from './ui.js'
 import { TZ, claveSalida, splitHora, etiquetaDia } from './asientos.js'
 
 const EASE = 'cubic-bezier(0.25, 1, 0.5, 1)'
@@ -93,13 +94,14 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
 
   function htmlAsiento(a) {
     const estado = estadoAsiento(a)
+    const ubic = UBICACIONES[a.ubicacion]
     const etiqueta = estado === 'libre'
       ? `Asiento ${a.n}, libre`
-      : `Asiento ${a.n}, ${a.nombre}, ${estado === 'abordo' ? 'a bordo' : 'aún no sube'}`
+      : `Asiento ${a.n}, ${a.nombre}, de ${ubicacionNombre(a.ubicacion)}, ${estado === 'abordo' ? 'a bordo' : 'aún no sube'}`
     const contenido = estado === 'libre'
       ? a.n
-      : `${esc(initials(a.nombre))}<span class="seat-num">${a.n}</span>${estado === 'abordo' ? `<span class="seat-check">${icon('i-check')}</span>` : ''}`
-    return `<button type="button" class="seat${a.con_pareja ? ' is-paired' : ''}" style="${posicion(mapa.camion, a.n)}" data-n="${a.n}" data-estado="${estado}" aria-label="${esc(etiqueta)}">${contenido}</button>`
+      : `<span class="seat-ini">${esc(initials(a.nombre))}</span><span class="seat-ubic">${ubic ? ubic.corto : '?'}</span><span class="seat-num">${a.n}</span>${estado === 'abordo' ? `<span class="seat-check">${icon('i-check')}</span>` : ''}`
+    return `<button type="button" class="seat${a.con_pareja ? ' is-paired' : ''}${ubic ? ` ubic-${a.ubicacion}` : ''}" style="${posicion(mapa.camion, a.n)}" data-n="${a.n}" data-estado="${estado}" aria-label="${esc(etiqueta)}">${contenido}</button>`
   }
 
   function render(anterior) {
@@ -114,7 +116,7 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
           [{ opacity: 0, transform: 'translateY(10px) scale(0.85)' }, { opacity: 1, transform: 'none' }],
           { duration: 480, delay: retrasoOla(mapa.camion, n), easing: EASE, fill: 'backwards' }
         )
-      } else if (estadoAsiento(anterior.asientos[n - 1]) !== el.dataset.estado) {
+      } else if (estadoAsiento(anterior.asientos[n - 1] || {}) !== el.dataset.estado) {
         el.classList.add('is-pulse')
       }
     })
@@ -129,16 +131,48 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
     $('#stat-libres').textContent = Math.max(0, capacidad(mapa?.camion ?? camion()) - apartados)
   }
 
+  // --- FICHA DEL ALUMNO (foto y datos) ---
+  const ficha = $('#sheet-ficha')
+  let fichaTurno = 0
+
+  async function abrirFicha({ matricula, nombre, ubicacion, asiento, abordo, fecha = null, hora = null }) {
+    const turno = ++fichaTurno
+    const ubic = UBICACIONES[ubicacion]
+    $('#ficha-foto').innerHTML = `<span class="ficha-foto-cargando">${avatar(nombre)}</span>`
+    $('#ficha-nombre').textContent = nombre
+    $('#ficha-mat').textContent = `Matrícula ${matricula}`
+    pintarDatos({ ubicacion, asiento, abordo })
+    $('#ficha-ubic').className = `ficha-ubic${ubic ? ` ubic-${ubicacion}` : ''}`
+    $('#ficha-ubic').textContent = ubicacionNombre(ubicacion)
+    openSheet(ficha)
+    const { data, error } = await rpc('chofer_alumno', { p_camion: camion(), p_fecha: fecha, p_hora: hora, p_matricula: matricula })
+    if (turno !== fichaTurno) return
+    if (error || !data) {
+      $('#ficha-foto').innerHTML = avatar(nombre)
+      return
+    }
+    $('#ficha-foto').innerHTML = data.foto
+      ? `<img src="data:image/jpeg;base64,${data.foto}" alt="Foto de ${esc(data.nombre)}">`
+      : `${avatar(data.nombre)}<span class="ficha-sin-foto">Sin foto</span>`
+    pintarDatos(data)
+  }
+
+  function pintarDatos({ ubicacion, asiento, abordo, pareja }) {
+    $('#ficha-datos').innerHTML = [
+      ['i-seat', 'Asiento', asiento ? String(asiento) : 'Sin asiento'],
+      ['i-pin', 'Sube en', ubicacionNombre(ubicacion)],
+      [abordo ? 'i-check-circle' : 'i-clock', 'Estado', abordo ? 'Ya está a bordo' : 'Aún no sube'],
+      ...(pareja ? [['i-link', 'Viaja con', pareja]] : [])
+    ].map(([ico, etiqueta, valor]) => `<div class="ficha-dato">${icon(ico)}<span class="ficha-dato-k">${esc(etiqueta)}</span><span class="ficha-dato-v">${esc(valor)}</span></div>`).join('')
+  }
+
   seats.addEventListener('click', e => {
     const el = e.target.closest('.seat')
     if (!el || !mapa) return
     const a = mapa.asientos[Number(el.dataset.n) - 1]
-    if (!a.nombre) return
+    if (!a?.nombre) return
     haptic(6)
-    alert({
-      title: a.nombre,
-      message: `Asiento ${a.n} · ${a.matricula} · ${a.abordo ? 'Ya está a bordo' : 'Aún no sube'}${a.con_pareja ? ' · Viaja con su pareja' : ''}`
-    })
+    abrirFicha({ matricula: a.matricula, nombre: a.nombre, ubicacion: a.ubicacion, asiento: a.n, abordo: a.abordo, fecha: mapa.fecha, hora: mapa.hora })
   })
 
   // Tiempo real: cuando alguien aparta o libera un asiento de esta salida
@@ -152,5 +186,13 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
   // Después de escanear o quitar a alguien, para marcar quién ya subió
   const refrescar = () => { if (activo && mapa) cargarMapa() }
 
-  return { cargar, limpiar, refrescar }
+  // Si llega la lista de vehículos (o cambia), se vuelve a pintar con el acomodo correcto
+  const repintar = () => {
+    if (!activo) return
+    $('#driver-seats-eyebrow').textContent = `${camionCorto(camion())}`
+    $('#driver-bus-name').textContent = `${camionCorto(camion())}`
+    if (mapa) render(null)
+  }
+
+  return { cargar, limpiar, refrescar, repintar, abrirFicha }
 }
