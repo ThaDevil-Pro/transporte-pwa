@@ -586,6 +586,7 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas, precio = () => 6
     haptic([12, 50, 18])
     seleccion = null
     await Promise.all([cargarMapa(), cargarSalidas()])
+    alCobrar?.()
     toast(data.asiento_pareja
       ? `Asientos ${Math.min(n, data.asiento_pareja)} y ${Math.max(n, data.asiento_pareja)} apartados`
       : data.pareja_debe
@@ -603,7 +604,7 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas, precio = () => 6
     const ok = await confirm({
       title: tarde ? 'Liberar con cobro' : 'Liberar asiento',
       message: tarde
-        ? `Falta menos de una hora para la salida: si lo liberas se te cobra tu boleto completo (${fmtPesos(precio())}) como apartado perdido.`
+        ? `Falta menos de una hora para la salida: si lo liberas se te cobra tu boleto completo (${fmtPesos(precio())}) como apartado perdido. Si vuelves a apartar esta misma salida, se te devuelve.`
         : `Tu lugar quedará disponible para otros compañeros.${mapa?.pareja ? ' El asiento de tu pareja se conserva.' : ''}`,
       confirmLabel: tarde ? `Liberar y pagar ${fmtPesos(precio())}` : 'Liberar',
       destructive: true

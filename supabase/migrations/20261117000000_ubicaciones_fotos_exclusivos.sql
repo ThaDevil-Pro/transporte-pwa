@@ -67,6 +67,39 @@ $$;
 -- =====================================================================
 alter table public.historial_viajes add column if not exists perdido boolean not null default false;
 alter table privado.cortes add column if not exists perdidos integer not null default 0;
+-- A qué salida pertenece cada corte y cada cobro: cierra la salida y sirve para saber quién ya viajó en ella
+alter table privado.cortes add column if not exists salida_fecha date;
+alter table privado.cortes add column if not exists salida_hora time;
+alter table public.historial_viajes add column if not exists salida_fecha date;
+alter table public.historial_viajes add column if not exists salida_hora time;
+create index if not exists cortes_salida_idx on privado.cortes (camion, salida_fecha, salida_hora);
+
+-- Una salida con corte ya partió: no se aparta, no se cancela y no se vuelve a cobrar
+create or replace function privado.salida_cerrada(p_fecha date, p_hora time, p_camion integer)
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select exists (select 1 from privado.cortes c
+                 where c.camion = p_camion and c.salida_fecha = p_fecha and c.salida_hora = p_hora)
+$$;
+
+-- Salida en curso de un vehículo: la más cercana a ahora (de hace 3 h a dentro de 1 h) que aún no tiene corte.
+-- Antes era "la siguiente": si el vehículo salía más de 30 min tarde, el abordaje caía en la salida de después.
+create or replace function public._salida_actual(p_camion integer, out fecha date, out hora time, out tipo text)
+language sql
+stable
+set search_path = 'public'
+as $$
+  select s.fecha, s.hora, s.tipo
+  from _salidas_programadas((_ahora() at time zone 'America/Mexico_City')::date - 1, 3) s
+  where s.camion = p_camion
+    and _salida_ts(s.fecha, s.hora) between _ahora() - interval '3 hours' and _ahora() + interval '1 hour'
+    and not privado.salida_cerrada(s.fecha, s.hora, p_camion)
+  order by abs(extract(epoch from _salida_ts(s.fecha, s.hora) - _ahora()))
+  limit 1
+$$;
 
 -- El 1er viaje del día se cobra y el 2º (el regreso) va incluido, y así sucesivamente.
 -- Un apartado perdido no cuenta como viaje y reinicia la cuenta: el siguiente se cobra como nuevo.
@@ -89,7 +122,7 @@ as $$
 $$;
 
 -- Cobra el boleto completo de un apartado perdido y lo deja en su historial
-create or replace function privado.cobrar_perdido(p_matricula text, p_camion integer, p_corte bigint)
+create or replace function privado.cobrar_perdido(p_matricula text, p_camion integer, p_corte bigint, p_fecha date, p_hora time)
 returns numeric
 language plpgsql
 set search_path = ''
@@ -97,8 +130,8 @@ as $$
 declare
   v_monto numeric := privado.precio_boleto(p_matricula);
 begin
-  insert into public.historial_viajes (matricula, monto, fecha_hora, camion, manual, corte_id, de_pie, perdido)
-  values (p_matricula, v_monto, now(), p_camion, false, p_corte, false, true);
+  insert into public.historial_viajes (matricula, monto, fecha_hora, camion, manual, corte_id, de_pie, perdido, salida_fecha, salida_hora)
+  values (p_matricula, v_monto, now(), p_camion, false, p_corte, false, true, p_fecha, p_hora);
   update public.alumnos set saldo = coalesce(saldo, 0) + v_monto where matricula = p_matricula;
   return v_monto;
 end;
@@ -130,13 +163,13 @@ begin
   if (select estado from estado_viaje where id = p_camion for update) = 'EN_CAMINO' then
     raise exception 'Ya se hizo el corte de este viaje. Finalízalo antes de cobrar otro.';
   end if;
+  select * into v_sal from _salida_actual(p_camion);
 
   -- De pie solo quedan los que pasan del cupo del vehículo (los últimos en subir)
   with orden as (
     select b.id, row_number() over (order by (r.matricula is not null), b.created_at desc, b.id desc) as n
     from abordajes b
-    cross join _salida_actual(p_camion) s
-    left join reservas r on r.fecha = s.fecha and r.hora = s.hora and r.camion = p_camion and r.matricula = b.matricula
+    left join reservas r on r.fecha = v_sal.fecha and r.hora = v_sal.hora and r.camion = p_camion and r.matricula = b.matricula
     where b.camion = p_camion
   )
   update abordajes a
@@ -146,18 +179,19 @@ begin
   select count(*), count(*) filter (where manual), count(*) filter (where de_pie)
     into v_total, v_manuales, v_de_pie
   from abordajes where camion = p_camion;
-  if v_total = 0 then
+  -- Sin nadie a bordo solo se puede cortar para cobrar a quien apartó y no llegó
+  if v_total = 0 and not exists (select 1 from reservas where fecha = v_sal.fecha and hora = v_sal.hora and camion = p_camion) then
     raise exception 'No hay estudiantes en la lista de abordaje.';
   end if;
 
-  insert into privado.cortes (chofer, chofer_nombre, camion, alumnos, manuales, de_pie, total)
-  values (v_chofer, (select nombre from choferes where licencia = v_chofer), p_camion, v_total, v_manuales, v_de_pie, 0)
+  insert into privado.cortes (chofer, chofer_nombre, camion, alumnos, manuales, de_pie, total, salida_fecha, salida_hora)
+  values (v_chofer, (select nombre from choferes where licencia = v_chofer), p_camion, v_total, v_manuales, v_de_pie, 0, v_sal.fecha, v_sal.hora)
   returning id into v_corte;
 
   -- cobro_viaje ve el historial de antes de este corte (misma instrucción)
   with nuevos as (
-    insert into historial_viajes (matricula, monto, fecha_hora, camion, manual, corte_id, de_pie)
-    select matricula, privado.cobro_viaje(matricula), now(), p_camion, manual, v_corte, de_pie
+    insert into historial_viajes (matricula, monto, fecha_hora, camion, manual, corte_id, de_pie, salida_fecha, salida_hora)
+    select matricula, privado.cobro_viaje(matricula), now(), p_camion, manual, v_corte, de_pie, v_sal.fecha, v_sal.hora
     from abordajes where camion = p_camion
     returning matricula, monto
   )
@@ -167,23 +201,18 @@ begin
   update abordajes b set cobrado = h.monto
     from historial_viajes h where h.corte_id = v_corte and h.matricula = b.matricula and b.camion = p_camion;
 
-  -- Apartados perdidos: la salida de este vehículo más cercana a ahora (de hace 90 min a dentro de 20)
-  select s.fecha, s.hora into v_sal
-  from _salidas_programadas(privado.hoy() - 1, 2) s
-  where s.camion = p_camion
-    and _salida_ts(s.fecha, s.hora) between _ahora() - interval '90 minutes' and _ahora() + interval '20 minutes'
-  order by abs(extract(epoch from _salida_ts(s.fecha, s.hora) - _ahora()))
-  limit 1;
-  if v_sal.fecha is not null then
+  -- Apartados perdidos de la salida en curso. Si el vehículo se va más de 20 min antes de la hora,
+  -- no se cobra: el alumno no tuvo la culpa. Solo se libra quien viajó en esa misma salida en otro vehículo.
+  if v_sal.fecha is not null and _ahora() >= _salida_ts(v_sal.fecha, v_sal.hora) - interval '20 minutes' then
     for v_q in
       delete from reservas r
       where r.fecha = v_sal.fecha and r.hora = v_sal.hora and r.camion = p_camion
         and not exists (select 1 from abordajes b where b.matricula = r.matricula)
         and not exists (select 1 from historial_viajes h where h.matricula = r.matricula and not h.perdido
-                          and h.fecha_hora > _salida_ts(v_sal.fecha, v_sal.hora) - interval '2 hours')
+                          and h.salida_fecha = v_sal.fecha and h.salida_hora = v_sal.hora)
       returning r.matricula
     loop
-      v_cobro := privado.cobrar_perdido(v_q.matricula, p_camion, v_corte);
+      v_cobro := privado.cobrar_perdido(v_q.matricula, p_camion, v_corte, v_sal.fecha, v_sal.hora);
       perform _avisar(v_q.matricula, 'apartado_perdido', format(
         'Apartaste asiento en la salida del %s (%s) y no subiste. Se te cobró el boleto completo: $%s. Tu siguiente viaje se cobra como nuevo.',
         _salida_texto(v_sal.fecha, v_sal.hora), _camion_nombre(p_camion), to_char(v_cobro, 'FM999,990')));
@@ -196,7 +225,9 @@ begin
 
   update estado_viaje set estado = 'EN_CAMINO', updated_at = now() where id = p_camion;
   perform privado.log('Chofer', v_chofer, 'corte', jsonb_build_object('camion', p_camion, 'alumnos', v_total,
-    'total', v_monto, 'manuales', v_manuales, 'de_pie', v_de_pie, 'perdidos', v_perdidos));
+    'total', v_monto, 'manuales', v_manuales, 'de_pie', v_de_pie, 'perdidos', v_perdidos,
+    'monto_perdidos', (select coalesce(sum(monto), 0) from historial_viajes where corte_id = v_corte and perdido),
+    'salida', case when v_sal.fecha is null then null else to_char(v_sal.hora, 'HH24:MI') end));
   return v_total;
 end;
 $$;
@@ -215,13 +246,13 @@ declare
   v_camion integer;
   v_cobro numeric := 0;
 begin
-  if _ahora() >= v_salida then
+  select camion into v_camion from reservas where fecha = p_fecha and hora = p_hora and matricula = v_yo;
+  if _ahora() >= v_salida or privado.salida_cerrada(p_fecha, p_hora, v_camion) then
     raise exception 'Esta salida ya partió';
   end if;
-  delete from reservas where fecha = p_fecha and hora = p_hora and matricula = v_yo
-  returning camion into v_camion;
+  delete from reservas where fecha = p_fecha and hora = p_hora and matricula = v_yo;
   if v_camion is not null and _ahora() >= v_salida - interval '1 hour' then
-    v_cobro := privado.cobrar_perdido(v_yo, v_camion, null);
+    v_cobro := privado.cobrar_perdido(v_yo, v_camion, null, p_fecha, p_hora);
     perform privado.log('Estudiante', v_yo, 'apartado_cancelado_tarde', jsonb_build_object(
       'camion', v_camion, 'fecha', p_fecha, 'hora', to_char(p_hora, 'HH24:MI'), 'monto', v_cobro));
   end if;
@@ -246,6 +277,7 @@ as $$
   join public.estado_viaje e on e.id = s.camion and e.activo and e.exclusivo_chinacates
   where s.tipo = p_tipo
     and public._salida_ts(s.fecha, s.hora) > public._ahora()
+    and not privado.salida_cerrada(s.fecha, s.hora, s.camion)
     and (select count(*) from public.reservas r where r.fecha = s.fecha and r.hora = s.hora and r.camion = s.camion)
         < privado.capacidad(s.camion)
   order by s.hora
@@ -294,7 +326,8 @@ declare
 begin
   return (
     select json_build_object('nombre', nombre, 'matricula', matricula, 'saldo', saldo,
-                             'ubicacion', ubicacion, 'precio', privado.precio_boleto(matricula))
+                             'ubicacion', ubicacion, 'precio', privado.precio_boleto(matricula),
+                             'abordo', (select b.camion from abordajes b where b.matricula = alumnos.matricula limit 1))
     from alumnos where matricula = v_matricula
   );
 end;
@@ -332,6 +365,7 @@ begin
       join estado_viaje e on e.id = s.camion
       left join reservas m on m.fecha = s.fecha and m.hora = s.hora and m.camion = s.camion and m.matricula = v_yo
       where _salida_ts(s.fecha, s.hora) > _ahora()
+        and not privado.salida_cerrada(s.fecha, s.hora, s.camion)
         and (m.asiento is not null or (case
               when e.exclusivo_chinacates then v_ubic = 'chinacates'
               when v_ubic = 'chinacates' then privado.exclusiva_con_lugar(s.fecha, s.tipo) is null
@@ -380,7 +414,7 @@ begin
     'camion', p_camion,
     'salida_en', v_salida,
     'abre_en', v_salida - interval '12 hours',
-    'abierta', _ahora() >= v_salida - interval '12 hours' and _ahora() < v_salida,
+    'abierta', _ahora() >= v_salida - interval '12 hours' and _ahora() < v_salida and not privado.salida_cerrada(p_fecha, p_hora, p_camion),
     'modo', v_modo,
     'restriccion', v_restriccion,
     'pareja', case when v_pareja is null then null else json_build_object('nombre', _nombre_corto(v_pareja)) end,
@@ -441,6 +475,7 @@ declare
   v_pareja_debe boolean := false;
   v_pareja_fuera boolean := false;
   v_motivo text;
+  v_devuelto numeric;
 begin
   if (select ubicacion from alumnos where matricula = v_yo) is null then
     raise exception 'Primero elige dónde tomas el camión' using errcode = 'CMF05';
@@ -462,11 +497,24 @@ begin
   if _ahora() < v_salida - interval '12 hours' then
     raise exception 'El apartado abre 12 horas antes de la salida';
   end if;
-  if _ahora() >= v_salida then
+  if _ahora() >= v_salida or privado.salida_cerrada(p_fecha, p_hora, p_camion) then
     raise exception 'Esta salida ya partió';
   end if;
   if p_asiento is null or not exists (select 1 from privado.asientos_de(p_camion) a where a.n = p_asiento) then
     raise exception 'Asiento inválido';
+  end if;
+  -- Canceló en la última hora y vuelve a apartar la misma salida: se le devuelve ese cobro
+  -- (si al final no sube, el corte se lo vuelve a cobrar). Si algo falla abajo, se revierte junto.
+  with d as (
+    delete from historial_viajes
+    where matricula = v_yo and perdido and corte_id is null and salida_fecha = p_fecha and salida_hora = p_hora
+    returning monto
+  )
+  select sum(monto) into v_devuelto from d;
+  if v_devuelto is not null then
+    update alumnos set saldo = saldo - v_devuelto where matricula = v_yo;
+    perform privado.log('Estudiante', v_yo, 'apartado_recuperado', jsonb_build_object(
+      'fecha', p_fecha, 'hora', to_char(p_hora, 'HH24:MI'), 'monto', v_devuelto));
   end if;
 
   v_pareja := _pareja_de(v_yo);
@@ -1443,9 +1491,41 @@ end;
 $$;
 
 -- =====================================================================
+-- 7. Borrar a un alumno: no si tiene saldo; sus pagos registrados se conservan
+-- =====================================================================
+do $$
+declare
+  r record;
+begin
+  for r in select conname from pg_constraint
+           where conrelid = 'privado.pagos'::regclass and confrelid = 'public.alumnos'::regclass loop
+    execute format('alter table privado.pagos drop constraint %I', r.conname);
+  end loop;
+end $$;
+
+do $$
+declare
+  f text := 'public.admin_eliminar_usuario(uuid,text,text)';
+  v text := pg_get_functiondef(f::regprocedure);
+  a text := '  if p_rol = ''Estudiante'' then
+    delete from alumnos';
+  b text := '  if p_rol = ''Estudiante'' then
+    if coalesce((select saldo from alumnos where id = p_id::uuid), 0) <> 0 then
+      raise exception ''Este alumno tiene saldo de $%. Liquídalo o corrígelo antes de borrarlo.'',
+        to_char((select saldo from alumnos where id = p_id::uuid), ''FM999,990.00'');
+    end if;
+    delete from alumnos';
+begin
+  if position('Liquídalo o corrígelo' in v) > 0 then return; end if;
+  if position(a in v) = 0 then raise exception 'admin_eliminar_usuario cambió'; end if;
+  execute replace(v, a, b);
+end $$;
+
+-- =====================================================================
 -- Permisos
 -- =====================================================================
 revoke all on all functions in schema privado from public, anon, authenticated;
+revoke all on function public._salida_actual(integer) from public, anon, authenticated;
 
 revoke all on function public.alumno_elegir_ubicacion(uuid, text) from public;
 revoke all on function public.alumno_liberar_asiento(uuid, date, time) from public;

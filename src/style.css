@@ -6951,3 +6951,9 @@ button.row:active {
 .veh-exclusivo-row {
   margin-top: 4px;
 }
+
+/* Lista de abordaje: con las etiquetas (NI/CH, a mano, de pie) el nombre baja a otra línea en vez de cortarse */
+#students-ul .row-title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

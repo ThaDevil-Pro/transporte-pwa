@@ -245,7 +245,6 @@ declare
   v_medias int;
   v_movido boolean := false;
 begin
-  -- Un apartado a la vez por horario (un alumno solo puede ir en un camión a la vez)
   perform pg_advisory_xact_lock(hashtext('salida:' || p_fecha::text || 'T' || p_hora::text));
 
   select s.tipo into v_tipo from _salidas_programadas(p_fecha, 1) s where s.hora = p_hora and s.camion = p_camion;

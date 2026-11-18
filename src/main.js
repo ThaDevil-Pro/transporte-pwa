@@ -120,7 +120,7 @@ const asientos = initAsientos({
   // La tarjeta de viaje del alumno sigue al camión de su próximo asiento apartado
   alCambiarSalidas: salidas => {
     const s = salidas.find(x => x.mi_asiento) || salidas[0]
-    const nuevo = s?.camion ?? null
+    const nuevo = perfilActual.abordo ?? s?.camion ?? null
     $('#trip-bus-label').textContent = nuevo ? nombreCamion(nuevo) : 'Sin salidas'
     if (nuevo === camionAlumno) return
     camionAlumno = nuevo
@@ -508,6 +508,11 @@ async function refrescarAlumno() {
   if (perfil && currentRole === 'Estudiante') {
     perfilActual = { ...perfilActual, ...perfil }
     renderPerfilAlumno(perfil)
+    if (perfil.abordo && perfil.abordo !== camionAlumno) {
+      camionAlumno = perfil.abordo
+      $('#trip-bus-label').textContent = nombreCamion(camionAlumno)
+    }
+    sincronizarViaje()
     if (!perfil.ubicacion) pedirUbicacion()
   }
   cargarHistorialAlumno()
@@ -660,12 +665,13 @@ const TRIP_COPY = {
   waiting: { label: 'Esperando', headline: 'Sin salida programada', sub: 'Cuando el chofer inicie el conteo lo verás aquí en tiempo real.' },
   countdown: { label: 'Abordando', headline: '', sub: 'Muestra tu código al chofer antes de que termine el tiempo.' },
   departing: { label: 'Saliendo', headline: '¡Es hora de salir!', sub: 'El camión está por partir.' },
-  enroute: { label: 'En camino', headline: 'Viaje en curso', sub: 'Buen viaje. Tu saldo ya incluye este recorrido.' }
+  enroute: { label: 'En camino', headline: 'Viaje en curso', sub: 'Buen viaje. Tu saldo ya incluye este recorrido.' },
+  gone: { label: 'Ya salió', headline: 'Este viaje ya salió', sub: 'No vas a bordo. Revisa tu próxima salida en «Tu asiento».' }
 }
 
 function estadoTarjeta() {
   const ahora = Date.now()
-  if (estadoViaje === 'EN_CAMINO') return 'enroute'
+  if (estadoViaje === 'EN_CAMINO') return currentRole === 'Estudiante' && perfilActual.abordo !== camionAlumno ? 'gone' : 'enroute'
   if (targetEndTime && targetEndTime > ahora) return 'countdown'
   if (targetEndTime && ahora - targetEndTime < 10 * 60 * 1000) return 'departing'
   return 'waiting'
@@ -990,7 +996,7 @@ function renderPassengersUI() {
     key: p => p.id,
     render: p => `<div class="row">
       ${avatar(p.nombre)}
-      <span class="row-text"><span class="row-title">${esc(p.nombre)}</span><span class="row-sub">${esc(p.matricula)}${UBICACIONES[p.ubicacion] ? ` · ${ubicacionNombre(p.ubicacion)}` : ''}</span></span>
+      <span class="row-text"><span class="row-title">${esc(p.nombre)}</span><span class="row-sub">${esc(p.matricula)}</span></span>
       ${UBICACIONES[p.ubicacion] ? `<span class="badge badge-ubic ubic-${p.ubicacion}" title="${ubicacionNombre(p.ubicacion)}">${UBICACIONES[p.ubicacion].corto}</span>` : ''}
       ${p.de_pie ? '<span class="badge badge-standing">De pie</span>' : ''}
       ${p.manual ? '<span class="badge badge-manual" title="Registrado a mano, sin código QR">A mano</span>' : ''}
@@ -1034,7 +1040,7 @@ function renderDriverTrip() {
   $('#corte-detail').textContent = n ? detalleCobro(passengers) : `0 × ${fmtMoney(PRECIO_VIAJE)}`
   if (!btnIniciarViaje.classList.contains('is-loading')) {
     btnIniciarViaje.textContent = isTripActive ? 'Finalizar viaje' : 'Hacer corte'
-    btnIniciarViaje.disabled = !isTripActive && n === 0
+    btnIniciarViaje.disabled = !isTripActive && n === 0 && !camionActual
   }
 }
 
@@ -1086,10 +1092,11 @@ btnIniciarViaje.addEventListener('click', async () => {
   }
 
   const n = passengers.length
-  if (!n) return
   const ok = await confirm({
     title: 'Hacer corte',
-    message: `A bordo: ${plural(n, 'alumno', 'alumnos')} (${detalleCobro(passengers)}). Quien apartó en esta salida y no subió pagará su boleto completo.`,
+    message: n
+      ? `A bordo: ${plural(n, 'alumno', 'alumnos')} (${detalleCobro(passengers)}). Quien apartó en esta salida y no subió pagará su boleto completo.`
+      : 'Nadie subió. Solo se cobrará el boleto a quien apartó en esta salida y no llegó.',
     confirmLabel: `Cobrar ${fmtMoney(totalCorte(passengers))}`
   })
   if (!ok) return
@@ -1827,7 +1834,8 @@ function detalleBloqueo(clave) {
 const fmtDetalle = {
   pago_registrado: ['Pago registrado', 'i-wallet', 'is-money', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${fmtMoney(d.monto)}${d.nota ? ` · ${d.nota}` : ''}`],
   saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${fmtSaldo(d.antes)} → ${fmtSaldo(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
-  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `${camionCorto(d.camion)} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}${d.de_pie ? ` · ${d.de_pie} de pie` : ''}${d.perdidos ? ` · ${plural(d.perdidos, 'apartado perdido', 'apartados perdidos')}` : ''}`],
+  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `${camionCorto(d.camion)}${d.salida ? ` ${d.salida}` : ''} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${d.monto_perdidos ? `${fmtMoney(d.total - d.monto_perdidos)} + ${fmtMoney(d.monto_perdidos)} de perdidos` : fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}${d.de_pie ? ` · ${d.de_pie} de pie` : ''}${d.perdidos ? ` · ${plural(d.perdidos, 'apartado perdido', 'apartados perdidos')}` : ''}`],
+  apartado_recuperado: ['Apartado recuperado tras cancelar', 'i-receipt', 'is-money', d => `salida de las ${d.hora} · se devolvieron ${fmtMoney(d.monto)}`],
   apartado_cancelado_tarde: ['Apartado cancelado en la última hora', 'i-alert', 'is-money', d => `${camionCorto(d.camion)} · salida de las ${d.hora} · se cobró ${fmtMoney(d.monto)}`],
   ubicacion_elegida: ['Ubicación elegida por el alumno', 'i-pin', '', d => ubicacionNombre(d.ubicacion)],
   ubicacion_cambiada: ['Ubicación del alumno cambiada', 'i-pin', 'is-alert', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${d.antes ? ubicacionNombre(d.antes) : 'Sin ubicación'} → ${ubicacionNombre(d.despues)}`],
