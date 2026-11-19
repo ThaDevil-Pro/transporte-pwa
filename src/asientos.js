@@ -609,7 +609,9 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
         ? `Asiento ${n} apartado solo para ti: tu pareja no está al corriente`
         : data.pareja_fuera
           ? `Asiento ${n} apartado solo para ti: tu pareja no puede viajar en este vehículo`
-          : `Asiento ${n} apartado`, { type: data.pareja_debe || data.pareja_fuera ? 'warning' : 'success', duration: data.pareja_debe || data.pareja_fuera ? 4500 : 2800 })
+          : data.pareja_con_viaje
+            ? `Asiento ${n} apartado solo para ti: tu pareja ya tiene otro viaje apartado`
+            : `Asiento ${n} apartado`, { type: data.pareja_debe || data.pareja_fuera || data.pareja_con_viaje ? 'warning' : 'success', duration: data.pareja_debe || data.pareja_fuera || data.pareja_con_viaje ? 4500 : 2800 })
     setTimeout(() => closeSheet('sheet-seats'), 1200)
   })
 
