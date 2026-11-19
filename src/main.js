@@ -119,7 +119,6 @@ const push = initPush({ rpc })
 // Asientos y parejas del alumno (rpc es una declaración de función, ya disponible)
 const asientos = initAsientos({
   rpc,
-  supabase,
   precio: () => precioAlumno(),
   alCobrar: () => refrescarAlumno(),
   // La tarjeta de viaje del alumno sigue al camión de su próximo asiento apartado

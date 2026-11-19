@@ -21,6 +21,7 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
 
   async function cargar() {
     activo = true
+    escuchar()
     const bus = camion()
     $('#driver-seats-eyebrow').textContent = `${camionCorto(bus)}`
     $('#driver-bus-name').textContent = `${camionCorto(bus)}`
@@ -35,6 +36,7 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
 
   function limpiar() {
     activo = false
+    if (canal) { supabase.removeChannel(canal); canal = null }
     salidas = []
     salidaSel = null
     mapa = null
@@ -175,13 +177,17 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
     abrirFicha({ matricula: a.matricula, nombre: a.nombre, ubicacion: a.ubicacion, asiento: a.n, abordo: a.abordo, fecha: mapa.fecha, hora: mapa.hora })
   })
 
-  // Tiempo real: cuando alguien aparta o libera un asiento de esta salida
-  supabase
-    .channel('actividad_chofer_channel')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'actividad' }, ({ new: fila }) => {
-      if (activo && salidaSel && fila?.clave === `salida:${salidaSel}`) cargarMapa()
-    })
-    .subscribe()
+  // Tiempo real: cuando alguien aparta o libera un asiento de esta salida.
+  // Solo mientras el chofer tiene abierta su pantalla (antes también la escuchaban todos los alumnos).
+  let canal = null
+  function escuchar() {
+    canal ??= supabase
+      .channel('actividad_chofer_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'actividad' }, ({ new: fila }) => {
+        if (activo && salidaSel && fila?.clave === `salida:${salidaSel}`) cargarMapa()
+      })
+      .subscribe()
+  }
 
   // Después de escanear o quitar a alguien, para marcar quién ya subió
   const refrescar = () => { if (activo && mapa) cargarMapa() }

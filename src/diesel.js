@@ -760,7 +760,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
   // ===================================================================
   supabase
     .channel('actividad_diesel_channel')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'actividad' }, ({ new: fila }) => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'actividad', filter: 'clave=eq.diesel' }, ({ new: fila }) => {
       if (!rol || fila?.clave !== 'diesel') return
       clearTimeout(refresco)
       refresco = setTimeout(refrescar, 600)

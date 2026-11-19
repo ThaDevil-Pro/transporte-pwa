@@ -77,7 +77,7 @@ function tiempoAtras(iso) {
 }
 
 // precio(): boleto del alumno ($60 o $40) · alCobrar(): refresca su saldo tras un cobro
-export function initAsientos({ rpc, supabase, alCambiarSalidas, precio = () => 60, alCobrar }) {
+export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobrar }) {
   let activo = false
   let miNombre = ''
   let salidas = []
@@ -87,8 +87,9 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas, precio = () => 6
   let mapa = null
   let seleccion = null
   let reloj = null
-  let refrescoTimer = null
   let ultimaRecarga = 0
+  let proximoMapa = 0
+  let proximoGeneral = 0
   let peticionMapa = 0
 
   const alerts = $('#student-alerts')
@@ -105,6 +106,7 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas, precio = () => 6
     if (nombre) miNombre = nombre
     activo = true
     await Promise.all([cargarSalidas(), cargarPareja(), cargarAvisos()])
+    proximoGeneral = Date.now() + 25000 + Math.random() * 10000
     clearInterval(reloj)
     reloj = setInterval(tic, 1000)
   }
@@ -157,7 +159,21 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas, precio = () => 6
       ultimaRecarga = ahora
       cargarSalidas().then(() => { if (mapa) cargarMapa({ silencioso: true }) })
     }
+    // Se consulta en vez de escuchar cada cambio en vivo: con 150 alumnos apartando a la vez, avisar a todos
+    // de cada apartado rebasa el límite de mensajes en vivo de Supabase (100/s) y satura la base.
+    // Al azar para que los teléfonos no pregunten todos en el mismo segundo.
+    if (document.hidden) return
+    if (salidaSel && mapa && ahora >= proximoMapa) {
+      proximoMapa = ahora + 2500 + Math.random() * 1000
+      cargarMapa({ silencioso: true })
+    }
+    if (ahora >= proximoGeneral) {
+      proximoGeneral = ahora + 25000 + Math.random() * 10000
+      cargarSalidas(); cargarPareja(); cargarAvisos()
+    }
   }
+  // Al volver a la app se actualiza enseguida
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) proximoGeneral = 0 })
 
   // --- MENSAJES DEL PANEL ---
   function htmlAviso(av) {
@@ -623,21 +639,6 @@ export function initAsientos({ rpc, supabase, alCambiarSalidas, precio = () => 6
     seleccion = null
     await Promise.all([cargarMapa(), cargarSalidas()])
   })
-
-  // --- TIEMPO REAL: la tabla "actividad" solo avisa que algo cambió ---
-  supabase
-    .channel('actividad_channel')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'actividad' }, ({ new: fila }) => {
-      if (!activo) return
-      if (salidaSel && fila?.clave === `salida:${salidaSel}`) cargarMapa({ silencioso: true })
-      clearTimeout(refrescoTimer)
-      refrescoTimer = setTimeout(() => {
-        cargarSalidas()
-        cargarPareja()
-        cargarAvisos()
-      }, 600)
-    })
-    .subscribe()
 
   function repintar() {
     if (!activo) return

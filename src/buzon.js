@@ -456,7 +456,7 @@ export function initBuzon({ rpc, supabase, camion }) {
   // ===================================================================
   supabase
     .channel('actividad_buzon_channel')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'actividad' }, ({ new: fila }) => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'actividad', filter: 'clave=in.(quejas,fallas)' }, ({ new: fila }) => {
       if (!rol || !['quejas', 'fallas'].includes(fila?.clave)) return
       clearTimeout(refresco)
       refresco = setTimeout(refrescar, 500)
