@@ -1,0 +1,9 @@
+{
+  "newLinkFormat": "relative",
+  "useMarkdownLinks": true,
+  "alwaysUpdateLinks": true,
+  "showUnsupportedFiles": false,
+  "attachmentFolderPath": "adjuntos",
+  "newFileLocation": "current",
+  "promptDelete": true
+}

@@ -1,0 +1,9 @@
+{
+  "showTags": false,
+  "showAttachments": false,
+  "showOrphans": true,
+  "colorGroups": [
+    { "query": "path:negocio", "color": { "a": 1, "rgb": 2201331 } },
+    { "query": "path:tecnico", "color": { "a": 1, "rgb": 15105570 } }
+  ]
+}

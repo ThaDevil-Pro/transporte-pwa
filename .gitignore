@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Obsidian (estado local de la ventana)
+docs/boveda/.obsidian/workspace*.json

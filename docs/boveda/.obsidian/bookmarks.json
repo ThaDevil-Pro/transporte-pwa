@@ -1,0 +1,7 @@
+{
+  "items": [
+    { "type": "file", "path": "Inicio.md", "title": "Inicio" },
+    { "type": "file", "path": "Pendientes.md", "title": "Pendientes" },
+    { "type": "file", "path": "Decisiones.md", "title": "Decisiones" }
+  ]
+}
