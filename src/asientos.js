@@ -410,7 +410,8 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       return `<button class="departure${s.mi_asiento ? ' is-mine' : ''}" role="tab" aria-selected="${k === salidaSel}" data-salida="${esc(k)}" aria-label="${camionCorto(s.camion)}, ${esc(etiquetaDia(s.fecha))} ${esc(horaTexto(s.hora))}">
         <span class="departure-day">${esc(etiquetaDia(s.fecha))} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'}${s.exclusivo ? ' · Exclusiva' : ''}</span>
         <span class="departure-time">${t}<small>${p}</small></span>
-        <span class="departure-status"><span class="departure-bus">${icon('i-bus')}${esc(camionCorto(s.camion))}</span>${estado}</span>
+        <span class="departure-bus">${icon('i-bus')}<span>${esc(camionCorto(s.camion))}</span></span>
+        <span class="departure-status">${estado}</span>
       </button>`
     }).join('')
   }

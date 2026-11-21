@@ -742,9 +742,14 @@ function renderStudentSchedule() {
       const ida = (s.tipo || 'IDA') === 'IDA'
       const esProxima = s === proxima
       return `<div class="row schedule-row${esProxima ? ' is-next' : ''}">
-        <span class="schedule-time">${t}<small>${p}</small></span>
-        <span class="badge ${ida ? 'badge-ida' : 'badge-regreso'}">${icon(ida ? 'i-arrow-right' : 'i-arrow-left')}${ida ? 'Ida' : 'Regreso'}</span>
-        ${esProxima ? '<span class="next-tag is-live"><span class="status-dot"></span>Próxima</span>' : `<span class="badge badge-bus">${icon('i-bus')}${camionCorto(s.camion)}</span>`}
+        <span class="schedule-info">
+          <span class="schedule-time">${t}<small>${p}</small></span>
+          <span class="schedule-bus">${icon('i-bus')}${esc(camionCorto(s.camion))}</span>
+        </span>
+        <span class="schedule-tags">
+          ${esProxima ? '<span class="next-tag is-live"><span class="status-dot"></span>Próxima</span>' : ''}
+          <span class="badge ${ida ? 'badge-ida' : 'badge-regreso'}">${icon(ida ? 'i-arrow-right' : 'i-arrow-left')}${ida ? 'Ida' : 'Regreso'}</span>
+        </span>
       </div>`
     },
     empty: emptyState('i-calendar', 'Sin salidas', `No hay salidas programadas el ${DIAS_NOMBRE[dia].toLowerCase()}.`)
