@@ -1,6 +1,6 @@
 ---
 tags: [camify, decisiones]
-actualizado: 2026-11-19
+actualizado: 2026-11-21
 ---
 
 # Decisiones
@@ -15,4 +15,5 @@ Volver a [Inicio](Inicio.md)
 | 2026-11-18 | No usar el sistema de avisos para mensajes personales | Es un canal oficial de la escuela |
 | 2026-11-19 | Mapa por consulta cada ~3 s en vez de en vivo ([Tiempo real y carga](tecnico/Tiempo%20real%20y%20carga.md)) | Aguantar 150 alumnos apartando a la vez en el plan gratis |
 | 2026-11-19 | **Un viaje apartado a la vez** ([Apartados y asientos](negocio/Apartados%20y%20asientos.md)) | Que nadie acapare lugares; liberar sí permite apartar otro; respaldo de 3 h si no se finaliza |
+| 2026-11-21 | **Becas de transporte** 50% / 100% con oficio firmado ([Cobros y adeudos](negocio/Cobros%20y%20adeudos.md)) | Lo pidió la administración; Finanzas no quería saldos inventados, así que el descuento va en el precio de cada cobro |
 | 2026-11-19 | Aviso de privacidad y términos con datos reales del TecNM Campus Santiago Papasquiaro y correo camifyapptransporte@gmail.com | Lo exige la ley de datos personales y era la crítica más fácil de sostener |

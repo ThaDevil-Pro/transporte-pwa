@@ -1,6 +1,6 @@
 ---
 tags: [camify, negocio, dinero]
-actualizado: 2026-11-19
+actualizado: 2026-11-21
 ---
 
 # Cobros y adeudos
@@ -15,6 +15,13 @@ Volver a [Inicio](../Inicio.md)
 - **Nuevo Ideal: $60**, **Chinacates: $40** (según `alumnos.ubicacion`).
 - Se cobra **el primer viaje del día**; el regreso del mismo día es **gratis** (cuenta los viajes del día en `historial_viajes`: par → cobra, impar → $0).
 - El cobro se hace **en el corte** del chofer, no al apartar ni al escanear. Ver [Viaje del chofer](Viaje%20del%20chofer.md).
+
+## Becas de transporte (desde 2026-11-21)
+- El admin marca la beca en **Editar alumno**: sin beca, **50%** o **100%** (`privado.becas`, `admin_alumno_beca`).
+- **Requiere el oficio firmado por el director** (foto o PDF, máx. 3 MB). Admin y Financiero lo pueden ver (`admin_beca_oficio`) para auditoría.
+- El descuento se aplica en `privado.precio_boleto`: cada cobro (boleto, apartado perdido, cancelar tarde) se registra con el **monto real ya descontado**. **No se ponen saldos inventados**: lo pidió Finanzas para que los reportes cuadren en auditoría.
+- Beca 100% → el viaje queda en el historial con $0. Quitar la beca conserva el oficio.
+- Cada cambio queda en bitácora (`beca_cambiada`) y avisa al alumno.
 
 ## Límites
 | Para… | Límite | Dónde |

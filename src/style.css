@@ -6933,6 +6933,9 @@ button.row:active {
   object-fit: cover;
 }
 
+.oficio-picker { grid-template-columns: 1fr auto auto; }
+.edit-alumno-extra .foto-picker + .form-group { margin-top: 12px; }
+
 .edit-alumno-extra {
   display: grid;
   gap: 4px;

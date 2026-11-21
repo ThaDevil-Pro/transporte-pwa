@@ -1123,6 +1123,17 @@
               <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-user-foto">Elegir</button>
               <input type="file" id="edit-user-foto" accept="image/*" hidden>
             </div>
+            <div class="form-group">
+              <p class="form-label">Beca de transporte</p>
+              <div class="choices" id="edit-user-beca" role="radiogroup" aria-label="Beca de transporte"></div>
+              <p class="field-hint">Cada viaje se le cobra ya con el descuento. Requiere el oficio firmado por el director.</p>
+            </div>
+            <div class="foto-picker oficio-picker">
+              <span class="switch-text"><b>Oficio de la beca</b><small id="edit-user-oficio-nota">Foto o PDF del oficio firmado</small></span>
+              <button type="button" class="btn btn-plain btn-sm" id="btn-edit-user-oficio-ver" hidden>Ver</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-user-oficio">Subir</button>
+              <input type="file" id="edit-user-oficio" accept="image/*,application/pdf" hidden>
+            </div>
           </div>
         </div>
         <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-save-user">Guardar cambios</button>
@@ -1144,6 +1155,7 @@
       <form class="sheet-body sheet-form" id="form-edit-balance" novalidate>
         <div class="sheet-person" id="edit-balance-person"></div>
         <p class="balance-now">Saldo pendiente <b id="edit-balance-current">$0.00</b></p>
+        <p class="field-hint" id="edit-balance-beca" hidden><span></span> <button type="button" class="btn btn-plain btn-sm" id="btn-edit-balance-oficio">Ver oficio</button></p>
         <div class="segmented" id="balance-mode-seg" style="--n:2">
           <span class="segmented-thumb"></span>
           <button type="button" data-value="pago">Registrar pago</button>

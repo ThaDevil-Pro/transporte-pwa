@@ -12,7 +12,7 @@ import { initBuzon } from './buzon.js'
 import { initDiesel, fmtLitros, ESTADO_CARGA } from './diesel.js'
 import { actualizarCamiones, actualizarCamion, camionCorto, nombreCamion, puntoCamion, capacidad, etiquetaVehiculo, listaCamiones, vehiculo, TIPOS, UBICACIONES, ubicacionNombre, siFaltaVehiculo, alCambiarVehiculos } from './camiones.js'
 import { initEditorVehiculo } from './editor-vehiculo.js'
-import { initFotos, selectorFoto, urlFoto } from './fotos.js'
+import { initFotos, selectorFoto, urlFoto, comprimirFoto } from './fotos.js'
 import { initInstalar, initPush } from './push.js'
 import {
   $, $$, esc, icon, avatar, emptyState, skeletonRows, haptic,
@@ -1556,7 +1556,7 @@ function renderUsersList() {
     key: u => `${u.rol}-${u.id}`,
     render: u => `<button class="row" data-role="${esc(u.rol)}" data-id="${esc(u.id)}">
       ${avatar(u.nombre)}
-      <span class="row-text"><span class="row-title">${esc(u.nombre)}</span><span class="row-sub">${ROL_ETIQUETA[u.rol]} · ${esc(u.idStr)}${u.rol === 'Estudiante' ? ` · ${ubicacionNombre(u.ubicacion)}${u.foto ? '' : ' · sin foto'}` : ''}</span></span>
+      <span class="row-text"><span class="row-title">${esc(u.nombre)}</span><span class="row-sub">${ROL_ETIQUETA[u.rol]} · ${esc(u.idStr)}${u.rol === 'Estudiante' ? ` · ${ubicacionNombre(u.ubicacion)}${u.beca ? ` · ${textoBeca(u)}` : ''}${u.foto ? '' : ' · sin foto'}` : ''}</span></span>
       ${icon('i-chevron-right', 'chevron')}
     </button>`,
     empty: emptyState('i-search', 'Sin resultados', query ? 'Prueba con otro nombre o ID.' : 'Aún no hay usuarios en esta categoría.')
@@ -1599,11 +1599,75 @@ const fotoEdit = selectorFoto({
   quitar: $('#btn-edit-user-foto-quitar'), nombre: () => editingUser?.nombre
 })
 
+// Beca de transporte y su oficio firmado (evidencia para auditoría)
+const becaEdit = opciones($('#edit-user-beca'), [
+  { value: '0', label: 'Sin beca' },
+  { value: '50', label: '50%', sub: 'Paga la mitad' },
+  { value: '100', label: '100%', sub: 'No paga' }
+])
+let oficioNuevo = null
+const MAX_OFICIO = 3 * 1024 * 1024
+const leerDataURL = archivo => new Promise((ok, mal) => {
+  const r = new FileReader()
+  r.onload = () => ok(r.result)
+  r.onerror = () => mal(new Error('No se pudo leer el archivo'))
+  r.readAsDataURL(archivo)
+})
+
+$('#btn-edit-user-oficio').addEventListener('click', () => {
+  $('#edit-user-oficio').value = ''
+  $('#edit-user-oficio').click()
+})
+$('#edit-user-oficio').addEventListener('change', async () => {
+  const archivo = $('#edit-user-oficio').files?.[0]
+  if (!archivo) return
+  const btn = $('#btn-edit-user-oficio')
+  setLoading(btn, true)
+  try {
+    if (archivo.type === 'application/pdf') {
+      if (archivo.size > MAX_OFICIO) throw new Error('El PDF pesa más de 3 MB')
+      oficioNuevo = await leerDataURL(archivo)
+    } else {
+      // Lado mayor de 1800 px: se sigue leyendo la firma y el texto
+      oficioNuevo = (await comprimirFoto(archivo, { lado: 1800, calidad: 0.8 })).url
+    }
+    $('#edit-user-oficio-nota').textContent = `Nuevo: ${archivo.name} (se guarda al tocar Guardar)`
+    btn.textContent = 'Cambiar'
+  } catch (err) {
+    toast(err.message, { type: 'error' })
+  }
+  setLoading(btn, false)
+})
+
+async function verOficio(matricula) {
+  // La ventana se abre antes de esperar, si no el navegador la bloquea
+  const w = window.open('', '_blank')
+  const { data, error } = await rpc('admin_beca_oficio', { p_matricula: matricula })
+  if (error || !data) {
+    w?.close()
+    toast(error ? `No se pudo abrir el oficio: ${error.message}` : 'Este alumno no tiene oficio', { type: 'error' })
+    return
+  }
+  const bytes = Uint8Array.from(atob(data.base64), c => c.charCodeAt(0))
+  const url = URL.createObjectURL(new Blob([bytes], { type: data.tipo }))
+  if (w) w.location.href = url
+  else location.href = url
+}
+$('#btn-edit-user-oficio-ver').addEventListener('click', () => verOficio(editingUser.matricula))
+$('#btn-edit-balance-oficio').addEventListener('click', () => verOficio(editingAlumno.matricula))
+
+const textoBeca = a => (a.beca ? `Beca ${a.beca}%` : '')
+
 function abrirEditarUsuario(user) {
   editingUser = user
   const alumno = user.rol === 'Estudiante'
   $('#edit-user-alumno').hidden = !alumno
   if (alumno) {
+    becaEdit.set(String(user.beca || 0))
+    oficioNuevo = null
+    $('#btn-edit-user-oficio').textContent = user.oficio ? 'Cambiar' : 'Subir'
+    $('#btn-edit-user-oficio-ver').hidden = !user.oficio
+    $('#edit-user-oficio-nota').textContent = user.oficio ? 'Oficio firmado guardado' : 'Foto o PDF del oficio firmado'
     ubicEdit.set(user.ubicacion || null)
     fotoEdit.cargar(null)
     $('#edit-user-foto-nota').textContent = user.foto ? 'Cargando la foto…' : 'Sin foto: elige una o cárgalas en lote'
@@ -1634,6 +1698,12 @@ $('#form-edit-user').addEventListener('submit', async e => {
     return
   }
   const passwordNueva = $('#edit-user-password').value.trim()
+  const becaNueva = Number(becaEdit.value || 0)
+  if (editingUser.rol === 'Estudiante' && becaNueva > 0 && !editingUser.oficio && !oficioNuevo) {
+    toast('Sube el oficio firmado por el director para registrar la beca', { type: 'error' })
+    shake($('#btn-edit-user-oficio').closest('.foto-picker'))
+    return
+  }
   const btn = $('#btn-save-user')
   setLoading(btn, true)
   const { error } = await rpc('admin_editar_usuario', {
@@ -1652,7 +1722,8 @@ $('#form-edit-user').addEventListener('submit', async e => {
   const extras = u.rol !== 'Estudiante' ? [] : [
     ubicEdit.value && ubicEdit.value !== u.ubicacion && rpc('admin_alumno_ubicacion', { p_matricula: u.matricula, p_ubicacion: ubicEdit.value }),
     fotoEdit.valor === null && rpc('admin_foto_borrar', { p_matricula: u.matricula }),
-    fotoEdit.valor && rpc('admin_foto_guardar', { p_matricula: u.matricula, p_foto: fotoEdit.valor })
+    fotoEdit.valor && rpc('admin_foto_guardar', { p_matricula: u.matricula, p_foto: fotoEdit.valor }),
+    (becaNueva !== (u.beca || 0) || oficioNuevo) && rpc('admin_alumno_beca', { p_matricula: u.matricula, p_porcentaje: becaNueva, p_oficio: oficioNuevo })
   ].filter(Boolean)
   const fallo = (await Promise.all(extras)).find(r => r.error)
   setLoading(btn, false)
@@ -1700,7 +1771,7 @@ function renderBalancesList() {
       const saldo = Number(a.saldo) || 0
       return `<button class="row" data-id="${esc(a.id)}">
         ${avatar(a.nombre)}
-        <span class="row-text"><span class="row-title">${esc(a.nombre)}</span><span class="row-sub">${esc(a.matricula)}${UBICACIONES[a.ubicacion] ? ` · ${ubicacionNombre(a.ubicacion)}` : ''}</span></span>
+        <span class="row-text"><span class="row-title">${esc(a.nombre)}</span><span class="row-sub">${esc(a.matricula)}${UBICACIONES[a.ubicacion] ? ` · ${ubicacionNombre(a.ubicacion)}` : ''}${a.beca ? ` · ${textoBeca(a)}` : ''}</span></span>
         <span class="row-trailing${saldo > ADEUDO_MAXIMO ? ' is-warning' : saldo < 0 ? ' is-positive' : saldo > 0 ? '' : ' is-muted'}">${fmtSaldo(saldo)}</span>
         ${icon('i-chevron-right', 'chevron')}
       </button>`
@@ -1767,6 +1838,9 @@ function abrirSaldo(e) {
   $('#sheet-edit-balance-title').textContent = 'Saldo'
   $('#edit-balance-person').innerHTML = personaHTML(editingAlumno.nombre, editingAlumno.matricula)
   $('#edit-balance-current').textContent = fmtSaldo(editingAlumno.saldo)
+  $('#edit-balance-beca').hidden = !editingAlumno.beca && !editingAlumno.oficio
+  $('#edit-balance-beca span').textContent = editingAlumno.beca ? `${textoBeca(editingAlumno)} de transporte.` : 'Sin beca actualmente.'
+  $('#btn-edit-balance-oficio').hidden = !editingAlumno.oficio
   const saldo = Number(editingAlumno.saldo) || 0
   balanceMode.select(saldo > 0 ? 'pago' : 'ajuste', false)
   aplicarModoSaldo(balanceMode.value)
@@ -1848,6 +1922,7 @@ const fmtDetalle = {
   apartado_cancelado_tarde: ['Apartado cancelado en la última hora', 'i-alert', 'is-money', d => `${camionCorto(d.camion)} · salida de las ${d.hora} · se cobró ${fmtMoney(d.monto)}`],
   ubicacion_elegida: ['Ubicación elegida por el alumno', 'i-pin', '', d => ubicacionNombre(d.ubicacion)],
   ubicacion_cambiada: ['Ubicación del alumno cambiada', 'i-pin', 'is-alert', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${d.antes ? ubicacionNombre(d.antes) : 'Sin ubicación'} → ${ubicacionNombre(d.despues)}`],
+  beca_cambiada: ['Beca de transporte', 'i-wallet', 'is-money', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${d.antes}% → ${d.despues}%${d.oficio_nuevo ? ' · oficio nuevo' : ''}`],
   fotos_cargadas: ['Fotos de alumnos cargadas', 'i-camera', '', d => plural(d.fotos || 0, 'foto', 'fotos')],
   foto_borrada: ['Foto de alumno quitada', 'i-camera', '', d => d.matricula || ''],
   emergencia: ['Emergencia del camión', 'i-alert', 'is-alert', d => `${camionCorto(d.camion)} · ${d.motivo === 'descompuesto' ? 'Se descompuso' : 'No estará disponible'} · avisó a ${plural(d.avisados || 0, 'alumno', 'alumnos')}`],

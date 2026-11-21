@@ -1,6 +1,6 @@
 ---
 tags: [camify, tecnico, bd]
-actualizado: 2026-11-19
+actualizado: 2026-11-21
 ---
 
 # Base de datos
@@ -22,7 +22,7 @@ begin ... end $$;
 
 ## Tablas principales
 `alumnos`, `choferes`, `admins`, `financieros`, `sesiones`, `estado_viaje` (vehículos), `horarios_matriz`, `reservas`, `abordajes`, `historial_viajes`, `avisos`, `parejas`, `quejas`, `fallas`, `actividad`.
-Privado: `secretos`, `bitacora`, `cortes`, `pagos`, `jornadas`, `diesel_cargas`, `push_suscripciones`, `login_intentos`.
+Privado: `secretos`, `bitacora`, `cortes`, `pagos`, `jornadas`, `diesel_cargas`, `push_suscripciones`, `login_intentos`, `fotos`, `becas` (porcentaje + oficio).
 
 ## Errores con código propio
 - `CMF01` debe cambiar contraseña · `CMF05` falta ubicación · `CMF06` mensaje con groserías.
