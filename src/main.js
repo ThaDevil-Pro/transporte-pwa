@@ -10,7 +10,7 @@ import { initReportes } from './reportes.js'
 import { initAmbiente } from './ambiente.js'
 import { initBuzon } from './buzon.js'
 import { initDiesel, fmtLitros, ESTADO_CARGA } from './diesel.js'
-import { actualizarCamiones, actualizarCamion, camionCorto, nombreCamion, puntoCamion, capacidad, etiquetaVehiculo, listaCamiones, vehiculo, TIPOS, UBICACIONES, ubicacionNombre, siFaltaVehiculo, alCambiarVehiculos } from './camiones.js'
+import { actualizarCamiones, actualizarCamion, camionCorto, nombreCamion, puntoCamion, capacidad, etiquetaVehiculo, listaCamiones, vehiculo, selectorCamion, TIPOS, UBICACIONES, ubicacionNombre, siFaltaVehiculo, alCambiarVehiculos } from './camiones.js'
 import { initEditorVehiculo } from './editor-vehiculo.js'
 import { initFotos, selectorFoto, urlFoto, comprimirFoto } from './fotos.js'
 import { initInstalar, initPush } from './push.js'
@@ -57,7 +57,6 @@ let currentFilter = 'Todos'
 let estadoViaje = 'ESPERANDO'
 let isTripActive = false
 let scheduleRows = []
-let isEditingSchedule = false
 let editingUser = null
 let editingAlumno = null
 let timerInterval = null
@@ -719,7 +718,8 @@ async function fetchScheduleMatrix() {
   if (error || !data) return
   scheduleRows = data
   renderStudentSchedule()
-  if (!isEditingSchedule) renderDriverSchedule()
+  if (!horariosChofer.editando) horariosChofer.pintar()
+  if (!horariosAdmin.editando) horariosAdmin.pintar()
 }
 
 function renderStudentSchedule() {
@@ -756,103 +756,140 @@ function renderStudentSchedule() {
   })
 }
 
-function renderDriverSchedule() {
-  // Solo las salidas del camión que maneja el chofer, en el orden en que se crearon
-  const filas = scheduleRows
-    .filter(r => (r.camion || 1) === camionActual)
-    .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id)
-  $('#driver-schedule-eyebrow').textContent = `${camionCorto(camionActual)} · Semana`
-  patchList($('#driver-schedule-list'), filas, {
-    key: r => r.id,
-    render: (r, i) => `<article class="card schedule-card" data-id="${esc(r.id)}">
-      <header class="schedule-card-header">
-        <h3>Salida ${i + 1}</h3>
-        <span class="saved-tag">${icon('i-check')}Guardado</span>
-        <button type="button" class="icon-btn icon-btn-sm icon-btn-danger btn-delete-row" data-id="${esc(r.id)}" aria-label="Eliminar salida ${i + 1}">${icon('i-trash')}</button>
-      </header>
-      ${DIAS.map(dia => {
-        const c = r[dia] || {}
-        const tipo = c.tipo === 'REGRESO' ? 'REGRESO' : 'IDA'
-        return `<div class="schedule-day">
-          <span class="schedule-day-name"><span class="long">${DIAS_NOMBRE[dia]}</span><span class="short">${DIAS_CORTO[dia]}</span></span>
-          <input type="time" class="time-input schedule-time-input" data-dia="${dia}" value="${esc(c.hora || '')}" data-saved="${esc(c.hora || '')}" aria-label="Hora del ${DIAS_NOMBRE[dia]}">
-          <button type="button" class="type-toggle ${tipo === 'IDA' ? 'is-ida' : 'is-regreso'}" data-dia="${dia}" data-tipo="${tipo}">${tipo === 'IDA' ? 'Ida' : 'Regreso'}</button>
-        </div>`
-      }).join('')}
-    </article>`,
-    empty: emptyState('i-calendar', 'Sin horarios', `Agrega la primera salida de ${camionCorto(camionActual)}.`)
+// Editor de salidas de una unidad: lo usan el chofer (su vehículo del día) y la
+// administración (la unidad que elija). Cada cambio se guarda solo.
+function editorHorarios({ lista, eyebrow, boton, panel, camion, sinCamion }) {
+  let editando = false
+
+  let pintado = null
+  function pintar() {
+    const c = camion()
+    // Al cambiar de unidad se limpia: patchList no reemplaza un aviso vacío por otro
+    if (c !== pintado) lista.replaceChildren()
+    pintado = c
+    if (!c) {
+      eyebrow.textContent = 'Semana'
+      boton.hidden = true
+      lista.innerHTML = sinCamion
+      return
+    }
+    boton.hidden = false
+    // Solo las salidas de esa unidad, en el orden en que se crearon
+    const filas = scheduleRows
+      .filter(r => (r.camion || 1) === c)
+      .sort((x, y) => x.created_at.localeCompare(y.created_at) || x.id - y.id)
+    eyebrow.textContent = `${camionCorto(c)} · Semana`
+    patchList(lista, filas, {
+      key: r => r.id,
+      render: (r, i) => `<article class="card schedule-card" data-id="${esc(r.id)}">
+        <header class="schedule-card-header">
+          <h3>Salida ${i + 1}</h3>
+          <span class="saved-tag">${icon('i-check')}Guardado</span>
+          <button type="button" class="icon-btn icon-btn-sm icon-btn-danger btn-delete-row" data-id="${esc(r.id)}" aria-label="Eliminar salida ${i + 1}">${icon('i-trash')}</button>
+        </header>
+        ${DIAS.map(dia => {
+          const d = r[dia] || {}
+          const tipo = d.tipo === 'REGRESO' ? 'REGRESO' : 'IDA'
+          return `<div class="schedule-day">
+            <span class="schedule-day-name"><span class="long">${DIAS_NOMBRE[dia]}</span><span class="short">${DIAS_CORTO[dia]}</span></span>
+            <input type="time" class="time-input schedule-time-input" data-dia="${dia}" value="${esc(d.hora || '')}" data-saved="${esc(d.hora || '')}" aria-label="Hora del ${DIAS_NOMBRE[dia]}">
+            <button type="button" class="type-toggle ${tipo === 'IDA' ? 'is-ida' : 'is-regreso'}" data-dia="${dia}" data-tipo="${tipo}">${tipo === 'IDA' ? 'Ida' : 'Regreso'}</button>
+          </div>`
+        }).join('')}
+      </article>`,
+      empty: emptyState('i-calendar', 'Sin horarios', `Agrega la primera salida de ${camionCorto(c)}.`)
+    })
+  }
+
+  async function guardarDia(card, dia) {
+    const input = card.querySelector(`input[data-dia="${dia}"]`)
+    const btn = card.querySelector(`.type-toggle[data-dia="${dia}"]`)
+    const valor = { hora: input.value, tipo: btn.dataset.tipo }
+    const id = Number(card.dataset.id)
+
+    const { error } = await rpc('chofer_horario_actualizar', { p_id: id, p_dia: dia, p_valor: valor, p_camion: camion() })
+    if (error) {
+      toast('No se guardó el cambio', { type: 'error' })
+      return
+    }
+    input.dataset.saved = input.value
+    const fila = scheduleRows.find(r => r.id === id)
+    if (fila) fila[dia] = valor
+    renderStudentSchedule()
+
+    card.classList.add('is-saved')
+    clearTimeout(card._savedTimer)
+    card._savedTimer = setTimeout(() => card.classList.remove('is-saved'), 1600)
+  }
+
+  // Sin horas sugeridas: una hora sugerida que no se cambiaba se borraba al pasar al siguiente día
+  lista.addEventListener('focusin', e => {
+    if (e.target.classList.contains('schedule-time-input')) editando = true
   })
+
+  lista.addEventListener('focusout', e => {
+    if (!e.target.classList.contains('schedule-time-input')) return
+    editando = false
+    if (e.target.value !== e.target.dataset.saved) guardarDia(e.target.closest('.schedule-card'), e.target.dataset.dia)
+  })
+
+  lista.addEventListener('click', async e => {
+    const toggle = e.target.closest('.type-toggle')
+    if (toggle) {
+      const nuevo = toggle.dataset.tipo === 'IDA' ? 'REGRESO' : 'IDA'
+      toggle.dataset.tipo = nuevo
+      toggle.textContent = nuevo === 'IDA' ? 'Ida' : 'Regreso'
+      toggle.className = `type-toggle ${nuevo === 'IDA' ? 'is-ida' : 'is-regreso'}`
+      toggle.animate([{ transform: 'scale(0.9)' }, { transform: 'scale(1)' }], { duration: 380, easing: 'cubic-bezier(0.34, 1.4, 0.64, 1)' })
+      haptic(6)
+      guardarDia(toggle.closest('.schedule-card'), toggle.dataset.dia)
+      return
+    }
+
+    const borrar = e.target.closest('.btn-delete-row')
+    if (borrar) {
+      const ok = await confirm({ title: 'Eliminar salida', message: 'Se quitará esta salida de todos los días.', confirmLabel: 'Eliminar', destructive: true })
+      if (!ok) return
+      const { error } = await rpc('chofer_horario_eliminar', { p_id: Number(borrar.dataset.id), p_camion: camion() })
+      if (error) toast('No se pudo eliminar', { type: 'error' })
+      else fetchScheduleMatrix()
+    }
+  })
+
+  boton.addEventListener('click', async () => {
+    setLoading(boton, true)
+    const { error } = await rpc('chofer_horario_agregar', { p_camion: camion() })
+    setLoading(boton, false)
+    if (error) {
+      toast('No se pudo agregar la salida', { type: 'error' })
+      return
+    }
+    await fetchScheduleMatrix()
+    panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' })
+  })
+
+  return { pintar, get editando() { return editando } }
 }
 
-async function guardarDia(card, dia) {
-  const input = card.querySelector(`input[data-dia="${dia}"]`)
-  const btn = card.querySelector(`.type-toggle[data-dia="${dia}"]`)
-  const valor = { hora: input.value, tipo: btn.dataset.tipo }
-  const id = Number(card.dataset.id)
-
-  const { error } = await rpc('chofer_horario_actualizar', { p_id: id, p_dia: dia, p_valor: valor, p_camion: camionActual })
-  if (error) {
-    toast('No se guardó el cambio', { type: 'error' })
-    return
-  }
-  input.dataset.saved = input.value
-  const fila = scheduleRows.find(r => r.id === id)
-  if (fila) fila[dia] = valor
-  renderStudentSchedule()
-
-  card.classList.add('is-saved')
-  clearTimeout(card._savedTimer)
-  card._savedTimer = setTimeout(() => card.classList.remove('is-saved'), 1600)
-}
-
-const driverScheduleList = $('#driver-schedule-list')
-
-// Sin horas sugeridas: una hora sugerida que no se cambiaba se borraba al pasar al siguiente día
-driverScheduleList.addEventListener('focusin', e => {
-  if (e.target.classList.contains('schedule-time-input')) isEditingSchedule = true
+const horariosChofer = editorHorarios({
+  lista: $('#driver-schedule-list'),
+  eyebrow: $('#driver-schedule-eyebrow'),
+  boton: $('#btn-add-schedule-row'),
+  panel: $('#driver-tab-schedule'),
+  camion: () => camionActual,
+  sinCamion: ''
 })
+const renderDriverSchedule = () => horariosChofer.pintar()
 
-driverScheduleList.addEventListener('focusout', e => {
-  if (!e.target.classList.contains('schedule-time-input')) return
-  isEditingSchedule = false
-  if (e.target.value !== e.target.dataset.saved) guardarDia(e.target.closest('.schedule-card'), e.target.dataset.dia)
-})
-
-driverScheduleList.addEventListener('click', async e => {
-  const toggle = e.target.closest('.type-toggle')
-  if (toggle) {
-    const nuevo = toggle.dataset.tipo === 'IDA' ? 'REGRESO' : 'IDA'
-    toggle.dataset.tipo = nuevo
-    toggle.textContent = nuevo === 'IDA' ? 'Ida' : 'Regreso'
-    toggle.className = `type-toggle ${nuevo === 'IDA' ? 'is-ida' : 'is-regreso'}`
-    toggle.animate([{ transform: 'scale(0.9)' }, { transform: 'scale(1)' }], { duration: 380, easing: 'cubic-bezier(0.34, 1.4, 0.64, 1)' })
-    haptic(6)
-    guardarDia(toggle.closest('.schedule-card'), toggle.dataset.dia)
-    return
-  }
-
-  const borrar = e.target.closest('.btn-delete-row')
-  if (borrar) {
-    const ok = await confirm({ title: 'Eliminar salida', message: 'Se quitará esta salida de todos los días.', confirmLabel: 'Eliminar', destructive: true })
-    if (!ok) return
-    const { error } = await rpc('chofer_horario_eliminar', { p_id: Number(borrar.dataset.id), p_camion: camionActual })
-    if (error) toast('No se pudo eliminar', { type: 'error' })
-    else fetchScheduleMatrix()
-  }
-})
-
-$('#btn-add-schedule-row').addEventListener('click', async e => {
-  const btn = e.currentTarget
-  setLoading(btn, true)
-  const { error } = await rpc('chofer_horario_agregar', { p_camion: camionActual })
-  setLoading(btn, false)
-  if (error) {
-    toast('No se pudo agregar la salida', { type: 'error' })
-    return
-  }
-  await fetchScheduleMatrix()
-  const panel = $('#driver-tab-schedule')
-  panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' })
+// Administración: elige la unidad y edita sus salidas
+const adminHorariosCamion = selectorCamion($('#admin-horarios-camion'), { alElegir: () => horariosAdmin.pintar() })
+const horariosAdmin = editorHorarios({
+  lista: $('#admin-schedule-list'),
+  eyebrow: $('#admin-schedule-eyebrow'),
+  boton: $('#btn-admin-add-schedule-row'),
+  panel: $('#admin-tab-schedule'),
+  camion: () => Number(adminHorariosCamion.value) || null,
+  sinCamion: emptyState('i-bus', 'Elige una unidad', 'Toca un vehículo arriba para ver y editar sus salidas.')
 })
 
 // --- 7. CHOFER: ABORDAJE ---

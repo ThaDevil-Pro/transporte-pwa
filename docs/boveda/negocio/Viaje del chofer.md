@@ -1,6 +1,6 @@
 ---
 tags: [camify, negocio, chofer]
-actualizado: 2026-11-19
+actualizado: 2026-11-21
 ---
 
 # Viaje del chofer
@@ -15,6 +15,8 @@ Estado de cada vehículo en `estado_viaje` (`estado`: ESPERANDO / EN_CAMINO, `te
 4. **Corte** (`chofer_hacer_corte`): cobra a todos los de la lista ([Cobros y adeudos](Cobros%20y%20adeudos.md)), marca perdidos y pasa a **EN_CAMINO**. Queda en `privado.cortes`.
 5. **Finalizar** (`chofer_finalizar_viaje`): vacía la lista y vuelve a ESPERANDO. **Importante**: libera a los alumnos para apartar su siguiente viaje ([Apartados y asientos](Apartados%20y%20asientos.md)).
 
-Otras acciones del chofer: reportar falla, botón de emergencia ([Buzón y fallas](Buzón%20y%20fallas.md)), registrar diesel, editar horarios de su vehículo.
+Otras acciones del chofer: reportar falla, botón de emergencia ([Buzón y fallas](Buzón%20y%20fallas.md)), registrar diesel, editar horarios de su vehículo (`chofer_horario_agregar/actualizar/eliminar`).
+
+**Horarios desde la administración** (2026-11-21): el Admin tiene la pestaña **Horarios**, elige la unidad y edita sus salidas con el mismo editor del chofer (mismas funciones, ahora aceptan el rol Admin). El chofer solo puede editar si ya eligió vehículo del día.
 
 **Salida actual** (`_salida_actual`): la salida programada del vehículo más cercana a la hora actual (de 3 h antes a 1 h después) sin corte.

@@ -3139,6 +3139,19 @@ button.row:active {
   }
 }
 
+/* Administración tiene 6 pestañas: en teléfonos angostos se acercan un poco */
+@media (max-width: 419px) {
+  .tabbar-compact .tab {
+    padding-inline: 2px;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Horarios de la administración: aire entre las unidades y las salidas */
+#admin-tab-schedule .schedule-cards {
+  margin-top: 16px;
+}
+
 .tab-badge {
   position: absolute;
   top: 2px;
@@ -6444,12 +6457,14 @@ button.row:active {
   }
 
   /* Chofer: horarios en cuadrícula */
-  #driver-tab-schedule .schedule-cards {
+  #driver-tab-schedule .schedule-cards,
+  #admin-tab-schedule .schedule-cards {
     grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
     gap: 20px;
   }
 
-  #driver-tab-schedule .add-row {
+  #driver-tab-schedule .add-row,
+  #admin-tab-schedule .add-row {
     width: auto;
     margin-top: 20px;
     padding: 0 28px;

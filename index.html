@@ -607,6 +607,23 @@
         </div>
       </div>
 
+      <!-- Pestaña: Horarios (la administración edita las salidas de cada unidad) -->
+      <div class="scroll tab-panel" id="admin-tab-schedule" data-title="Horarios">
+        <div class="page-header" data-reveal style="--i:0">
+          <p class="eyebrow" id="admin-schedule-eyebrow">Semana</p>
+          <h1 class="large-title">Horarios</h1>
+          <p class="lead lead-sm">Elige la unidad y ponle sus salidas de cada día. Los cambios se guardan solos y los alumnos y choferes los ven al instante.</p>
+        </div>
+        <div class="form-group" data-reveal style="--i:1">
+          <p class="form-label">Unidad</p>
+          <div class="choices" id="admin-horarios-camion" role="radiogroup" aria-label="Unidad"></div>
+        </div>
+        <div class="schedule-cards" id="admin-schedule-list" data-reveal style="--i:2"></div>
+        <button class="btn btn-tinted btn-lg btn-block add-row" id="btn-admin-add-schedule-row" data-reveal style="--i:3" hidden>
+          <svg class="icon"><use href="#i-plus"/></svg>Agregar salida
+        </button>
+      </div>
+
       <!-- Pestaña: Actividad (bitácora) -->
       <div class="scroll tab-panel" id="admin-tab-log" data-title="Actividad">
         <div class="page-header" data-reveal style="--i:0">
@@ -670,10 +687,11 @@
 
       <div class="dock">
         <div class="side-head"><div class="side-logo" role="img" aria-label="CAMIFY"></div><span class="side-role">Admin</span></div>
-        <nav class="tabbar tabbar-compact" style="--n:5" role="tablist" aria-label="Secciones de administración">
+        <nav class="tabbar tabbar-compact" style="--n:6" role="tablist" aria-label="Secciones de administración">
           <span class="tabbar-thumb"></span>
           <button class="tab is-active" role="tab" data-tab="admin-tab-register"><svg class="icon"><use href="#i-user-plus"/></svg><span>Registrar</span></button>
           <button class="tab" role="tab" data-tab="admin-tab-users"><svg class="icon"><use href="#i-users"/></svg><span>Usuarios</span></button>
+          <button class="tab" role="tab" data-tab="admin-tab-schedule"><svg class="icon"><use href="#i-calendar"/></svg><span>Horarios</span></button>
           <button class="tab" role="tab" data-tab="admin-tab-balance"><svg class="icon"><use href="#i-wallet"/></svg><span>Saldos</span></button>
           <button class="tab" role="tab" data-tab="admin-tab-log"><svg class="icon"><use href="#i-shield"/></svg><span>Actividad</span></button>
           <button class="tab" role="tab" data-tab="admin-tab-inbox"><svg class="icon"><use href="#i-inbox"/></svg><span>Buzón</span><span class="tab-badge" id="admin-inbox-badge" hidden></span></button>
