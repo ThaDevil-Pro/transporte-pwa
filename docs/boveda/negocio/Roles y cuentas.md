@@ -1,6 +1,6 @@
 ---
 tags: [camify, negocio, seguridad]
-actualizado: 2026-11-19
+actualizado: 2026-11-21
 ---
 
 # Roles y cuentas
@@ -18,4 +18,5 @@ Volver a [Inicio](../Inicio.md)
 - Contraseñas con bcrypt (`crypt`): **no se pueden recuperar**, solo restablecer. Contraseña temporal → `debe_cambiar_password`.
 - **Bloqueo por intentos** (`privado.login_intentos`): por cuenta+IP, por cuenta y por IP; un dispositivo ya conocido tiene su propio contador. Avisa a los admins por push (`login_bloqueado`).
 - Mismo tiempo de respuesta exista o no la cuenta (no revela matrículas).
+- **Cuentas de prueba** (`privado.es_prueba`: usuario `developer` en cualquier rol): el alumno de prueba paga $0 y no cuenta en cortes ni historial; el chofer de prueba no sale en reportes y sus cortes y cargas de diésel no suman. Sus pagos tampoco salen en Gastos. Las crea el dueño desde Registrar (contraseña temporal y luego la definitiva). Riesgo: si la de Admin/Financiero es fácil, cambiarla o borrarla al terminar de probar.
 - Admin y Financiero pueden registrar pagos y ajustar saldos; el resto de administración es solo Admin.
