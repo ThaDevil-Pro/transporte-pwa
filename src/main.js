@@ -758,8 +758,22 @@ function renderStudentSchedule() {
 
 // Editor de salidas de una unidad: lo usan el chofer (su vehículo del día) y la
 // administración (la unidad que elija). Cada cambio se guarda solo.
-function editorHorarios({ lista, eyebrow, boton, panel, camion, sinCamion }) {
+function editorHorarios({ lista, eyebrow, boton, panel, camion, sinCamion, mover = false }) {
   let editando = false
+
+  // Si la salida tiene alumnos con asiento apartado, el servidor pide confirmar (CMF07)
+  async function conConfirmacion(fn, params) {
+    let r = await rpc(fn, params)
+    if (r.error?.code !== 'CMF07') return r
+    const ok = await confirm({ title: 'Hay alumnos con asiento', message: r.error.message, confirmLabel: 'Continuar', destructive: true })
+    if (!ok) return { cancelado: true }
+    r = await rpc(fn, { ...params, p_confirmar: true })
+    return r
+  }
+  const avisoLiberados = d => {
+    const partes = [d?.movidos && `${plural(d.movidos, 'alumno pasó', 'alumnos pasaron')} con su asiento`, d?.liberados && `${plural(d.liberados, 'asiento liberado', 'asientos liberados')} y avisados`].filter(Boolean)
+    if (partes.length) toast(partes.join(' · '), { type: 'success', duration: 4000 })
+  }
 
   let pintado = null
   function pintar() {
@@ -785,6 +799,7 @@ function editorHorarios({ lista, eyebrow, boton, panel, camion, sinCamion }) {
         <header class="schedule-card-header">
           <h3>Salida ${i + 1}</h3>
           <span class="saved-tag">${icon('i-check')}Guardado</span>
+          ${mover ? `<button type="button" class="icon-btn icon-btn-sm btn-move-row" data-id="${esc(r.id)}" aria-label="Pasar salida ${i + 1} a otra unidad" title="Pasar a otra unidad">${icon('i-swap')}</button>` : ''}
           <button type="button" class="icon-btn icon-btn-sm icon-btn-danger btn-delete-row" data-id="${esc(r.id)}" aria-label="Eliminar salida ${i + 1}">${icon('i-trash')}</button>
         </header>
         ${DIAS.map(dia => {
@@ -807,11 +822,14 @@ function editorHorarios({ lista, eyebrow, boton, panel, camion, sinCamion }) {
     const valor = { hora: input.value, tipo: btn.dataset.tipo }
     const id = Number(card.dataset.id)
 
-    const { error } = await rpc('chofer_horario_actualizar', { p_id: id, p_dia: dia, p_valor: valor, p_camion: camion() })
-    if (error) {
-      toast('No se guardó el cambio', { type: 'error' })
+    const { data, error, cancelado } = await conConfirmacion('chofer_horario_actualizar', { p_id: id, p_dia: dia, p_valor: valor, p_camion: camion() })
+    if (cancelado || error) {
+      // Se regresa a lo guardado
+      input.value = input.dataset.saved
+      if (error) toast('No se guardó el cambio', { type: 'error' })
       return
     }
+    avisoLiberados(data)
     input.dataset.saved = input.value
     const fila = scheduleRows.find(r => r.id === id)
     if (fila) fila[dia] = valor
@@ -850,9 +868,29 @@ function editorHorarios({ lista, eyebrow, boton, panel, camion, sinCamion }) {
     if (borrar) {
       const ok = await confirm({ title: 'Eliminar salida', message: 'Se quitará esta salida de todos los días.', confirmLabel: 'Eliminar', destructive: true })
       if (!ok) return
-      const { error } = await rpc('chofer_horario_eliminar', { p_id: Number(borrar.dataset.id), p_camion: camion() })
+      const { data, error, cancelado } = await conConfirmacion('chofer_horario_eliminar', { p_id: Number(borrar.dataset.id), p_camion: camion() })
+      if (cancelado) return
       if (error) toast('No se pudo eliminar', { type: 'error' })
-      else fetchScheduleMatrix()
+      else { avisoLiberados(data); fetchScheduleMatrix() }
+      return
+    }
+
+    const pasar = e.target.closest('.btn-move-row')
+    if (pasar) {
+      const otras = listaCamiones().filter(v => v.id !== camion())
+      if (!otras.length) { toast('No hay otra unidad activa', { type: 'warning' }); return }
+      const destino = await actionSheet({
+        title: 'Pasar a otra unidad',
+        message: 'La salida se va con todas sus horas de la semana.',
+        actions: otras.map(v => ({ label: v.nombre, value: v.id }))
+      })
+      if (!destino) return
+      const { data, error, cancelado } = await conConfirmacion('admin_horario_mover', { p_id: Number(pasar.dataset.id), p_destino: destino })
+      if (cancelado) return
+      if (error) { toast(`No se pudo pasar: ${error.message}`, { type: 'error' }); return }
+      toast(`Salida pasada a ${camionCorto(destino)}`, { type: 'success' })
+      avisoLiberados(data)
+      fetchScheduleMatrix()
     }
   })
 
@@ -889,6 +927,7 @@ const horariosAdmin = editorHorarios({
   boton: $('#btn-admin-add-schedule-row'),
   panel: $('#admin-tab-schedule'),
   camion: () => Number(adminHorariosCamion.value) || null,
+  mover: true,
   sinCamion: emptyState('i-bus', 'Elige una unidad', 'Toca un vehículo arriba para ver y editar sus salidas.')
 })
 
@@ -1956,6 +1995,11 @@ function detalleBloqueo(clave) {
   return clave
 }
 
+// Bitácora de horarios: "6:30 a. m. Ida" o "sin hora"; y una salida con sus días
+const horaCorta = hhmm => { const { t, p } = splitHora(hhmm); return `${t} ${p}` }
+const horaLog = v => (v?.hora ? `${horaCorta(v.hora)} ${v.tipo === 'REGRESO' ? 'Regreso' : 'Ida'}` : 'sin hora')
+const salidaLog = f => DIAS.filter(d => f?.[d]?.hora).map(d => `${DIAS_CORTO[d]} ${horaCorta(f[d].hora)}`).join(', ') || 'sin horas'
+
 const fmtDetalle = {
   pago_registrado: ['Pago registrado', 'i-wallet', 'is-money', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${fmtMoney(d.monto)}${d.nota ? ` · ${d.nota}` : ''}`],
   saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${fmtSaldo(d.antes)} → ${fmtSaldo(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
@@ -1964,6 +2008,9 @@ const fmtDetalle = {
   apartado_cancelado_tarde: ['Apartado cancelado en la última hora', 'i-alert', 'is-money', d => `${camionCorto(d.camion)} · salida de las ${d.hora} · se cobró ${fmtMoney(d.monto)}`],
   ubicacion_elegida: ['Ubicación elegida por el alumno', 'i-pin', '', d => ubicacionNombre(d.ubicacion)],
   ubicacion_cambiada: ['Ubicación del alumno cambiada', 'i-pin', 'is-alert', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${d.antes ? ubicacionNombre(d.antes) : 'Sin ubicación'} → ${ubicacionNombre(d.despues)}`],
+  horario_cambiado: ['Horario cambiado', 'i-calendar', '', d => `${camionCorto(d.camion)} · ${DIAS_NOMBRE[d.dia] || d.dia} · ${horaLog(d.antes)} → ${horaLog(d.despues)}${d.liberados ? ` · ${plural(d.liberados, 'asiento liberado', 'asientos liberados')}` : ''}`],
+  horario_eliminado: ['Salida eliminada', 'i-calendar', 'is-alert', d => `${camionCorto(d.camion)} · ${salidaLog(d.salida)}${d.liberados ? ` · ${plural(d.liberados, 'asiento liberado', 'asientos liberados')}` : ''}`],
+  horario_movido: ['Salida pasada a otra unidad', 'i-calendar', '', d => `${camionCorto(d.de)} → ${camionCorto(d.a)} · ${salidaLog(d.salida)}${d.movidos ? ` · ${plural(d.movidos, 'alumno pasó', 'alumnos pasaron')}` : ''}${d.liberados ? ` · ${plural(d.liberados, 'asiento liberado', 'asientos liberados')}` : ''}`],
   beca_cambiada: ['Beca de transporte', 'i-wallet', 'is-money', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${d.antes}% → ${d.despues}%${d.oficio_nuevo ? ' · oficio nuevo' : ''}`],
   fotos_cargadas: ['Fotos de alumnos cargadas', 'i-camera', '', d => plural(d.fotos || 0, 'foto', 'fotos')],
   foto_borrada: ['Foto de alumno quitada', 'i-camera', '', d => d.matricula || ''],

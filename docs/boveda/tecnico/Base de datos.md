@@ -25,4 +25,4 @@ begin ... end $$;
 Privado: `secretos`, `bitacora`, `cortes`, `pagos`, `jornadas`, `diesel_cargas`, `push_suscripciones`, `login_intentos`, `fotos`, `becas` (porcentaje + oficio).
 
 ## Errores con código propio
-- `CMF01` debe cambiar contraseña · `CMF05` falta ubicación · `CMF06` mensaje con groserías.
+- `CMF01` debe cambiar contraseña · `CMF05` falta ubicación · `CMF06` mensaje con groserías · `CMF07` la salida tiene asientos apartados (confirmar con `p_confirmar`).

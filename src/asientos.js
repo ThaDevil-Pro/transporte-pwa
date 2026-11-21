@@ -25,7 +25,8 @@ const AVISO_UI = {
   emergencia: { titulo: 'Aviso de emergencia del camión', icono: 'i-alert', tint: 'red' },
   apartado_perdido: { titulo: 'Perdiste tu apartado', icono: 'i-alert', tint: 'red' },
   ubicacion_cambiada: { titulo: 'Cambiaron tu ubicación', icono: 'i-pin', tint: 'blue' },
-  beca_cambiada: { titulo: 'Beca de transporte', icono: 'i-wallet', tint: 'green' }
+  beca_cambiada: { titulo: 'Beca de transporte', icono: 'i-wallet', tint: 'green' },
+  salida_cambiada: { titulo: 'Cambió tu salida', icono: 'i-calendar', tint: 'orange' }
 }
 
 // --- FORMATO ---
