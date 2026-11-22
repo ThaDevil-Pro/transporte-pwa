@@ -1539,6 +1539,29 @@ function iniciarAdmin() {
   push.alEntrar('Admin')
 }
 
+// Comprobante en PDF para entregar una contraseña temporal (se pide con un toque:
+// en iPhone compartir o guardar solo funciona justo después de tocar un botón)
+async function ofrecerComprobante({ nombre, rol, identificador, password, nueva = false }) {
+  const ok = await confirm({
+    title: 'Comprobante de contraseña',
+    message: `Descarga el PDF para entregarle a ${nombre} su contraseña temporal. Incluye un acuse para que lo firme.`,
+    confirmLabel: 'Descargar PDF',
+    cancelLabel: 'Ahora no'
+  })
+  if (!ok) return
+  try {
+    const pdf = await import('./pdf.js')
+    const r = await pdf.pdfEntregaPassword({
+      nombre, rol: ROL_ETIQUETA[rol], rolEntrada: ROLES[rol].title, etiquetaId: ROLES[rol].idLabel, identificador, password, nueva,
+      admin: perfilActual.usuario || perfilActual.nombre
+    })
+    if (r !== 'cancelado') toast('Comprobante listo', { type: 'success' })
+  } catch (err) {
+    console.error('Error al generar el comprobante:', err)
+    toast('No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo.', { type: 'error', duration: 4000 })
+  }
+}
+
 formCreateUser.addEventListener('submit', async e => {
   e.preventDefault()
   const role = adminRole.value
@@ -1594,6 +1617,7 @@ formCreateUser.addEventListener('submit', async e => {
   ubicNueva.reset()
   fotoNueva.reset()
   loadAdminData()
+  ofrecerComprobante({ nombre: name, rol: role, identificador: identifier, password, nueva: true })
 })
 
 formCreateUser.addEventListener('input', e => e.target.closest('.field')?.classList.remove('is-invalid'))
@@ -1812,6 +1836,7 @@ $('#form-edit-user').addEventListener('submit', async e => {
   if (fallo) toast(`Se guardó lo demás, pero: ${fallo.error.message}`, { type: 'warning', duration: 4500 })
   else toast(passwordNueva ? 'Contraseña restablecida: se le pedirá cambiarla al entrar' : 'Cambios guardados', { type: 'success' })
   loadAdminData()
+  if (passwordNueva) ofrecerComprobante({ nombre, rol: u.rol, identificador: u.idStr, password: passwordNueva })
 })
 
 $('#form-edit-user').addEventListener('input', e => e.target.closest('.field')?.classList.remove('is-invalid'))

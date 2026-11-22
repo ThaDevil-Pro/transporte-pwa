@@ -719,3 +719,93 @@ function anexoTickets(ctx, cargas, fotos) {
   })
   ctx.y += alto + gap
 }
+
+// =====================================================================
+// Entrega de contraseña: arriba la hoja para el usuario (con la contraseña
+// temporal); abajo, para recortar, el acuse que se queda la administración
+// (sin la contraseña).
+// =====================================================================
+export async function pdfEntregaPassword({ nombre, rol, rolEntrada = rol, etiquetaId, identificador, password, admin, nueva = false }) {
+  const ctx = await nuevoDocumento({
+    eyebrow: nueva ? 'Alta de cuenta · Entrega de contraseña' : 'Entrega de contraseña temporal',
+    titulo: nombre,
+    subtitulo: `${rol} · ${etiquetaId} ${identificador}`
+  })
+  const { doc } = ctx
+  const ahora = new Date()
+  const cuando = `${fecha(ahora, { day: 'numeric', month: 'long', year: 'numeric' })}, ${hora(ahora)}`
+
+  // Tarjeta oscura con los datos de acceso
+  const h = 132
+  doc.setFillColor(...C.tinta)
+  doc.roundedRect(M, ctx.y, ctx.util, h, 16, 16, 'F')
+  texto(ctx, 'TUS DATOS DE ACCESO', M + 22, ctx.y + 28, { size: 8.5, bold: true, color: C.gris2, spacing: 0.6 })
+  texto(ctx, `Entra en camify.lat · ${rolEntrada}`, ctx.ancho - M - 22, ctx.y + 28, { size: 8.5, color: C.gris2, align: 'right' })
+  const col = ctx.util / 2
+  texto(ctx, etiquetaId, M + 22, ctx.y + 58, { size: 9, color: C.gris2 })
+  texto(ctx, 'Contraseña temporal', M + 22 + col, ctx.y + 58, { size: 9, color: C.gris2 })
+  texto(ctx, identificador, M + 22, ctx.y + 86, { size: 20, bold: true, color: [255, 255, 255] })
+  // Monoespaciada: se distinguen bien la l, el 1, la O y el 0
+  let size = 20
+  doc.setFont('courier', 'bold')
+  while (size > 11 && doc.setFontSize(size).getTextWidth(limpio(password)) > col - 44) size -= 1
+  doc.setTextColor(255, 255, 255)
+  doc.text(limpio(password), M + 22 + col, ctx.y + 86)
+  texto(ctx, `Entregada el ${cuando}`, M + 22, ctx.y + 114, { size: 8.5, color: C.gris2 })
+  ctx.y += h + 30
+
+  seccion(ctx, 'Cómo entrar')
+  ctx.y += 6
+  const pasos = [
+    'Abre camify.lat o la app CAMIFY instalada en tu celular.',
+    `Elige "${rolEntrada}" y escribe tu ${etiquetaId.toLowerCase()} y la contraseña temporal.`,
+    'La app te pedirá crear tu propia contraseña: al menos 8 caracteres, con letras y números.',
+    'Desde ese momento la contraseña temporal deja de funcionar.'
+  ]
+  pasos.forEach((p, i) => {
+    doc.setFillColor(...C.azul)
+    doc.circle(M + 9, ctx.y + 6, 9, 'F')
+    texto(ctx, String(i + 1), M + 9, ctx.y + 9.5, { size: 9, bold: true, color: [255, 255, 255], align: 'center' })
+    texto(ctx, p, M + 28, ctx.y + 10, { size: 10.5 })
+    ctx.y += 26
+  })
+  ctx.y += 14
+
+  seccion(ctx, 'Cuida tu cuenta')
+  ctx.y += 4
+  ;[
+    'Esta contraseña es personal: no la compartas ni la mandes por grupos.',
+    'La administración nunca te pedirá tu contraseña por mensaje ni por teléfono.',
+    'Si alguien más la conoce, pide a la administración una nueva.'
+  ].forEach(t => {
+    doc.setFillColor(...C.gris2)
+    doc.circle(M + 4, ctx.y + 6.5, 2.2, 'F')
+    texto(ctx, t, M + 16, ctx.y + 10, { size: 10, color: C.gris })
+    ctx.y += 20
+  })
+
+  // Acuse para recortar (sin la contraseña)
+  const ya = ctx.alto - PIE - 170
+  doc.setDrawColor(...C.gris2)
+  doc.setLineWidth(0.8)
+  doc.setLineDashPattern([4, 4], 0)
+  doc.line(M, ya, ctx.ancho - M, ya)
+  doc.setLineDashPattern([], 0)
+  texto(ctx, 'RECORTA AQUÍ · ACUSE PARA LA ADMINISTRACIÓN', ctx.ancho / 2, ya - 6, { size: 7.5, bold: true, color: C.gris2, align: 'center', spacing: 0.4 })
+
+  doc.setFillColor(...C.fondo)
+  doc.roundedRect(M, ya + 16, ctx.util, 138, 14, 14, 'F')
+  texto(ctx, 'Acuse de recibo de contraseña', M + 18, ya + 40, { size: 12, bold: true })
+  texto(ctx, `${nombre} · ${rol} · ${etiquetaId} ${identificador}`, M + 18, ya + 58, { size: 9.5, color: C.gris })
+  texto(ctx, `Recibí una contraseña temporal para entrar a CAMIFY (${cuando})`, M + 18, ya + 74, { size: 9.5, color: C.gris })
+  const firmaW = (ctx.util - 36 - 30) / 2
+  ;[['Entregó', admin || 'Administración'], ['Recibí', nombre]].forEach(([titulo, quien], i) => {
+    const x = M + 18 + i * (firmaW + 30)
+    doc.setDrawColor(...C.gris)
+    doc.setLineWidth(0.6)
+    doc.line(x, ya + 122, x + firmaW, ya + 122)
+    texto(ctx, `${titulo}: ${quien}`, x, ya + 136, { size: 8.5, color: C.gris })
+  })
+
+  return terminar(ctx, `Entrega-contrasena-${String(identificador).replace(/[^\w-]/g, '')}.pdf`)
+}
