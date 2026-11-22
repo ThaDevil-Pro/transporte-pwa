@@ -1159,7 +1159,7 @@ const totalCorte = lista => lista.reduce((s, p) => s + (Number(p.cobro) || 0), 0
 function detalleCobro(lista) {
   const porMonto = new Map()
   lista.forEach(p => porMonto.set(Number(p.cobro) || 0, (porMonto.get(Number(p.cobro) || 0) || 0) + 1))
-  return [...porMonto].sort((a, b) => b[0] - a[0]).map(([m, n]) => (m ? `${n} × ${fmtMoney(m)}` : `${n} de regreso`)).join(' · ')
+  return [...porMonto].sort((a, b) => b[0] - a[0]).map(([m, n]) => (m ? `${n} × ${fmtMoney(m)}` : `${n} sin cobro`)).join(' · ')
 }
 
 function renderDriverTrip() {
@@ -1276,7 +1276,7 @@ function renderComprobante() {
     ? copyPassengers.map((p, i) => `<div class="row receipt-row">
         <span class="receipt-index">${i + 1}</span>
         <span class="row-text"><span class="row-title">${esc(p.nombre || 'Alumno')}</span><span class="row-sub">${esc(p.matricula)}</span></span>
-        <span class="row-trailing${Number(p.cobro) ? '' : ' is-muted'}">${Number(p.cobro) ? fmtMoney(p.cobro) : 'Regreso'}</span>
+        <span class="row-trailing${Number(p.cobro) ? '' : ' is-muted'}">${Number(p.cobro) ? fmtMoney(p.cobro) : 'Sin cobro'}</span>
       </div>`).join('')
     : emptyState('i-users', 'Sin pasajeros', 'La lista se vació antes de finalizar.')
 }

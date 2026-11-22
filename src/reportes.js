@@ -388,7 +388,7 @@ export function initReportes({ rpc, abrirCarga }) {
             monto: fmtDinero(c.total),
             data: ` data-corte="${c.id}" role="button" tabindex="0" aria-expanded="false"`
           }) + `<ol class="report-detail" data-detalle="${c.id}" hidden>${c.pasajeros.length
-            ? c.pasajeros.map(x => `<li><span>${esc(x.nombre)}</span><span class="report-detail-meta">${esc(x.matricula)}${x.manual ? ' · A mano' : ''}${x.de_pie ? ' · De pie' : ''}${x.monto != null && !Number(x.monto) ? ' · Regreso' : ''}</span></li>`).join('')
+            ? c.pasajeros.map(x => `<li><span>${esc(x.nombre)}</span><span class="report-detail-meta">${esc(x.matricula)}${x.manual ? ' · A mano' : ''}${x.de_pie ? ' · De pie' : ''}${x.monto != null && !Number(x.monto) ? ' · Sin cobro' : ''}</span></li>`).join('')
             : '<li><span>Sin detalle de pasajeros</span></li>'}</ol>`).join('')}</div>${resto(cortes.length - MAX_FILAS)}`
         : emptyState('i-receipt', 'Sin cortes', estado.periodo === 'dia' ? 'No hay cortes este día.' : 'No hay cortes en este periodo.')
     }

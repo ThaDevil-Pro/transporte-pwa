@@ -435,7 +435,7 @@ export async function pdfChofer(datos, periodo) {
       if (c.pasajeros.length) {
         tabla(ctx,
           [{ titulo: '#', ancho: 26 }, { titulo: 'Nombre' }, { titulo: 'Matrícula' }, { titulo: 'Registro', alinear: 'right' }],
-          c.pasajeros.map((p, j) => [j + 1, p.nombre, p.matricula, p.perdido ? `No llegó · se cobró ${fmtDinero(p.monto)}` : [registro(p.manual), p.de_pie && 'De pie', p.monto != null && !Number(p.monto) && 'Regreso'].filter(Boolean).join(' · ')])
+          c.pasajeros.map((p, j) => [j + 1, p.nombre, p.matricula, p.perdido ? `No llegó · se cobró ${fmtDinero(p.monto)}` : [registro(p.manual), p.de_pie && 'De pie', p.monto != null && !Number(p.monto) && 'Sin cobro'].filter(Boolean).join(' · ')])
         )
       } else {
         parrafo(ctx, 'Sin detalle de pasajeros para este corte.')
