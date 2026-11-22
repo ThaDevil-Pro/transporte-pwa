@@ -758,14 +758,18 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
   // ===================================================================
   // TIEMPO REAL: la tabla "actividad" avisa cuando cambian las cargas
   // ===================================================================
-  supabase
-    .channel('actividad_diesel_channel')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'actividad', filter: 'clave=eq.diesel' }, ({ new: fila }) => {
-      if (!rol || fila?.clave !== 'diesel') return
-      clearTimeout(refresco)
-      refresco = setTimeout(refrescar, 600)
-    })
-    .subscribe()
+  // Solo choferes y administración (antes también se conectaba quien ni siquiera había entrado)
+  let canal = null
+  function conectar() {
+    canal ??= supabase
+      .channel('actividad_diesel_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'actividad', filter: 'clave=eq.diesel' }, ({ new: fila }) => {
+        if (!rol || fila?.clave !== 'diesel') return
+        clearTimeout(refresco)
+        refresco = setTimeout(refrescar, 600)
+      })
+      .subscribe()
+  }
 
   function refrescar() {
     if (rol === 'Chofer') cargarChofer()
@@ -778,11 +782,13 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
   return {
     chofer() {
       rol = 'Chofer'
+      conectar()
       pintarChofer()
       cargarChofer()
     },
     admin() {
       rol = 'Admin'
+      conectar()
       cargarResumen()
     },
     abrirCarga(c) {
@@ -793,6 +799,7 @@ export function initDiesel({ rpc, supabase, camion, alCambiar }) {
     },
     limpiar() {
       rol = null
+      if (canal) { supabase.removeChannel(canal); canal = null }
       contexto = []
       cargas = []
       tanques = []

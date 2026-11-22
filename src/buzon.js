@@ -454,14 +454,18 @@ export function initBuzon({ rpc, supabase, camion }) {
   // ===================================================================
   // TIEMPO REAL: la tabla "actividad" avisa cuando cambian quejas o fallas
   // ===================================================================
-  supabase
-    .channel('actividad_buzon_channel')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'actividad', filter: 'clave=in.(quejas,fallas)' }, ({ new: fila }) => {
-      if (!rol || !['quejas', 'fallas'].includes(fila?.clave)) return
-      clearTimeout(refresco)
-      refresco = setTimeout(refrescar, 500)
-    })
-    .subscribe()
+  // Solo choferes y administración escuchan en vivo; el alumno ve las respuestas al consultar
+  let canal = null
+  function conectar() {
+    canal ??= supabase
+      .channel('actividad_buzon_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'actividad', filter: 'clave=in.(quejas,fallas)' }, ({ new: fila }) => {
+        if (!rol || !['quejas', 'fallas'].includes(fila?.clave)) return
+        clearTimeout(refresco)
+        refresco = setTimeout(refrescar, 500)
+      })
+      .subscribe()
+  }
 
   function refrescar() {
     if (rol === 'Estudiante') cargarAlumno()
@@ -479,22 +483,27 @@ export function initBuzon({ rpc, supabase, camion }) {
     },
     chofer() {
       rol = 'Chofer'
+      conectar()
     },
     choferAbrir() {
       rol = 'Chofer'
+      conectar()
       cargarChofer()
     },
     admin() {
       rol = 'Admin'
+      conectar()
       cargarPendientes()
     },
     adminAbrir() {
       rol = 'Admin'
+      conectar()
       cargarAdmin()
     },
     refrescar,
     limpiar() {
       rol = null
+      if (canal) { supabase.removeChannel(canal); canal = null }
       misQuejas = []
       quejas = []
       fallas = []

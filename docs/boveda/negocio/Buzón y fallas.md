@@ -1,6 +1,6 @@
 ---
 tags: [camify, negocio, buzon]
-actualizado: 2026-11-19
+actualizado: 2026-11-22
 ---
 
 # Buzón y fallas
@@ -16,4 +16,5 @@ Volver a [Inicio](../Inicio.md)
 ## Fallas y emergencias del chofer
 - `chofer_falla_reportar`: tipo, gravedad, descripción (máx. 15 al día).
 - `chofer_emergencia` (descompuesto / no disponible, máx. 3 por hora): avisa a **todos los alumnos**, crea una falla grave con texto "EMERGENCIA: …" y notifica a admins y otros choferes.
+- Desde 2026-11-22 además **libera sin cobro los apartados de esa unidad** que no han salido y a esos alumnos su aviso les dice qué salida se liberó. Antes quedaban bloqueados por "un viaje a la vez". La unidad sigue apareciendo para apartar: si va a estar fuera varios días, pasar sus salidas a otra unidad en **Horarios**.
 - El admin cambia el estado (abierta / en reparación / resuelta) → push al chofer.

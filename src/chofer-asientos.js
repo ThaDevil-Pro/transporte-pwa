@@ -9,7 +9,7 @@ import { TZ, claveSalida, splitHora, etiquetaDia } from './asientos.js'
 
 const EASE = 'cubic-bezier(0.25, 1, 0.5, 1)'
 
-export function initChoferAsientos({ rpc, supabase, camion }) {
+export function initChoferAsientos({ rpc, camion }) {
   let activo = false
   let salidas = []
   let salidaSel = null
@@ -36,7 +36,8 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
 
   function limpiar() {
     activo = false
-    if (canal) { supabase.removeChannel(canal); canal = null }
+    clearInterval(sondeo)
+    sondeo = null
     salidas = []
     salidaSel = null
     mapa = null
@@ -177,16 +178,12 @@ export function initChoferAsientos({ rpc, supabase, camion }) {
     abrirFicha({ matricula: a.matricula, nombre: a.nombre, ubicacion: a.ubicacion, asiento: a.n, abordo: a.abordo, fecha: mapa.fecha, hora: mapa.hora })
   })
 
-  // Tiempo real: cuando alguien aparta o libera un asiento de esta salida.
-  // Solo mientras el chofer tiene abierta su pantalla (antes también la escuchaban todos los alumnos).
-  let canal = null
+  // Se consulta cada ~10 s mientras el chofer tiene la app a la vista. Antes escuchaba en vivo
+  // todos los apartados de todas las unidades: en la hora pico eso rebasaba el límite de Supabase.
+  let sondeo = null
   function escuchar() {
-    canal ??= supabase
-      .channel('actividad_chofer_channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'actividad' }, ({ new: fila }) => {
-        if (activo && salidaSel && fila?.clave === `salida:${salidaSel}`) cargarMapa()
-      })
-      .subscribe()
+    clearInterval(sondeo)
+    sondeo = setInterval(() => { if (activo && mapa && !document.hidden) cargarMapa() }, 10000)
   }
 
   // Después de escanear o quitar a alguien, para marcar quién ya subió

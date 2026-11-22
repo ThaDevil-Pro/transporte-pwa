@@ -191,9 +191,20 @@ function borrarSesion() {
   try { localStorage.removeItem(SESSION_KEY) } catch { /* modo privado */ }
 }
 
+// Sin señal, el navegador responde en inglés ("Failed to fetch", "Load failed"): se dice en español
+const ERROR_RED = /failed to fetch|load failed|networkerror|network request failed|fetch failed/i
+function errorDeRed(error) {
+  if (error && !error.code && ERROR_RED.test(String(error.message || ''))) {
+    error.message = 'Sin conexión. Revisa tu señal e intenta de nuevo.'
+    error.sinRed = true
+  }
+  return error
+}
+
 // Llama una función RPC con el token de la sesión activa
 async function rpc(nombre, params = {}) {
   const res = await supabase.rpc(nombre, { p_token: sessionToken, ...params })
+  errorDeRed(res.error)
   if (res.error?.code === '28000' && !sesionExpirada) {
     sesionExpirada = true
     toast('Tu sesión expiró. Vuelve a entrar.', { type: 'warning' })
@@ -212,6 +223,8 @@ function entrar(rol, perfil, transition = 'fade') {
   currentRole = rol
   perfilActual = perfil || {}
   sesionExpirada = false
+  if (rol === 'Estudiante') desconectarTiempoReal()
+  else conectarTiempoReal()
   pintarCuentaLateral(rol, perfil)
   if (rol === 'Estudiante') iniciarAlumno(perfil)
   else if (rol === 'Chofer') iniciarChofer(perfil)
@@ -239,6 +252,7 @@ function cerrarSesion() {
   const token = sessionToken
   if (token) push.alSalir(token).finally(() => supabase.rpc('logout', { p_token: token }).then(() => {}, () => {}))
   borrarSesion()
+  desconectarTiempoReal()
   stopScanner()
   closeAllSheets({ force: true })
   asientos.limpiar()
@@ -276,16 +290,26 @@ $$('[data-logout]').forEach(btn => btn.addEventListener('click', async () => {
 // --- CAMBIO DE CONTRASEÑA (obligatorio la primera vez) ---
 const formPassword = $('#form-password')
 let alTerminarPassword = null
+// La contraseña temporal con la que acaba de entrar (solo en memoria): así no se la vuelve a pedir
+let passwordTemporal = null
+
+// Usuario, matrícula o licencia de quien cambia: el servidor no deja que la contraseña lo incluya
+function idPropio() {
+  const p = leerSesion()?.perfil || perfilActual || {}
+  return String(p.matricula || p.licencia || p.usuario || '').trim().toLowerCase()
+}
 
 function reglasPassword() {
   const nueva = $('#pw-nueva').value
+  const id = idPropio()
   const ok = {
     len: [...nueva].length >= 8,
     mix: /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(nueva) && /\d/.test(nueva),
+    id: nueva.length > 0 && !(id && nueva.toLowerCase().includes(id)),
     match: nueva.length > 0 && nueva === $('#pw-confirmar').value
   }
   $$('#pw-rules li').forEach(li => li.classList.toggle('is-ok', ok[li.dataset.rule]))
-  return ok.len && ok.mix && ok.match
+  return ok.len && ok.mix && ok.id && ok.match
 }
 
 function pedirCambioPassword({ obligatorio = false, alTerminar = null } = {}) {
@@ -301,6 +325,10 @@ function pedirCambioPassword({ obligatorio = false, alTerminar = null } = {}) {
   $('#btn-password-logout').hidden = !obligatorio
   formPassword.reset()
   ocultarPasswords(formPassword)
+  // Acaba de entrar con la contraseña temporal: no se la vuelve a pedir
+  const usarTemporal = obligatorio && !!passwordTemporal
+  $('#pw-actual').value = usarTemporal ? passwordTemporal : ''
+  $('#pw-actual').closest('.field').hidden = usarTemporal
   $('#password-error').hidden = true
   reglasPassword()
   openSheet(sheet)
@@ -320,8 +348,11 @@ formPassword.addEventListener('submit', async e => {
     error.hidden = false
     shake(formPassword)
   }
-  if (!$('#pw-actual').value) return mostrar('Escribe tu contraseña actual.')
-  if (!reglasPassword()) return mostrar('Revisa que la nueva contraseña cumpla los tres puntos.')
+  if (!$('#pw-actual').value) {
+    $('#pw-actual').closest('.field').hidden = false
+    return mostrar('Escribe tu contraseña actual.')
+  }
+  if (!reglasPassword()) return mostrar('Revisa que la nueva contraseña cumpla los cuatro puntos.')
 
   const btn = $('#btn-password-save')
   setLoading(btn, true)
@@ -332,9 +363,17 @@ formPassword.addEventListener('submit', async e => {
   })
   setLoading(btn, false)
   if (err) {
+    errorDeRed(err)
     if (err.code === '28000') { await closeSheet('sheet-password', { force: true }); cerrarSesion(); return }
+    // Si la temporal no coincide (p. ej. la cambiaron mientras tanto), se pide escribirla
+    if (/actual no es correcta/i.test(err.message || '')) {
+      passwordTemporal = null
+      $('#pw-actual').value = ''
+      $('#pw-actual').closest('.field').hidden = false
+    }
     return mostrar(err.message || 'No se pudo cambiar la contraseña.')
   }
+  passwordTemporal = null
 
   const sesion = leerSesion()
   if (sesion) guardarSesion({ ...sesion, debe_cambiar: false })
@@ -448,6 +487,7 @@ loginForm.addEventListener('submit', async e => {
   inputPassword.blur()
   const rol = currentRole
   guardarSesion({ token: sesion.token, rol, perfil: sesion.perfil, debe_cambiar: !!sesion.debe_cambiar })
+  passwordTemporal = sesion.debe_cambiar ? password : null
   if (sesion.debe_cambiar) {
     pedirCambioPassword({ obligatorio: true, alTerminar: () => entrar(rol, sesion.perfil) })
     return
@@ -491,7 +531,7 @@ function renderPerfilAlumno(perfil) {
   chipUbic.hidden = !ubic
   if (ubic) {
     chipUbic.className = `chip-id chip-ubic ubic-${perfil.ubicacion}`
-    chipUbic.textContent = `${ubic.nombre} · boleto $${Number(perfil.precio) || ubic.precio}`
+    chipUbic.textContent = `${ubic.nombre} · boleto $${perfil.precio != null ? Number(perfil.precio) : ubic.precio}`
   }
 
   const saldo = Number(perfil.saldo) || 0
@@ -520,6 +560,7 @@ async function refrescarAlumno() {
     }
     sincronizarViaje()
     if (!perfil.ubicacion) pedirUbicacion()
+    if (faltanCodigosQR()) cargarCodigosQR()
   }
   cargarHistorialAlumno()
 }
@@ -595,7 +636,11 @@ let qrMostrado = null
 let qrCargando = false
 let qrBloqueo = null // mensaje del servidor cuando el adeudo pasa del máximo
 
+let qrIntento = 0 // sin señal, no se reintenta en cada medio segundo
+
 async function cargarCodigosQR() {
+  if (qrCargando || Date.now() - qrIntento < 15000) return false
+  qrIntento = Date.now()
   qrCargando = true
   const { data, error } = await rpc('alumno_qr')
   qrCargando = false
@@ -606,6 +651,7 @@ async function cargarCodigosQR() {
     try { localStorage.removeItem(QR_KEY) } catch { /* modo privado */ }
   }
   if (error || !data?.codigos) return false
+  qrIntento = 0
   qrDatos = { offset: data.ahora - Date.now(), periodo: data.periodo * 1000, codigos: data.codigos, token: sessionToken }
   try { localStorage.setItem(QR_KEY, JSON.stringify(qrDatos)) } catch { /* modo privado */ }
   return true
@@ -616,6 +662,14 @@ function qrGuardado() {
     const d = JSON.parse(localStorage.getItem(QR_KEY))
     return d?.token === sessionToken ? d : null
   } catch { return null }
+}
+
+// ¿Quedan menos de 30 min de códigos guardados? Se piden más mientras haya señal
+function faltanCodigosQR() {
+  if (!qrDatos || qrDatos.token !== sessionToken) qrDatos = qrGuardado()
+  if (!qrDatos) return true
+  const v = Math.floor((Date.now() + qrDatos.offset) / qrDatos.periodo)
+  return qrDatos.codigos.filter(x => Number(x.v) > v).length < 60
 }
 
 function codigoActual() {
@@ -651,7 +705,7 @@ function pintarQR({ cargando = false } = {}) {
   }
   $('#qr-countdown').textContent = `Se renueva en ${Math.max(1, Math.ceil(c.restante / 1000))} s`
   $('#qr-progress').style.setProperty('--p', (c.restante / qrDatos.periodo).toFixed(3))
-  if (c.quedan < 4 && !qrCargando) cargarCodigosQR()
+  if (c.quedan < 60 && !qrCargando) cargarCodigosQR()
 }
 
 $('#btn-show-qr').addEventListener('click', async () => {
@@ -662,6 +716,7 @@ $('#btn-show-qr').addEventListener('click', async () => {
   pintarQR({ cargando: true })
   clearInterval(qrTimer)
   qrTimer = setInterval(pintarQR, 500)
+  qrIntento = 0
   await cargarCodigosQR()
   pintarQR()
 })
@@ -1434,8 +1489,11 @@ async function cargarEstadoViaje() {
   if (!data) return
   actualizarCamiones(data)
   pintarVehiculos()
+  // Un camión pasó a En camino (corte) o terminó: al alumno se le refresca el saldo y el historial
+  const cambio = data.some(row => estados[row.id] && estados[row.id].estado !== row.estado)
   data.forEach(row => { estados[row.id] = row })
   sincronizarViaje()
+  if (cambio && currentRole === 'Estudiante' && sessionToken) refrescarAlumno()
 }
 
 // Camión que se muestra: el que maneja el chofer o el del asiento del alumno
@@ -2039,7 +2097,9 @@ const fmtDetalle = {
   beca_cambiada: ['Beca de transporte', 'i-wallet', 'is-money', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${d.antes}% → ${d.despues}%${d.oficio_nuevo ? ' · oficio nuevo' : ''}`],
   fotos_cargadas: ['Fotos de alumnos cargadas', 'i-camera', '', d => plural(d.fotos || 0, 'foto', 'fotos')],
   foto_borrada: ['Foto de alumno quitada', 'i-camera', '', d => d.matricula || ''],
-  emergencia: ['Emergencia del camión', 'i-alert', 'is-alert', d => `${camionCorto(d.camion)} · ${d.motivo === 'descompuesto' ? 'Se descompuso' : 'No estará disponible'} · avisó a ${plural(d.avisados || 0, 'alumno', 'alumnos')}`],
+  emergencia: ['Emergencia del camión', 'i-alert', 'is-alert', d => `${camionCorto(d.camion)} · ${d.motivo === 'descompuesto' ? 'Se descompuso' : 'No estará disponible'} · avisó a ${plural(d.avisados || 0, 'alumno', 'alumnos')}${d.liberados ? ` · ${plural(d.liberados, 'asiento liberado', 'asientos liberados')}` : ''}`],
+  viaje_finalizado_auto: ['Viaje finalizado solo', 'i-flag', '', d => `${camionCorto(d.camion)} · el chofer no tocó «Finalizar» 6 h después del corte`],
+  abordajes_descartados: ['Alumnos quitados de un viaje sin corte', 'i-alert', 'is-alert', d => `${camionCorto(d.camion)} · ${plural((d.alumnos || []).length, 'alumno', 'alumnos')} sin cobrar: ${(d.alumnos || []).map(a => `${a.nombre || a.matricula} (${a.matricula})`).join(', ')}`],
   abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `${camionCorto(d.camion)} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}${d.asiento ? ` · Asiento ${d.asiento}` : ''}${d.de_pie ? ' · De pie' : ''}`],
   usuarios_importados: ['Usuarios importados', 'i-sheet', '', d => [
     d.alumnos && plural(d.alumnos, 'alumno', 'alumnos'),
@@ -2117,27 +2177,53 @@ alCambiarVehiculos(() => {
 })
 
 // --- 12. TIEMPO REAL ---
-supabase
-  .channel('estado_viaje_channel')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'estado_viaje' }, ({ new: row }) => {
-    if (!row?.id) return
-    actualizarCamion(row)
-    pintarVehiculos()
-    // Dieron de baja el vehículo del chofer: que elija otro
-    if (currentRole === 'Chofer' && row.id === camionActual && row.activo === false) verificarJornada()
-    const cambio = aplicarEstadoViaje(row)
-    if (!cambio || !sessionToken) return
-    // El corte cambia el estado a EN_CAMINO: refrescar saldo e historial del alumno
-    if (currentRole === 'Estudiante') refrescarAlumno()
-    // Otro teléfono hizo el corte o finalizó este camión: la lista cambió
-    if (currentRole === 'Chofer' && row.id === camionActual) fetchPassengers()
-  })
-  .subscribe()
+// Solo el personal (choferes, administración, finanzas) escucha en vivo. Los alumnos consultan cada
+// 15–25 s: con 150 alumnos conectados, cada cambio de un camión serían 150 mensajes, el plan gratis de
+// Supabase permite 100 por segundo y al pasarse desconecta a todos (además, máximo 200 conexiones).
+let canalesVivo = []
+function conectarTiempoReal() {
+  if (canalesVivo.length) return
+  canalesVivo = [
+    supabase
+      .channel('estado_viaje_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'estado_viaje' }, ({ new: row }) => {
+        if (!row?.id) return
+        actualizarCamion(row)
+        pintarVehiculos()
+        // Dieron de baja el vehículo del chofer: que elija otro
+        if (currentRole === 'Chofer' && row.id === camionActual && row.activo === false) verificarJornada()
+        const cambio = aplicarEstadoViaje(row)
+        if (!cambio || !sessionToken) return
+        // Otro teléfono hizo el corte o finalizó este camión: la lista cambió
+        if (currentRole === 'Chofer' && row.id === camionActual) fetchPassengers()
+      })
+      .subscribe(),
+    supabase
+      .channel('horarios_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'horarios_matriz' }, () => fetchScheduleMatrix())
+      .subscribe()
+  ]
+}
+function desconectarTiempoReal() {
+  canalesVivo.forEach(c => supabase.removeChannel(c))
+  canalesVivo = []
+}
 
-supabase
-  .channel('horarios_channel')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'horarios_matriz' }, () => fetchScheduleMatrix())
-  .subscribe()
+// Alumnos: estado de los camiones cada 15–25 s y horarios cada ~2 min, solo con la app a la vista
+let proximoEstado = 0
+let proximoHorario = 0
+setInterval(() => {
+  if (currentRole !== 'Estudiante' || !sessionToken || document.hidden) return
+  const ahora = Date.now()
+  if (ahora >= proximoEstado) {
+    proximoEstado = ahora + 15000 + Math.random() * 10000
+    cargarEstadoViaje()
+  }
+  if (ahora >= proximoHorario) {
+    proximoHorario = ahora + 120000 + Math.random() * 30000
+    fetchScheduleMatrix()
+  }
+}, 1000)
 
 // Al volver a la app (el celular suspende la conexión en segundo plano)
 document.addEventListener('visibilitychange', () => {

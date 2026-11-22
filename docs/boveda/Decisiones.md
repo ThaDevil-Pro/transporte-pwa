@@ -1,6 +1,6 @@
 ---
 tags: [camify, decisiones]
-actualizado: 2026-11-21
+actualizado: 2026-11-22
 ---
 
 # Decisiones
@@ -16,6 +16,10 @@ Volver a [Inicio](Inicio.md)
 | 2026-11-19 | Mapa por consulta cada ~3 s en vez de en vivo ([Tiempo real y carga](tecnico/Tiempo%20real%20y%20carga.md)) | Aguantar 150 alumnos apartando a la vez en el plan gratis |
 | 2026-11-19 | **Un viaje apartado a la vez** ([Apartados y asientos](negocio/Apartados%20y%20asientos.md)) | Que nadie acapare lugares; liberar sí permite apartar otro; respaldo de 3 h si no se finaliza |
 | 2026-11-21 | La **administración** también edita horarios y qué unidad sale ([Viaje del chofer](negocio/Viaje%20del%20chofer.md)) | Lo pidió la administración; no depender de que cada chofer los capture |
+| 2026-11-22 | **En vivo solo el personal**; alumnos consultan cada 15–25 s ([Tiempo real y carga](tecnico/Tiempo%20real%20y%20carga.md)) | Con 150 alumnos conectados cada cambio de un camión rebasaba los 100 mensajes/s del plan gratis |
+| 2026-11-22 | Viajes olvidados se limpian solos (4 h sin corte / 6 h sin finalizar) ([Viaje del chofer](negocio/Viaje%20del%20chofer.md)) | Un abordaje del 4 de noviembre seguía "a bordo" y se iba a cobrar en el siguiente corte |
+| 2026-11-22 | Emergencia libera los apartados de esa unidad | Si no, los alumnos quedaban bloqueados para apartar otra |
+| 2026-11-22 | QR con 2 h de códigos guardados | Paradas sin señal: antes solo 5 min |
 | 2026-11-21 | Cuentas `developer` excluidas de cortes y reportes ([Roles y cuentas](negocio/Roles%20y%20cuentas.md)) | Probar en producción sin ensuciar los números reales |
 | 2026-11-21 | Cambiar o borrar una salida con apartados **pide confirmar y libera sin cobro**, con aviso; pasar de unidad conserva el asiento si cabe | Antes el alumno se quedaba con un asiento de una salida que ya no existía y bloqueado 3 h para apartar otra |
 | 2026-11-21 | Lista de horarios del alumno: vehículo **completo debajo de la hora** | Los nombres largos ("Camión Rojo (Luis)") se partían o se cortaban |
