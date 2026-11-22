@@ -621,7 +621,8 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
   btnRelease.addEventListener('click', async () => {
     const s = salidas.find(x => claveSalida(x) === salidaSel)
     if (!s) return
-    const tarde = new Date(s.salida_en) - Date.now() <= 60 * 60 * 1000
+    // Con beca del 100 % no hay cobro: se libera como siempre
+    const tarde = new Date(s.salida_en) - Date.now() <= 60 * 60 * 1000 && precio() > 0
     const ok = await confirm({
       title: tarde ? 'Liberar con cobro' : 'Liberar asiento',
       message: tarde

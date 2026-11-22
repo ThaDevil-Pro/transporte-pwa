@@ -26,7 +26,8 @@ import {
 // $60 por viaje redondo: el regreso del mismo día va incluido (lo calcula el servidor)
 const PRECIO_VIAJE = 60
 // Desde Chinacates el boleto cuesta $40 (el servidor lo manda en el perfil)
-const precioAlumno = () => Number(perfilActual.precio) || PRECIO_VIAJE
+// Con beca del 100 % el boleto es $0: un 0 es un precio, no un dato que falta
+const precioAlumno = () => (perfilActual.precio != null ? Number(perfilActual.precio) : PRECIO_VIAJE)
 const OPCIONES_UBICACION = Object.entries(UBICACIONES).map(([value, u]) => ({ value, label: u.nombre, sub: `Boleto $${u.precio}` }))
 const ADEUDO_MAXIMO = 600
 const GAUGE_C = 339.292 // circunferencia del anillo (r = 54)
@@ -1496,6 +1497,19 @@ async function cargarEstadoViaje() {
   if (cambio && currentRole === 'Estudiante' && sessionToken) refrescarAlumno()
 }
 
+// Consulta ligera para el alumno: solo el estado de cada camión (~1 KB; la tabla completa pesa ~25 KB
+// por el acomodo de asientos y se pediría cada 20 s con los datos del celular)
+async function consultarEstadoCamiones() {
+  const { data } = await supabase.from('estado_viaje').select('id, estado, tiempo_salida, temporizador_activo')
+  if (!data) return
+  // Un camión nuevo: se pide la lista completa una vez
+  if (data.some(row => !estados[row.id])) return cargarEstadoViaje()
+  const cambio = data.some(row => estados[row.id].estado !== row.estado)
+  data.forEach(row => { estados[row.id] = { ...estados[row.id], ...row } })
+  sincronizarViaje()
+  if (cambio && currentRole === 'Estudiante' && sessionToken) refrescarAlumno()
+}
+
 // Camión que se muestra: el que maneja el chofer o el del asiento del alumno
 const camionVisible = () => (currentRole === 'Chofer' ? camionActual : camionAlumno)
 
@@ -2217,7 +2231,7 @@ setInterval(() => {
   const ahora = Date.now()
   if (ahora >= proximoEstado) {
     proximoEstado = ahora + 15000 + Math.random() * 10000
-    cargarEstadoViaje()
+    consultarEstadoCamiones()
   }
   if (ahora >= proximoHorario) {
     proximoHorario = ahora + 120000 + Math.random() * 30000
