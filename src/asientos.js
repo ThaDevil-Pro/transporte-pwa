@@ -6,7 +6,7 @@
 // =====================================================================
 import { camionCorto, vecino as vecinoDe, esVentana as ventanaDe, filaDe, capacidad, plantillaColumnas, posicion, retrasoOla } from './camiones.js'
 import {
-  $, $$, esc, icon, avatar, haptic, openSheet, closeSheet, confirm, toast, setLoading, shake, patchList
+  $, $$, esc, icon, avatar, haptic, openSheet, closeSheet, confirm, dialog, toast, setLoading, shake, patchList
 } from './ui.js'
 
 export const TZ = 'America/Mexico_City'
@@ -84,6 +84,10 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
   let miNombre = ''
   let salidas = []
   let pareja = { activa: null, enviada: null, recibidas: [] }
+  // Sin filas dobles libres: 'separar', 'pedir' o 'vehiculo' (lo elige la pareja)
+  let opcion = null
+  // Solicitudes de cambio que ya se mostraron en ventana (para no repetirla en cada consulta)
+  const solicitudesVistas = new Set()
   let avisos = []
   let salidaSel = null
   let mapa = null
@@ -128,6 +132,11 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     pareja = data
     renderPairCard()
     renderAlerts()
+    const sol = pareja.cambio_recibido
+    if (sol && !solicitudesVistas.has(sol.id)) {
+      solicitudesVistas.add(sol.id)
+      preguntarCambio(sol)
+    }
   }
 
   async function cargarAvisos() {
@@ -205,14 +214,56 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     </article>`
   }
 
+  // Texto amable para quien recibe la solicitud de cambio
+  const textoCambio = c => `${c.nombre} quiere viajar junto a su pareja en la salida del ${c.salida} (${c.camion}). ¿Te cambiarías del asiento ${c.actual} al ${c.nuevo} (${c.lugar})? Tu lugar sigue apartado; solo cambia el número. Si prefieres quedarte, no pasa nada.`
+
+  function htmlCambio(c) {
+    return `<article class="alert-card">
+      ${avatar(c.nombre)}
+      <div class="alert-text">
+        <p class="alert-title">${esc(c.nombre)} te pide un favor</p>
+        <p class="alert-msg">${esc(textoCambio(c))}</p>
+        <div class="button-row">
+          <button class="btn btn-secondary" data-cambio="${esc(c.id)}" data-aceptar="0">Prefiero quedarme</button>
+          <button class="btn btn-primary" data-cambio="${esc(c.id)}" data-aceptar="1">Sí, me cambio</button>
+        </div>
+      </div>
+    </article>`
+  }
+
+  async function preguntarCambio(c) {
+    const r = await dialog({
+      title: `${c.nombre} te pide un favor`,
+      message: textoCambio(c),
+      actions: [
+        { label: 'Sí, me cambio', value: 'si' },
+        { label: 'Prefiero quedarme', value: 'no', style: 'cancel' },
+        { label: 'Decidir después', value: null, style: 'cancel' }
+      ]
+    })
+    if (r) responderCambio(c.id, r === 'si')
+  }
+
+  async function responderCambio(id, aceptar) {
+    const { data, error } = await rpc('alumno_responder_cambio', { p_id: id, p_aceptar: aceptar })
+    if (error) toast(error.message, { type: 'warning', duration: 4500 })
+    else {
+      haptic(aceptar ? [12, 50, 18] : 8)
+      toast(aceptar ? `¡Gracias! Ahora vas en el asiento ${data.asiento}` : 'Listo, conservas tu asiento', { type: aceptar ? 'success' : 'info' })
+    }
+    await cargarPareja()
+    cargarSalidas()
+  }
+
   function renderAlerts() {
     const items = [
+      ...(pareja.cambio_recibido ? [{ clave: `cambio-${pareja.cambio_recibido.id}`, cambio: pareja.cambio_recibido }] : []),
       ...(pareja.recibidas || []).map(inv => ({ clave: `inv-${inv.id}`, inv })),
       ...avisos.map(av => ({ clave: `av-${av.id}`, av }))
     ]
     patchList(alerts, items, {
       key: i => i.clave,
-      render: i => (i.inv ? htmlInvitacion(i.inv) : htmlAviso(i.av))
+      render: i => (i.cambio ? htmlCambio(i.cambio) : i.inv ? htmlInvitacion(i.inv) : htmlAviso(i.av))
     })
   }
 
@@ -224,6 +275,13 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       avisos = avisos.filter(a => a.id !== id)
       renderAlerts()
       rpc('alumno_aviso_leido', { p_id: id })
+      return
+    }
+
+    const cambio = e.target.closest('[data-cambio]')
+    if (cambio) {
+      setLoading(cambio, true)
+      await responderCambio(Number(cambio.dataset.cambio), cambio.dataset.aceptar === '1')
       return
     }
 
@@ -386,6 +444,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     const inicial = salidas.find(s => claveSalida(s) === clave) || salidas.find(s => s.mi_asiento) || salidas.find(s => s.abierta) || salidas[0]
     salidaSel = claveSalida(inicial)
     seleccion = null
+    opcion = null
     mapa = null
     busSeats.replaceChildren()
     $('#seat-hint').textContent = ''
@@ -423,6 +482,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     haptic(5)
     salidaSel = btn.dataset.salida
     seleccion = null
+    opcion = null
     $$('.departure', departures).forEach(d => d.setAttribute('aria-selected', String(d === btn)))
     btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
     cargarMapa({ transicion: true })
@@ -446,10 +506,10 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
   }
 
   function clasesAsiento(a) {
-    const enPareja = mapa.modo === 'pareja' || mapa.modo === 'pareja_reacomodo'
+    const enPareja = mapa.modo === 'pareja'
     let cls = ''
-    if (mapa.abierta && a.estado === 'libre' && !a.sel) cls += ' is-off'
-    if (mapa.abierta && a.sel && a.mover) cls += ' is-move'
+    if (mapa.abierta && a.estado === 'libre' && !elegible(a)) cls += ' is-off'
+    if (mapa.abierta && opcion === 'pedir' && a.pedible) cls += ' is-ask'
     if (seleccion === a.n) cls += ' is-selected'
     else if (enPareja && seleccion && a.n === vecinoDe(mapa.camion, seleccion)) cls += ' is-partner-pick'
     return cls
@@ -460,8 +520,15 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     return `Asiento ${a.n}, ${ventanaDe(mapa.camion, a.n) ? 'ventana' : 'pasillo'}, ${estados[a.estado]}`
   }
 
+  // Sin filas dobles libres, lo que se puede tocar depende de la opción que eligió la pareja
+  function elegible(a) {
+    if (!a.sel) return false
+    if (mapa.modo !== 'pareja_llena') return true
+    return opcion === 'separar' || (opcion === 'pedir' && a.pedible)
+  }
+
   function htmlAsiento(a) {
-    const bloqueado = !mapa.abierta || !a.sel
+    const bloqueado = !mapa.abierta || !elegible(a)
     return `<button type="button" class="seat${clasesAsiento(a)}" style="${posicion(mapa.camion, a.n)}" data-n="${a.n}" data-estado="${a.estado}" aria-label="${esc(etiquetaAsiento(a))}" aria-pressed="${seleccion === a.n}" aria-disabled="${bloqueado}">${a.n}</button>`
   }
 
@@ -485,7 +552,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       el.dataset.estado = a.estado
       el.setAttribute('aria-label', etiquetaAsiento(a))
       el.setAttribute('aria-pressed', String(seleccion === n))
-      el.setAttribute('aria-disabled', String(!mapa.abierta || !a.sel))
+      el.setAttribute('aria-disabled', String(!mapa.abierta || !elegible(a)))
       // Destello cuando un asiento cambia en vivo
       if (anterior && anterior.asientos[n - 1]?.estado !== a.estado) {
         el.classList.remove('is-pulse')
@@ -518,15 +585,53 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     if (!mapa.abierta) hint.innerHTML = 'Así se ve el vehículo. El apartado abre <b>12 horas antes</b> de la salida.'
     else if (mapa.restriccion) hint.innerHTML = `<b>${esc(mapa.restriccion)}</b>`
     else if (mapa.modo === 'pareja') hint.innerHTML = `Viajas con <b>${nombre}</b>: elige una fila de dos y se apartarán los dos asientos.`
-    else if (mapa.modo === 'pareja_reacomodo') hint.innerHTML = 'Ya no quedan bancas libres. Elige una con un compañero sin pareja: <b>lo moveremos junto a otro compañero</b> y le avisaremos.'
-    else if (mapa.modo === 'pareja_sin_banca') hint.innerHTML = 'Ya no hay forma de sentarse juntos en esta salida. <b>Puedes apartar solo tu asiento.</b>'
+    else if (mapa.modo === 'pareja_llena') hint.innerHTML = htmlOpciones(nombre)
     else hint.textContent = 'Toca un asiento libre para apartarlo.'
   }
+
+  // Ya no quedan filas libres para los dos: la pareja elige qué hacer
+  function htmlOpciones(nombre) {
+    const s = salidas.find(x => claveSalida(x) === salidaSel)
+    const otras = salidas.filter(x => x !== s && x.abierta && !x.mi_asiento && x.dobles > 0)
+    const hayPedibles = mapa.asientos.some(a => a.pedible)
+    const boton = (v, texto) => `<button type="button" class="btn btn-sm ${opcion === v ? 'btn-primary' : 'btn-secondary'}" data-opcion="${v}">${texto}</button>`
+    const espera = mapa.solicitud ? `<span class="pair-wait">Esperando a que <b>${esc(mapa.solicitud.nombre)}</b> responda. Tu asiento ${mapa.solicitud.asiento} ya está apartado.</span>` : ''
+    const detalle = opcion === 'separar'
+      ? `Elige tu asiento: a <b>${nombre}</b> le apartamos el libre más cercano.`
+      : opcion === 'pedir'
+        ? (hayPedibles
+          ? `Elige un asiento marcado, junto a alguien que va solo. Te lo apartamos y le preguntamos con amabilidad si se cambia para que <b>${nombre}</b> se siente contigo. Si no acepta, nadie se mueve.`
+          : 'Ya no hay asientos libres junto a alguien que vaya solo.')
+        : opcion === 'vehiculo'
+          ? (otras.length
+            ? `Estas salidas todavía tienen lugar para los dos:<span class="pair-otras">${otras.map(x => `<button type="button" class="btn btn-sm btn-tinted" data-ir="${esc(claveSalida(x))}">${esc(camionCorto(x.camion))} · ${x.fecha !== s?.fecha ? `${esc(etiquetaDia(x.fecha))} ` : ''}${esc(horaTexto(x.hora))}</button>`).join('')}</span>`
+            : 'Ninguna otra salida abierta tiene filas libres para los dos.')
+          : '¿Qué prefieren?'
+    return `${espera}<span class="pair-full">Ya no quedan filas libres para ti y <b>${nombre}</b> en este vehículo.</span>
+      <span class="pair-options">${boton('separar', 'Separarnos')}${boton('vehiculo', 'Otro vehículo')}${boton('pedir', 'Pedir un cambio')}</span>
+      <span class="pair-detail">${detalle}</span>`
+  }
+
+  $('#seat-hint').addEventListener('click', e => {
+    const op = e.target.closest('[data-opcion]')
+    if (op) {
+      opcion = op.dataset.opcion
+      seleccion = null
+      haptic(5)
+      renderHint()
+      actualizarAsientos(null)
+      renderFooter()
+      return
+    }
+    const ir = e.target.closest('[data-ir]')
+    if (ir) $(`[data-salida="${CSS.escape(ir.dataset.ir)}"]`, departures)?.click()
+  })
 
   function renderFooter() {
     const texto = $('#seat-selection')
     const mio = mapa?.asientos.find(a => a.estado === 'mio')
-    const enPareja = mapa && (mapa.modo === 'pareja' || mapa.modo === 'pareja_reacomodo')
+    const enPareja = mapa && mapa.modo === 'pareja'
+    const llena = mapa?.modo === 'pareja_llena'
     btnRelease.hidden = !(mapa?.abierta && mio)
     btnConfirm.disabled = true
 
@@ -550,9 +655,14 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       if (enPareja) {
         const otro = vecinoDe(mapa.camion, seleccion)
         texto.innerHTML = `Asientos ${Math.min(seleccion, otro)} y ${Math.max(seleccion, otro)}
-          <small>Tú en el ${seleccion} · ${esc(mapa.pareja.nombre)} en el ${otro}</small>
-          ${a.mover ? '<small class="is-warning">Un compañero sin pareja cambiará de lugar</small>' : ''}`
+          <small>Tú en el ${seleccion} · ${esc(mapa.pareja.nombre)} en el ${otro}</small>`
         btnConfirm.textContent = mio ? 'Cambiar a esta banca' : 'Apartar para los dos'
+      } else if (llena && opcion === 'pedir') {
+        texto.innerHTML = `Asiento ${seleccion}<small>Le preguntaremos a quien va en el ${vecinoDe(mapa.camion, seleccion)} si se cambia</small>`
+        btnConfirm.textContent = 'Apartar y preguntar'
+      } else if (llena) {
+        texto.innerHTML = `Asiento ${seleccion}<small>${esc(mapa.pareja.nombre)} irá en el libre más cercano</small>`
+        btnConfirm.textContent = 'Apartar separados'
       } else {
         texto.innerHTML = `Asiento ${seleccion}<small>${ventanaDe(mapa.camion, seleccion) ? 'Ventana' : 'Pasillo'} · Fila ${filaDe(mapa.camion, seleccion)}</small>`
         btnConfirm.textContent = mio ? 'Cambiar a este asiento' : 'Apartar asiento'
@@ -562,7 +672,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       texto.innerHTML = `Tu asiento: ${mio.n}<small>Toca otro asiento si quieres cambiarte</small>`
       btnConfirm.textContent = 'Apartar asiento'
     } else {
-      texto.innerHTML = `<small>${enPareja ? 'Elige una banca para los dos' : 'Elige un asiento libre'}</small>`
+      texto.innerHTML = `<small>${enPareja ? 'Elige una banca para los dos' : llena ? (opcion === 'pedir' || opcion === 'separar' ? 'Elige un asiento' : 'Elige una de las opciones') : 'Elige un asiento libre'}</small>`
       btnConfirm.textContent = enPareja ? 'Apartar para los dos' : 'Apartar asiento'
     }
   }
@@ -572,7 +682,8 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     if (!el || !mapa?.abierta) return
     const n = Number(el.dataset.n)
     const a = mapa.asientos[n - 1]
-    if (!a.sel) {
+    if (!elegible(a)) {
+      if (mapa.modo === 'pareja_llena' && !opcion && a.sel) toast('Primero elige una opción: separarse, otro vehículo o pedir un cambio', { type: 'info' })
       haptic(4)
       el.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }], { duration: 260 })
       return
@@ -588,12 +699,26 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     if (!seleccion || !mapa || !s) return
     const n = seleccion
     setLoading(btnConfirm, true)
+    if (mapa.modo === 'pareja_llena' && opcion === 'pedir') {
+      const { data, error } = await rpc('alumno_pedir_cambio', { p_fecha: s.fecha, p_hora: s.hora, p_camion: s.camion, p_asiento: n })
+      setLoading(btnConfirm, false)
+      seleccion = null
+      if (error) {
+        toast(error.message, { type: 'error', duration: 4500 })
+        cargarMapa()
+        return
+      }
+      haptic([12, 50, 18])
+      toast(`Te apartamos el asiento ${n} y le preguntamos a ${data.nombre}. Te avisamos cuando responda.`, { type: 'success', duration: 4500 })
+      await Promise.all([cargarMapa(), cargarSalidas()])
+      return
+    }
     const { data, error } = await rpc('alumno_apartar', {
       p_fecha: s.fecha,
       p_hora: s.hora,
       p_camion: s.camion,
       p_asiento: n,
-      p_solo: mapa.modo === 'pareja_sin_banca'
+      p_solo: mapa.modo === 'pareja_llena'
     })
     setLoading(btnConfirm, false)
     if (error) {
@@ -606,7 +731,9 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     seleccion = null
     await Promise.all([cargarMapa(), cargarSalidas()])
     alCobrar?.()
-    toast(data.asiento_pareja
+    toast(data.separados
+      ? `Asiento ${n} para ti y ${data.asiento_pareja} para tu pareja`
+      : data.asiento_pareja
       ? `Asientos ${Math.min(n, data.asiento_pareja)} y ${Math.max(n, data.asiento_pareja)} apartados`
       : data.pareja_debe
         ? `Asiento ${n} apartado solo para ti: tu pareja no está al corriente`

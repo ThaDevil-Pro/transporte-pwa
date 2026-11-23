@@ -1,6 +1,6 @@
 ---
 tags: [camify, negocio, asientos]
-actualizado: 2026-11-19
+actualizado: 2026-11-22
 ---
 
 # Apartados y asientos
@@ -27,7 +27,10 @@ Función principal: `public.alumno_apartar`. Mapa: `public.alumno_mapa`. Tabla: 
 - Tablas/funciones: `parejas`, `pareja_invitar`, `pareja_responder`, `pareja_terminar`.
 - Al apartar con pareja se reservan **dos asientos de la misma fila**.
 - Si la pareja **debe más de $60**, **no puede viajar en ese vehículo** o **ya tiene otro viaje**, se aparta solo para quien lo pidió (`pareja_debe`, `pareja_fuera`, `pareja_con_viaje`).
-- **Reacomodo**: si no hay fila libre, el sistema puede **mover a un alumno que iba solo** a otro asiento libre (junto a otro solo) para juntar a la pareja. Se le avisa (`asiento_movido`). Es el punto más criticado por los alumnos → ver [Pendientes](../Pendientes.md).
+- **Sin reacomodo** (desde 2026-11-22): el sistema **nunca mueve a nadie sin preguntar**. Si no queda ninguna fila libre para los dos (`alumno_mapa` modo `pareja_llena`), la pareja elige:
+  1. **Separarnos**: quien aparta elige su asiento y a la pareja se le aparta el libre más cercano (`alumno_apartar` con `p_solo`; `privado.asiento_cercano`). Se le avisa a la pareja.
+  2. **Otro vehículo**: se listan las salidas abiertas que todavía tienen filas libres para los dos (`alumno_salidas.dobles`).
+  3. **Pedir un cambio**: elige un asiento libre junto a alguien que va solo (`pedible`). Se le aparta a quien pide y al alumno solo le llega una notificación y una ventana: «¿Te cambiarías del asiento X al Y? Tu lugar sigue apartado; si prefieres quedarte, no pasa nada.» Si acepta, se mueve y la pareja queda junta; si no, nadie se mueve (`alumno_pedir_cambio`, `alumno_responder_cambio`, tabla `privado.cambios_asiento`). Máximo 5 solicitudes por salida y una pendiente por alumno; se cancelan si alguno libera o aparta en otro lado.
 
 ## Al salir (corte)
 - Quien apartó y **no subió** pierde el apartado y se le cobra el boleto (si el corte es ≥ 20 min antes o después de la salida).

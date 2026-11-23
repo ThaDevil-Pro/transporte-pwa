@@ -311,7 +311,7 @@ function enableDrag(sheet) {
 }
 
 // --- DIÁLOGOS (alerta, confirmación y hoja de acciones) ---
-function dialog({ title, message = '', actions, variant = 'alert', cancelValue = null }) {
+export function dialog({ title, message = '', actions, variant = 'alert', cancelValue = null }) {
   return new Promise(resolve => {
     const root = document.createElement('div')
     root.className = 'dialog'
