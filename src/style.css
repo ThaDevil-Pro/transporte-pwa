@@ -2556,6 +2556,11 @@ button.row:active {
   color: var(--label);
 }
 
+.seat-hint .pair-switch {
+  display: block;
+  margin-top: 6px;
+}
+
 .seat-hint .pair-options,
 .seat-hint .pair-otras {
   display: flex;

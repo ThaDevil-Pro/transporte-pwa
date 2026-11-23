@@ -6,7 +6,7 @@
 // =====================================================================
 import { camionCorto, vecino as vecinoDe, esVentana as ventanaDe, filaDe, capacidad, plantillaColumnas, posicion, retrasoOla } from './camiones.js'
 import {
-  $, $$, esc, icon, avatar, haptic, openSheet, closeSheet, confirm, dialog, toast, setLoading, shake, patchList
+  $, $$, esc, icon, avatar, haptic, openSheet, closeSheet, confirm, dialog, actionSheet, toast, setLoading, shake, patchList
 } from './ui.js'
 
 export const TZ = 'America/Mexico_City'
@@ -26,7 +26,10 @@ const AVISO_UI = {
   apartado_perdido: { titulo: 'Perdiste tu apartado', icono: 'i-alert', tint: 'red' },
   ubicacion_cambiada: { titulo: 'Cambiaron tu ubicación', icono: 'i-pin', tint: 'blue' },
   beca_cambiada: { titulo: 'Beca de transporte', icono: 'i-wallet', tint: 'green' },
-  salida_cambiada: { titulo: 'Cambió tu salida', icono: 'i-calendar', tint: 'orange' }
+  salida_cambiada: { titulo: 'Cambió tu salida', icono: 'i-calendar', tint: 'orange' },
+  cambio_aceptado: { titulo: '¡Ya van juntos!', icono: 'i-seat', tint: 'green' },
+  cambio_rechazado: { titulo: 'Respuesta a tu solicitud', icono: 'i-seat', tint: 'gray' },
+  pareja_libero: { titulo: 'Tu pareja liberó tu asiento', icono: 'i-seat', tint: 'orange' }
 }
 
 // --- FORMATO ---
@@ -86,6 +89,8 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
   let pareja = { activa: null, enviada: null, recibidas: [] }
   // Sin filas dobles libres: 'separar', 'pedir' o 'vehiculo' (lo elige la pareja)
   let opcion = null
+  // Con pareja: true = aparta para los dos, false = solo su asiento, null = todavía no elige
+  let conPareja = null
   // Solicitudes de cambio que ya se mostraron en ventana (para no repetirla en cada consulta)
   const solicitudesVistas = new Set()
   let avisos = []
@@ -445,6 +450,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     salidaSel = claveSalida(inicial)
     seleccion = null
     opcion = null
+    conPareja = null
     mapa = null
     busSeats.replaceChildren()
     $('#seat-hint').textContent = ''
@@ -501,12 +507,45 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     }
     const anterior = mapa
     mapa = data
-    if (seleccion && !mapa.asientos[seleccion - 1]?.sel) seleccion = null
+    if (seleccion && !elegible(mapa.asientos[seleccion - 1])) seleccion = null
     renderMapa(transicion || !anterior ? null : anterior)
+    if (mapa.pareja && conPareja === null) preguntarConQuien()
   }
 
+  // Modo efectivo del mapa: con pareja, el alumno puede decidir apartar solo su asiento
+  const modo = () => (mapa.pareja && conPareja === false ? 'solo' : mapa.modo)
+
+  async function preguntarConQuien() {
+    const mio = mapa.asientos.find(a => a.estado === 'mio')
+    const suyo = mapa.asientos.find(a => a.estado === 'pareja')
+    // Si ya tiene asiento no se le pregunta: sigue como está (juntos si van lado a lado)
+    if (mio || !mapa.abierta || mapa.restriccion) {
+      conPareja = !!(mio && suyo && vecinoDe(mapa.camion, mio.n) === suyo.n)
+      if (!mio) conPareja = true
+      refrescar()
+      return
+    }
+    conPareja = true
+    const r = await dialog({
+      title: '¿Apartarás solo o con tu pareja?',
+      message: `Con ${mapa.pareja.nombre} se apartan dos asientos juntos. Si eliges solo tú, su lugar no cambia.`,
+      cancelValue: 'pareja',
+      actions: [
+        { label: `Con ${mapa.pareja.nombre}`, value: 'pareja' },
+        { label: 'Solo yo', value: 'solo', style: 'cancel' }
+      ]
+    })
+    if (!mapa) return
+    conPareja = r !== 'solo'
+    seleccion = null
+    opcion = null
+    refrescar()
+  }
+
+  const refrescar = () => { renderHint(); actualizarAsientos(null); renderFooter() }
+
   function clasesAsiento(a) {
-    const enPareja = mapa.modo === 'pareja'
+    const enPareja = modo() === 'pareja'
     let cls = ''
     if (mapa.abierta && a.estado === 'libre' && !elegible(a)) cls += ' is-off'
     if (mapa.abierta && opcion === 'pedir' && a.pedible) cls += ' is-ask'
@@ -522,6 +561,9 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
 
   // Sin filas dobles libres, lo que se puede tocar depende de la opción que eligió la pareja
   function elegible(a) {
+    if (!a) return false
+    // Solo yo: cualquier asiento libre (el de su pareja no se toca)
+    if (modo() === 'solo' && mapa.pareja) return !mapa.restriccion && a.estado === 'libre'
     if (!a.sel) return false
     if (mapa.modo !== 'pareja_llena') return true
     return opcion === 'separar' || (opcion === 'pedir' && a.pedible)
@@ -584,10 +626,13 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     const nombre = esc(mapa.pareja?.nombre || '')
     if (!mapa.abierta) hint.innerHTML = 'Así se ve el vehículo. El apartado abre <b>12 horas antes</b> de la salida.'
     else if (mapa.restriccion) hint.innerHTML = `<b>${esc(mapa.restriccion)}</b>`
-    else if (mapa.modo === 'pareja') hint.innerHTML = `Viajas con <b>${nombre}</b>: elige una fila de dos y se apartarán los dos asientos.`
-    else if (mapa.modo === 'pareja_llena') hint.innerHTML = htmlOpciones(nombre)
+    else if (mapa.pareja && modo() === 'solo') hint.innerHTML = `Apartarás <b>solo tu asiento</b>; el de ${nombre} no cambia.${interruptor(nombre)}`
+    else if (mapa.modo === 'pareja') hint.innerHTML = `Viajas con <b>${nombre}</b>: elige una fila de dos y se apartarán los dos asientos.${interruptor(nombre)}`
+    else if (mapa.modo === 'pareja_llena') hint.innerHTML = htmlOpciones(nombre) + interruptor(nombre)
     else hint.textContent = 'Toca un asiento libre para apartarlo.'
   }
+
+  const interruptor = nombre => `<span class="pair-switch"><button type="button" class="btn btn-sm btn-plain" data-con-pareja="${conPareja === false ? '1' : '0'}">${conPareja === false ? `Apartar con ${nombre}` : 'Apartar solo yo'}</button></span>`
 
   // Ya no quedan filas libres para los dos: la pareja elige qué hacer
   function htmlOpciones(nombre) {
@@ -613,6 +658,17 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
   }
 
   $('#seat-hint').addEventListener('click', e => {
+    const sw = e.target.closest('[data-con-pareja]')
+    if (sw) {
+      conPareja = sw.dataset.conPareja === '1'
+      seleccion = null
+      opcion = null
+      haptic(5)
+      renderHint()
+      actualizarAsientos(null)
+      renderFooter()
+      return
+    }
     const op = e.target.closest('[data-opcion]')
     if (op) {
       opcion = op.dataset.opcion
@@ -630,9 +686,10 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
   function renderFooter() {
     const texto = $('#seat-selection')
     const mio = mapa?.asientos.find(a => a.estado === 'mio')
-    const enPareja = mapa && mapa.modo === 'pareja'
-    const llena = mapa?.modo === 'pareja_llena'
-    btnRelease.hidden = !(mapa?.abierta && mio)
+    const enPareja = mapa && modo() === 'pareja'
+    const llena = mapa && modo() === 'pareja_llena'
+    const suyo = mapa?.asientos.find(a => a.estado === 'pareja')
+    btnRelease.hidden = !(mapa?.abierta && (mio || suyo))
     btnConfirm.disabled = true
 
     if (!mapa) {
@@ -683,7 +740,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     const n = Number(el.dataset.n)
     const a = mapa.asientos[n - 1]
     if (!elegible(a)) {
-      if (mapa.modo === 'pareja_llena' && !opcion && a.sel) toast('Primero elige una opción: separarse, otro vehículo o pedir un cambio', { type: 'info' })
+      if (modo() === 'pareja_llena' && !opcion && a.sel) toast('Primero elige una opción: separarse, otro vehículo o pedir un cambio', { type: 'info' })
       haptic(4)
       el.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }], { duration: 260 })
       return
@@ -699,7 +756,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     if (!seleccion || !mapa || !s) return
     const n = seleccion
     setLoading(btnConfirm, true)
-    if (mapa.modo === 'pareja_llena' && opcion === 'pedir') {
+    if (modo() === 'pareja_llena' && opcion === 'pedir') {
       const { data, error } = await rpc('alumno_pedir_cambio', { p_fecha: s.fecha, p_hora: s.hora, p_camion: s.camion, p_asiento: n })
       setLoading(btnConfirm, false)
       seleccion = null
@@ -718,7 +775,8 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       p_hora: s.hora,
       p_camion: s.camion,
       p_asiento: n,
-      p_solo: mapa.modo === 'pareja_llena'
+      p_solo: modo() === 'pareja_llena',
+      p_sin_pareja: modo() === 'solo' && !!mapa.pareja
     })
     setLoading(btnConfirm, false)
     if (error) {
@@ -747,31 +805,62 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
 
   btnRelease.addEventListener('click', async () => {
     const s = salidas.find(x => claveSalida(x) === salidaSel)
-    if (!s) return
+    if (!s || !mapa) return
+    const mio = mapa.asientos.find(a => a.estado === 'mio')
+    const suyo = mapa.asientos.find(a => a.estado === 'pareja')
+    const nombre = mapa.pareja?.nombre || 'tu pareja'
+    let quien = 'yo'
+    if (suyo && mio) {
+      quien = await actionSheet({
+        title: '¿Qué asiento quieres liberar?',
+        actions: [
+          { label: `Solo el mío (${mio.n})`, value: 'yo' },
+          { label: `Solo el de ${nombre} (${suyo.n})`, value: 'pareja' },
+          { label: `Los dos (${mio.n} y ${suyo.n})`, value: 'ambos', style: 'destructive' }
+        ]
+      })
+      if (!quien) return
+    } else if (suyo) quien = 'pareja'
+    if (quien === 'pareja') {
+      const ok = await confirm({
+        title: `Liberar el asiento de ${nombre}`,
+        message: `El asiento ${suyo.n} quedará libre para otros compañeros y le avisaremos a ${nombre}.`,
+        confirmLabel: 'Liberar',
+        destructive: true
+      })
+      if (ok) await liberar(s, quien)
+      return
+    }
     // Con beca del 100 % no hay cobro: se libera como siempre
     const tarde = new Date(s.salida_en) - Date.now() <= 60 * 60 * 1000 && precio() > 0
     const ok = await confirm({
       title: tarde ? 'Liberar con cobro' : 'Liberar asiento',
       message: tarde
         ? `Falta menos de una hora para la salida: si lo liberas se te cobra tu boleto completo (${fmtPesos(precio())}) como apartado perdido. Si vuelves a apartar esta misma salida, se te devuelve.`
-        : `Tu lugar quedará disponible para otros compañeros.${mapa?.pareja ? ' El asiento de tu pareja se conserva.' : ''}`,
+        : quien === 'ambos'
+          ? `Tu asiento y el de ${nombre} quedarán disponibles para otros compañeros. Le avisaremos a ${nombre}.`
+          : `Tu lugar quedará disponible para otros compañeros.${suyo ? ` El asiento de ${nombre} se conserva.` : ''}`,
       confirmLabel: tarde ? `Liberar y pagar ${fmtPesos(precio())}` : 'Liberar',
       destructive: true
     })
-    if (!ok) return
+    if (ok) await liberar(s, quien)
+  })
+
+  async function liberar(s, quien) {
     setLoading(btnRelease, true)
-    const { data, error } = await rpc('alumno_liberar_asiento', { p_fecha: s.fecha, p_hora: s.hora })
+    const { data, error } = await rpc('alumno_liberar_asiento', { p_fecha: s.fecha, p_hora: s.hora, p_quien: quien })
     setLoading(btnRelease, false)
     if (error) {
       toast(error.message, { type: 'error' })
       return
     }
     const cobro = Number(data?.cobro) || 0
-    toast(cobro ? `Asiento liberado · se cobraron ${fmtPesos(cobro)}` : 'Asiento liberado', { type: cobro ? 'warning' : 'success' })
+    const texto = quien === 'ambos' ? 'Asientos liberados' : quien === 'pareja' ? 'Asiento de tu pareja liberado' : 'Asiento liberado'
+    toast(cobro ? `${texto} · se cobraron ${fmtPesos(cobro)}` : texto, { type: cobro ? 'warning' : 'success' })
     if (cobro) alCobrar?.()
     seleccion = null
     await Promise.all([cargarMapa(), cargarSalidas()])
-  })
+  }
 
   function repintar() {
     if (!activo) return
