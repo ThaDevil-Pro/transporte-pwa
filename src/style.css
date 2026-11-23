@@ -4523,6 +4523,30 @@ button.row:active {
   font-size: 12px;
 }
 
+/* Registro manual: asiento que ya apartó el alumno (o los dos de la pareja) */
+.seat-apartado {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--blue) 14%, transparent);
+  color: var(--label);
+}
+.seat-apartado b {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--blue);
+}
+.seat-apartado span {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--label-2);
+}
+
 .manual-seat-bus {
   margin-top: 4px;
 }

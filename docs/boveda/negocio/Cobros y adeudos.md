@@ -1,6 +1,6 @@
 ---
 tags: [camify, negocio, dinero]
-actualizado: 2026-11-21
+actualizado: 2026-11-22
 ---
 
 # Cobros y adeudos
@@ -30,7 +30,8 @@ Volver a [Inicio](../Inicio.md)
 | Apartar asiento | adeudo **≤ $60** (un día) | `privado.puede_apartar` |
 
 - $600 = 10 días a $60 ≈ **2 semanas de clases** (Chinacates: 15 días). Esto es lo que respalda el "hasta 2 semanas para pagar" del comunicado.
-- Si debe más de $60 puede seguir subiendo, pero sin asiento apartado.
+- Si debe más de $60 puede seguir subiendo, pero sin asiento apartado: **como cualquier alumno sin apartado**, sentado si hay lugar y **de pie si va lleno** (desde 2026-11-22; antes se le asignaba a fuerza un asiento sin apartar y, si no quedaba, no podía subir).
+- La deuda **solo** cuenta en estas dos reglas. El que va de pie paga el boleto normal.
 
 ## Cobros extra
 - **Apartado perdido**: apartó y no subió → en el corte se le cobra el boleto completo (`privado.cobrar_perdido`, `historial_viajes.perdido = true`) y se le avisa. Ver [Apartados y asientos](Apartados%20y%20asientos.md).

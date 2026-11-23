@@ -16,6 +16,8 @@ Volver a [Inicio](Inicio.md)
 | 2026-11-19 | Mapa por consulta cada ~3 s en vez de en vivo ([Tiempo real y carga](tecnico/Tiempo%20real%20y%20carga.md)) | Aguantar 150 alumnos apartando a la vez en el plan gratis |
 | 2026-11-19 | **Un viaje apartado a la vez** ([Apartados y asientos](negocio/Apartados%20y%20asientos.md)) | Que nadie acapare lugares; liberar sí permite apartar otro; respaldo de 3 h si no se finaliza |
 | 2026-11-21 | La **administración** también edita horarios y qué unidad sale ([Viaje del chofer](negocio/Viaje%20del%20chofer.md)) | Lo pidió la administración; no depender de que cada chofer los capture |
+| 2026-11-22 | La deuda solo cuenta para **apartar (≤ $60) y subir (≤ $600)**; quien debe más de $60 puede ir de pie | La regla anterior (asiento forzado o no sube) no se había decidido y dejaba sin transporte a quien sí podía subir |
+| 2026-11-22 | Registro manual muestra el asiento apartado (y el de la pareja) con su lado | Que el chofer acomode rápido a quien no trae su QR |
 | 2026-11-22 | **En vivo solo el personal**; alumnos consultan cada 15–25 s ([Tiempo real y carga](tecnico/Tiempo%20real%20y%20carga.md)) | Con 150 alumnos conectados cada cambio de un camión rebasaba los 100 mensajes/s del plan gratis |
 | 2026-11-22 | Viajes olvidados se limpian solos (4 h sin corte / 6 h sin finalizar) ([Viaje del chofer](negocio/Viaje%20del%20chofer.md)) | Un abordaje del 4 de noviembre seguía "a bordo" y se iba a cobrar en el siguiente corte |
 | 2026-11-22 | Emergencia libera los apartados de esa unidad | Si no, los alumnos quedaban bloqueados para apartar otra |

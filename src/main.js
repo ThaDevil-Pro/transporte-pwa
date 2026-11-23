@@ -1398,11 +1398,6 @@ async function onScanSuccess(decodedText) {
     flash('success')
     haptic([20, 60, 20, 60, 20])
     setScanFeedback(`Vehículo lleno: ${primerNombre(data.nombre)} irá de pie`, 'warning', { volver: 3200 })
-  } else if (data.asignado) {
-    // Debe más de $60 y no pudo apartar: el sistema le dio el primer asiento libre sin apartar
-    flash('success')
-    haptic([20, 60, 20])
-    setScanFeedback(`${primerNombre(data.nombre)} debe más de $60: dale el asiento ${data.asiento}`, 'warning', { volver: 3800 })
   } else {
     flash('success')
     haptic(30)

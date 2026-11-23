@@ -22,6 +22,10 @@ Otras acciones del chofer: reportar falla, botón de emergencia ([Buzón y falla
 - **Pasar a otra unidad** (solo Admin, `admin_horario_mover`): la salida se va con todas sus horas; cada alumno se va con su **mismo asiento** si existe y está libre allá (y la unidad no es exclusiva de Chinacates para alguien de otra ubicación); si no, se libera sin cobro. A todos se les avisa.
 - Cada cambio queda en bitácora: `horario_cambiado`, `horario_eliminado`, `horario_movido` (con quién lo hizo).
 
+**Registro manual** (alumno sin QR): el chofer busca por nombre o número de control. Si ya apartó, el mapa marca su asiento (y el de su pareja en morado) y arriba sale una leyenda grande: «Asiento 24 · lado del chofer» o «Asientos 24-25 · con su pareja · lado de la puerta» (el volante va a la izquierda y la puerta a la derecha, como en el dibujo).
+
+**De pie**: quien no apartó y llega con el camión lleno sube de pie (sin límite). Al escanear, los apartados cuentan como ocupados aunque no hayan llegado; en el corte se recalcula con quienes subieron.
+
 **Viajes olvidados** (desde 2026-11-22, `privado.limpiar_viajes_viejos`, corre al escanear, hacer corte, abrir la lista o la jornada):
 - Alumnos escaneados hace **más de 4 h en un viaje sin corte** se quitan de la lista **sin cobro** y quedan en la bitácora (`abordajes_descartados`) con nombre y matrícula, por si la administración quiere cobrarlos a mano. Antes se quedaban "a bordo" para siempre: no podían subir a otra unidad y se les cobraba en el siguiente corte de ese camión (pasó en producción: uno del 4 de noviembre).
 - Corte hecho y nadie tocó **Finalizar**: se finaliza solo **6 h después del corte** (`viaje_finalizado_auto`).

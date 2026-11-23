@@ -3,7 +3,7 @@
 // control y lo sube a la lista sin QR (para quien no trae su código).
 // El servidor marca el abordaje como manual y lo anota en la bitácora.
 // =====================================================================
-import { camionCorto, plantillaColumnas, posicion, UBICACIONES } from './camiones.js'
+import { camionCorto, plantillaColumnas, posicion, asiento as asientoDe, vecino, vehiculo, UBICACIONES } from './camiones.js'
 import { $, $$, esc, icon, avatar, initials, haptic, toast, confirm, openSheet, closeSheet } from './ui.js'
 
 const MINIMO = 2
@@ -91,7 +91,7 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
       const sub = a.camion != null
         ? `${mat} · Ya va en el camión ${esc(camionCorto(a.camion))}`
         : a.bloqueado ? `${mat} · No puede subir: debe más de $600`
-          : a.sin_apartar ? `${mat} · Debe más de $60: solo un asiento que nadie apartó` : mat
+          : mat
       return `<button type="button" class="row" role="option" id="manual-opt-${i}" data-i="${i}" aria-selected="${i === activo}"${abordo ? ' aria-disabled="true"' : ''} tabindex="-1">
         ${avatar(a.nombre)}
         <span class="row-text"><span class="row-title">${esc(a.nombre)}</span><span class="row-sub">${sub}</span></span>
@@ -192,25 +192,37 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
   function elegirAsiento(a, bus, mapa) {
     return new Promise(resolve => {
       let elegido = mapa.asientos.find(x => x.matricula === a.matricula)?.n ?? null
+      // Si ya apartó (sola o con su pareja), se le marca dónde va y de qué lado
+      const apartado = elegido
+      const parN = apartado != null && mapa.asientos.find(x => x.n === apartado)?.con_pareja ? vecino(bus, apartado) : null
       const libres = mapa.asientos.filter(x => !x.nombre).length
       const dePie = !libres && elegido == null
-      // Debe más de $60: solo puede ir en un asiento que nadie apartó, nunca de pie
-      const sinLugar = dePie && a.sin_apartar
       const seat = x => {
         const mio = x.matricula === a.matricula
-        const estado = mio ? 'mio' : x.nombre ? 'ocupado' : 'libre'
-        return `<button type="button" class="seat${mio ? ' is-selected' : ''}" style="${posicion(bus, x.n)}" data-n="${x.n}" data-estado="${estado}"${estado === 'ocupado' ? ' disabled' : ''} aria-label="Asiento ${x.n}${estado === 'ocupado' ? `, ocupado por ${esc(x.nombre)}` : ''}">${estado === 'ocupado' ? esc(initials(x.nombre)) : x.n}</button>`
+        const estado = mio ? 'mio' : x.n === parN ? 'pareja' : x.nombre ? 'ocupado' : 'libre'
+        const bloqueado = estado === 'ocupado' || estado === 'pareja'
+        return `<button type="button" class="seat${mio ? ' is-selected' : ''}" style="${posicion(bus, x.n)}" data-n="${x.n}" data-estado="${estado}"${bloqueado ? ' disabled' : ''} aria-label="Asiento ${x.n}${estado === 'pareja' ? `, de su pareja ${esc(x.nombre)}` : estado === 'ocupado' ? `, ocupado por ${esc(x.nombre)}` : ''}">${estado === 'ocupado' ? esc(initials(x.nombre)) : x.n}</button>`
       }
       grid.style.gridTemplateColumns = plantillaColumnas(bus)
       grid.innerHTML = mapa.asientos.map(seat).join('')
       $('#manual-seat-bus-name').textContent = `${camionCorto(bus)}`
-      $('#manual-seat-lead').textContent = sinLugar
-        ? `${a.nombre} debe más de $60 y ya no queda ningún asiento libre sin apartar: no puede subir.`
+      const leyenda = $('#manual-seat-apartado')
+      leyenda.hidden = apartado == null
+      $('#sheet-manual-seat-title').textContent = apartado != null ? 'Su asiento apartado' : 'Elige su asiento'
+      if (apartado != null) {
+        // El volante está a la izquierda y la puerta a la derecha (como en el dibujo del mapa)
+        const lado = asientoDe(bus, apartado)?.c < (vehiculo(bus)?.cols || 5) / 2 ? 'lado del chofer' : 'lado de la puerta'
+        leyenda.innerHTML = parN
+          ? `<b>Asientos ${Math.min(apartado, parN)}-${Math.max(apartado, parN)}</b><span>con su pareja · ${lado}</span>`
+          : `<b>Asiento ${apartado}</b><span>${lado}</span>`
+      }
+      $('#manual-seat-lead').textContent = apartado != null
+        ? `${a.nombre} ya apartó para la salida de las ${mapa.hora} (${mapa.tipo === 'REGRESO' ? 'regreso' : 'ida'}).`
         : dePie
           ? `${a.nombre} · El vehículo va lleno: no queda ningún asiento libre, irá de pie.`
-          : `${a.nombre} · Salida de las ${mapa.hora} (${mapa.tipo === 'REGRESO' ? 'regreso' : 'ida'}). Toca un asiento libre${a.sin_apartar ? ' (debe más de $60: no puede ir de pie)' : ''}.`
-      btnOk.textContent = sinLugar ? 'No puede subir' : dePie ? 'Subir de pie' : elegido ? `Subir · Asiento ${elegido}` : 'Subir'
-      btnOk.disabled = sinLugar || (!dePie && elegido == null)
+          : `${a.nombre} · Salida de las ${mapa.hora} (${mapa.tipo === 'REGRESO' ? 'regreso' : 'ida'}). Toca un asiento libre.`
+      btnOk.textContent = dePie ? 'Subir de pie' : elegido ? `Subir · Asiento ${elegido}` : 'Subir'
+      btnOk.disabled = !dePie && elegido == null
 
       let listo = false
       const terminar = v => {
