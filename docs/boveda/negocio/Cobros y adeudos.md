@@ -1,6 +1,6 @@
 ---
 tags: [camify, negocio, dinero]
-actualizado: 2026-11-22
+actualizado: 2026-11-23
 ---
 
 # Cobros y adeudos
@@ -9,6 +9,7 @@ Volver a [Inicio](../Inicio.md)
 
 ## Saldo
 - `alumnos.saldo`: **positivo = debe**, **negativo = a favor**, 0 = al corriente.
+- **En pantalla se muestra al revés** (desde 2026-11-23): lo que debe en negativo (−$120) y lo que tiene a favor en positivo ($50); en el historial los viajes van con «−» y los pagos con «+». Solo cambia la vista (`fmtSaldo` y reportes); la base y las reglas siguen igual. La corrección de saldo del admin se escribe como en pantalla y se invierte al guardar. La hoja de importación pide el **Adeudo** (número positivo).
 - Al 2026-11-19 los 205 alumnos están en $0 (semana de prueba: las deudas previas quedaron en segundo plano).
 
 ## Boleto diario (`privado.precio_boleto`, `privado.cobro_viaje`)

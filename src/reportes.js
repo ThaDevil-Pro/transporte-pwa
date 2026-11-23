@@ -313,8 +313,8 @@ export function initReportes({ rpc, abrirCarga }) {
         { etiqueta: 'Viajes', valor: String(d.viajes.filter(v => !v.perdido).length), numero: d.viajes.filter(v => !v.perdido).length },
         { etiqueta: 'Cobrado', valor: fmtDinero(cobrado), numero: cobrado, dinero: true },
         { etiqueta: 'Pagado', valor: fmtDinero(pagado), numero: pagado, dinero: true, tono: pagado ? 'green' : '' },
-        // Saldo negativo = a favor del alumno
-        { etiqueta: Number(d.alumno.saldo) < 0 ? 'A favor hoy' : 'Saldo hoy', valor: fmtDinero(Math.abs(d.alumno.saldo)), numero: Math.abs(Number(d.alumno.saldo)), dinero: true, tono: Number(d.alumno.saldo) > 0 ? 'orange' : Number(d.alumno.saldo) < 0 ? 'green' : '' }
+        // En la base, saldo negativo = a favor del alumno; en pantalla lo que debe va en negativo
+        { etiqueta: Number(d.alumno.saldo) < 0 ? 'A favor hoy' : 'Saldo hoy', valor: `${Number(d.alumno.saldo) > 0 ? '−' : ''}${fmtDinero(Math.abs(d.alumno.saldo))}`, numero: Math.abs(Number(d.alumno.saldo)), dinero: true, tono: Number(d.alumno.saldo) > 0 ? 'orange' : Number(d.alumno.saldo) < 0 ? 'green' : '' }
       ])
       const movs = [
         ...d.viajes.map(v => ({ f: v.fecha_hora, pago: false, ...v })),
@@ -327,7 +327,7 @@ export function initReportes({ rpc, abrirCarga }) {
             tono: m.pago ? 'is-money' : m.perdido ? 'is-alert' : '',
             titulo: m.pago ? 'Pago registrado' : `${m.perdido ? 'Apartado perdido' : Number(m.monto) ? 'Viaje' : 'Regreso incluido'} · ${camionCorto(m.camion ?? 1)}`,
             sub: `${fmtFechaHora(m.f)}${m.pago && m.nota ? ` · ${m.nota}` : ''}${m.manual ? ' · A mano' : ''}`,
-            monto: `${m.pago ? '−' : ''}${fmtDinero(m.monto)}`,
+            monto: `${m.pago ? '+' : Number(m.monto) ? '−' : ''}${fmtDinero(m.monto)}`,
             montoTono: m.pago ? 'is-positive' : ''
           })).join('')}</div>${resto(movs.length - MAX_FILAS)}`
         : emptyState('i-receipt', 'Sin viajes', `No tuviste viajes ni pagos en ${p.texto.toLowerCase().startsWith('semana') ? 'esta semana' : 'este periodo'}.`)
@@ -364,9 +364,9 @@ export function initReportes({ rpc, abrirCarga }) {
             iconId: 'i-student',
             titulo: a.nombre,
             sub: `${a.matricula} · ${plural(a.viajes, 'viaje', 'viajes')} · pagó ${fmtDinero(a.pagado)}`,
-            monto: Number(a.saldo) < 0 ? `${fmtDinero(-a.saldo)} a favor` : fmtDinero(a.saldo),
+            monto: Number(a.saldo) > 0 ? `−${fmtDinero(a.saldo)}` : fmtDinero(-Number(a.saldo) || 0),
             montoTono: Number(a.saldo) > 0 ? 'is-warning' : Number(a.saldo) < 0 ? 'is-positive' : 'is-muted'
-          })).join('')}</div>${resto(d.alumnos.length - MAX_FILAS)}<p class="report-more">La cantidad a la derecha es el saldo pendiente de hoy.</p>`
+          })).join('')}</div>${resto(d.alumnos.length - MAX_FILAS)}<p class="report-more">La cantidad a la derecha es el saldo de hoy: en negativo lo que debe, en positivo lo que tiene a favor.</p>`
         : `<p class="report-empty">Sin movimientos en este periodo.</p>`
     } else {
       const cortes = d.cortes

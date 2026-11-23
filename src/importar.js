@@ -25,7 +25,7 @@ export function initImportar({ rpc, usuariosExistentes, alTerminar }) {
 
   $('#btn-import-template').addEventListener('click', () => {
     descargar('plantilla-camify.csv', csv([
-      ['Nombre', 'Matrícula', 'Contraseña', 'Saldo', 'Rol'],
+      ['Nombre', 'Matrícula', 'Contraseña', 'Adeudo', 'Rol'],
       ['Ana López Ruiz', 'A2026001', '', '0', 'Alumno'],
       ['Luis Ortega Díaz', 'A2026002', '', '', 'Alumno'],
       ['Juan Pérez Mora', 'LIC12345', '', '', 'Chofer']
@@ -82,7 +82,7 @@ export function initImportar({ rpc, usuariosExistentes, alTerminar }) {
       ${listas.length ? `<p class="import-subtitle">Vista previa</p>
         <div class="list">${listas.slice(0, MUESTRA).map(f => `<div class="row">
           ${avatar(f.nombre)}
-          <span class="row-text"><span class="row-title">${esc(f.nombre)}</span><span class="row-sub">${ROL_ETIQUETA[f.rol]} · ${esc(f.identificador)}${f.saldo && Number(f.saldo) ? ` · Saldo $${esc(f.saldo)}` : ''}</span></span>
+          <span class="row-text"><span class="row-title">${esc(f.nombre)}</span><span class="row-sub">${ROL_ETIQUETA[f.rol]} · ${esc(f.identificador)}${f.saldo && Number(f.saldo) ? ` · Debe $${esc(f.saldo)}` : ''}</span></span>
         </div>`).join('')}</div>
         ${listas.length > MUESTRA ? `<p class="field-hint">Y ${plural(listas.length - MUESTRA, 'más', 'más')}.</p>` : ''}` : ''}`
 

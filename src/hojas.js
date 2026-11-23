@@ -24,7 +24,7 @@ const COLUMNAS = {
 }
 const NOMBRE_COLUMNA = {
   nombre: 'Nombre', apellidos: 'Apellidos', paterno: 'Apellido paterno', materno: 'Apellido materno',
-  identificador: 'Matrícula', password: 'Contraseña', saldo: 'Saldo', rol: 'Rol'
+  identificador: 'Matrícula', password: 'Contraseña', saldo: 'Adeudo', rol: 'Rol'
 }
 
 const sinAcentos = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -192,9 +192,9 @@ function problema(f) {
   if (f.nombre.length < 2 || f.nombre.length > 80) return 'El nombre debe tener entre 2 y 80 caracteres'
   if (/[<>{}\u0000-\u001f]/.test(f.nombre)) return 'El nombre contiene caracteres no permitidos'
   if (f.saldo !== '') {
-    if (!/^\d{1,6}(\.\d{1,2})?$/.test(f.saldo)) return `Saldo “${f.saldo}” no válido: usa un número como 0 o 150.50`
-    if (Number(f.saldo) > 100000) return 'El saldo inicial debe estar entre $0 y $100,000'
-    if (f.rol === 'Chofer' && Number(f.saldo) !== 0) return 'Los choferes no llevan saldo'
+    if (!/^\d{1,6}(\.\d{1,2})?$/.test(f.saldo)) return `Adeudo “${f.saldo}” no válido: usa un número como 0 o 150.50`
+    if (Number(f.saldo) > 100000) return 'El adeudo inicial debe estar entre $0 y $100,000'
+    if (f.rol === 'Chofer' && Number(f.saldo) !== 0) return 'Los choferes no llevan adeudo'
   }
   if (f.password) {
     if (f.password.length < 8) return 'La contraseña debe tener al menos 8 caracteres'

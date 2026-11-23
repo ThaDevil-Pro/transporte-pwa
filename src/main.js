@@ -76,8 +76,8 @@ const cupo = () => capacidad(camionActual) || 1
 // --- 1. FORMATO ---
 const money = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtMoney = n => `$${money.format(Number(n) || 0)}`
-// Saldo negativo = dinero a favor del alumno
-const fmtSaldo = n => (Number(n) < 0 ? `${fmtMoney(-n)} a favor` : fmtMoney(n))
+// En la base, saldo positivo = debe. En pantalla se muestra al revés: debe en negativo, a favor en positivo
+const fmtSaldo = n => (Number(n) > 0 ? `−${fmtMoney(n)}` : fmtMoney(-Number(n) || 0))
 const fmtFecha = d => d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
 const fmtFechaLarga = d => d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
 const fmtHora = d => d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true })
@@ -556,8 +556,9 @@ function renderPerfilAlumno(perfil) {
 
   const saldo = Number(perfil.saldo) || 0
   animateNumber($('#student-balance'), Math.abs(saldo), { decimals: 2 })
+  $('#student-balance-card .amount-currency').textContent = saldo > 0 ? '−$' : '$'
   $('#student-balance-card').dataset.state = saldo > 0 ? 'due' : 'clear'
-  $('#student-balance-label').textContent = saldo < 0 ? 'Saldo a favor' : 'Saldo pendiente'
+  $('#student-balance-label').textContent = saldo < 0 ? 'Saldo a favor' : saldo > 0 ? 'Saldo (debes)' : 'Saldo'
   const viajes = saldo / (Number(perfil.precio) || PRECIO_VIAJE)
   $('#student-balance-status').textContent = saldo < 0
     ? 'Se descuenta de tus próximos viajes'
@@ -637,7 +638,7 @@ async function cargarHistorialAlumno() {
       return `<div class="row">
         <span class="row-icon${pago ? ' is-money' : perdido ? ' is-alert' : ''}">${icon(pago ? 'i-wallet' : perdido ? 'i-alert' : 'i-bus')}</span>
         <span class="row-text"><span class="row-title">${pago ? 'Pago registrado' : perdido ? 'Apartado perdido' : Number(m.monto) ? 'Viaje cobrado' : 'Regreso incluido'}</span><span class="row-sub">${esc(fmtFecha(f))} · ${esc(fmtHora(f))}${perdido ? ' · Apartaste y no subiste' : ''}${pago && m.nota ? ` · ${esc(m.nota)}` : ''}${m.manual ? ' · Registrado a mano por el chofer' : ''}</span></span>
-        <span class="row-trailing${pago ? ' is-positive' : ''}">${pago ? '−' : ''}${fmtMoney(m.monto)}</span>
+        <span class="row-trailing${pago ? ' is-positive' : ''}">${pago ? '+' : Number(m.monto) ? '−' : ''}${fmtMoney(m.monto)}</span>
       </div>`
     },
     empty: emptyState('i-receipt', 'Sin movimientos todavía', 'Tus viajes cobrados y tus pagos aparecerán aquí.')
@@ -2042,12 +2043,13 @@ function aplicarModoSaldo(modo) {
   const saldo = Number(editingAlumno?.saldo) || 0
   const pago = modo === 'pago'
   const input = $('#edit-balance-amount')
-  $('#edit-balance-label').textContent = pago ? 'Monto del pago ($)' : 'Saldo correcto ($, negativo si es a favor)'
+  $('#edit-balance-label').textContent = pago ? 'Monto del pago ($)' : 'Saldo correcto ($, negativo si debe)'
   // El teclado decimal del iPhone no tiene signo menos
   input.inputMode = pago ? 'decimal' : 'text'
   $('#edit-balance-note-label').textContent = pago ? 'Nota (opcional): efectivo, transferencia…' : 'Motivo de la corrección (obligatorio)'
   $('#btn-save-balance').textContent = pago ? 'Registrar pago' : 'Guardar corrección'
-  input.value = pago ? '' : saldo.toFixed(2)
+  // Se muestra como lo ve el alumno: negativo si debe
+  input.value = pago ? '' : (-saldo || 0).toFixed(2)
   $('#edit-balance-note').value = ''
   const rapidos = pago
     ? [[60, '$60'], [300, '$300'], ...(saldo > 0 ? [['todo', `Todo (${fmtMoney(saldo)})`]] : [])]
@@ -2110,7 +2112,7 @@ $('#form-edit-balance').addEventListener('submit', async e => {
   setLoading(btn, true)
   const { error } = pago
     ? await rpc('admin_registrar_pago', { p_id: editingAlumno.id, p_monto: valor, p_nota: nota.value.trim() || null })
-    : await rpc('admin_actualizar_saldo', { p_id: editingAlumno.id, p_saldo: valor, p_motivo: nota.value.trim() })
+    : await rpc('admin_actualizar_saldo', { p_id: editingAlumno.id, p_saldo: -valor || 0, p_motivo: nota.value.trim() })
   setLoading(btn, false)
   if (error) {
     toast(error.message || 'No se pudo guardar', { type: 'error' })

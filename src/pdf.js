@@ -334,7 +334,7 @@ export async function pdfAlumno(datos, periodo) {
     { etiqueta: 'Viajes', valor: String(viajes.filter(v => !v.perdido).length) },
     { etiqueta: 'Cobrado', valor: fmtDinero(cobrado) },
     { etiqueta: 'Pagado', valor: fmtDinero(pagado), color: pagado ? C.verde : C.tinta },
-    { etiqueta: Number(alumno.saldo) < 0 ? 'Saldo a favor' : 'Saldo pendiente', valor: fmtDinero(Math.abs(alumno.saldo)), nota: 'Al día de hoy', color: Number(alumno.saldo) > 0 ? C.naranja : Number(alumno.saldo) < 0 ? C.verde : C.tinta }
+    { etiqueta: Number(alumno.saldo) < 0 ? 'Saldo a favor' : Number(alumno.saldo) > 0 ? 'Saldo (debe)' : 'Saldo', valor: `${Number(alumno.saldo) > 0 ? '-' : ''}${fmtDinero(Math.abs(alumno.saldo))}`, nota: 'Al día de hoy', color: Number(alumno.saldo) > 0 ? C.naranja : Number(alumno.saldo) < 0 ? C.verde : C.tinta }
   ])
 
   seccion(ctx, 'Viajes', viajes.length ? `${viajes.length} en el periodo` : '')
@@ -502,8 +502,8 @@ export async function pdfGastos(datos, periodo, { admin } = {}) {
     const saldoTotal = datos.alumnos.reduce((s, a) => s + Number(a.saldo), 0)
     tabla(ctx,
       [{ titulo: 'Nombre' }, { titulo: 'Matrícula' }, { titulo: 'Viajes', alinear: 'center' }, { titulo: 'Cobrado', alinear: 'right' }, { titulo: 'Pagado', alinear: 'right' }, { titulo: 'Saldo hoy', alinear: 'right' }],
-      datos.alumnos.map(a => [a.nombre, a.matricula, a.viajes, fmtDinero(a.cargado), fmtDinero(a.pagado), Number(a.saldo) < 0 ? `${fmtDinero(-a.saldo)} a favor` : fmtDinero(a.saldo)]),
-      { pie: ['Total', '', r.viajes, fmtDinero(r.cobrado), fmtDinero(r.pagado), fmtDinero(saldoTotal)] }
+      datos.alumnos.map(a => [a.nombre, a.matricula, a.viajes, fmtDinero(a.cargado), fmtDinero(a.pagado), Number(a.saldo) > 0 ? `-${fmtDinero(a.saldo)}` : fmtDinero(-Number(a.saldo) || 0)]),
+      { pie: ['Total', '', r.viajes, fmtDinero(r.cobrado), fmtDinero(r.pagado), `${saldoTotal > 0 ? '-' : ''}${fmtDinero(Math.abs(saldoTotal))}`] }
     )
   } else {
     parrafo(ctx, 'Sin movimientos en este periodo.')
