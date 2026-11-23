@@ -720,7 +720,8 @@ function pintarQR({ cargando = false } = {}) {
       haptic(6)
     }
   }
-  $('#qr-countdown').textContent = `Se renueva en ${Math.max(1, Math.ceil(c.restante / 1000))} s`
+  // La imagen cambia cada 30 s, pero el chofer acepta cada código hasta 2 minutos
+  $('#qr-countdown').textContent = `Cambia en ${Math.max(1, Math.ceil(c.restante / 1000))} s · cada código vale 2 min`
   $('#qr-progress').style.setProperty('--p', (c.restante / qrDatos.periodo).toFixed(3))
   if (c.quedan < 60 && !qrCargando) cargarCodigosQR()
 }
