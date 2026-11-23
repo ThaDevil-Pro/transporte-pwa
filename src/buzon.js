@@ -184,7 +184,7 @@ export function initBuzon({ rpc, supabase, camion }) {
       <span class="row-text">
         <span class="inbox-row-top"><span class="row-title">${esc(cat.label)}${q.camion ? ` · ${camionCorto(q.camion)}` : ''}</span>${chip(conAutor ? est.admin : est.label, est.tono)}</span>
         <span class="inbox-row-msg">${esc(q.mensaje)}</span>
-        <span class="row-sub">${autor} · ${esc(cuando(q.creado_en))}</span>
+        <span class="row-sub">${autor} · ${esc(cuando(q.creado_en))}${conAutor && q.respuesta ? ' · <b class="tono-green">Respondida</b>' : ''}</span>
       </span>
     </${conAutor ? 'button' : 'div'}>`
   }
@@ -436,8 +436,11 @@ export function initBuzon({ rpc, supabase, camion }) {
     const { tipo, item } = atendiendo
     const btn = $('#btn-atender-save')
     setLoading(btn, true)
+    // Contestar una queja nueva la da por atendida (si no, seguía como «Nueva» y parecía no enviada)
+    const respondida = tipo === 'queja' && textoAtender.value.trim() && textoAtender.value.trim() !== (item.respuesta || '')
+    const estado = respondida && estadoAtender.value === 'nueva' ? 'atendida' : estadoAtender.value
     const { error } = tipo === 'queja'
-      ? await rpc('admin_queja_actualizar', { p_id: item.id, p_estado: estadoAtender.value, p_respuesta: textoAtender.value })
+      ? await rpc('admin_queja_actualizar', { p_id: item.id, p_estado: estado, p_respuesta: textoAtender.value })
       : await rpc('admin_falla_actualizar', { p_id: item.id, p_estado: estadoAtender.value, p_nota: textoAtender.value })
     setLoading(btn, false)
     if (error) {
@@ -447,7 +450,7 @@ export function initBuzon({ rpc, supabase, camion }) {
     textoAtender.blur()
     await closeSheet('sheet-atender')
     haptic([10, 40, 14])
-    toast('Guardado', { type: 'success' })
+    toast(respondida && item.nombre ? `Respuesta enviada a ${item.nombre.split(/\s+/)[0]}` : 'Guardado', { type: 'success' })
     cargarAdmin()
   })
 

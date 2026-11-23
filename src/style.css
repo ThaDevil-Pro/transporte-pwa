@@ -3161,6 +3161,12 @@ button.row:active {
 /* --- 16e. BUZÓN DE QUEJAS Y FALLAS --- */
 .tono-blue { --tono: var(--blue); --tint: var(--blue); }
 .tono-green { --tono: var(--green-text); --tint: var(--green); }
+
+/* «Respondida» en la lista de quejas del admin */
+.inbox-row .row-sub b.tono-green {
+  font-weight: 600;
+  color: var(--green-text);
+}
 .tono-orange { --tono: var(--orange-text); --tint: var(--orange); }
 .tono-red { --tono: var(--red-text); --tint: var(--red); }
 .tono-gray { --tono: var(--label-2); --tint: var(--label-2); }
