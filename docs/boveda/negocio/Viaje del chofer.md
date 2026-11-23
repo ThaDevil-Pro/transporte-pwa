@@ -1,6 +1,6 @@
 ---
 tags: [camify, negocio, chofer]
-actualizado: 2026-11-22
+actualizado: 2026-11-23
 ---
 
 # Viaje del chofer
@@ -11,7 +11,7 @@ Estado de cada vehículo en `estado_viaje` (`estado`: ESPERANDO / EN_CAMINO, `te
 
 1. **Jornada**: el chofer elige su vehículo del día (`chofer_elegir_vehiculo` → `privado.jornadas`). Un vehículo, un chofer por día.
 2. **Conteo**: inicia el temporizador de salida (`chofer_temporizador`). Al iniciarlo, se manda push "Tu camión ya está abordando" a quien apartó esa salida.
-3. **Abordaje**: escanea el QR del alumno (`chofer_registrar_abordaje`) o lo registra a mano (`chofer_abordar_manual`). Lista en `abordajes`.
+3. **Abordaje**: escanea el QR del alumno (`chofer_registrar_abordaje`; cada código cambia cada 30 s pero se acepta **hasta 1 hora**, así sirve una captura de pantalla) o lo registra a mano (`chofer_abordar_manual`). Lista en `abordajes`.
 4. **Corte** (`chofer_hacer_corte`): cobra a todos los de la lista ([Cobros y adeudos](Cobros%20y%20adeudos.md)), marca perdidos y pasa a **EN_CAMINO**. Queda en `privado.cortes`.
 5. **Finalizar** (`chofer_finalizar_viaje`): vacía la lista y vuelve a ESPERANDO. **Importante**: libera a los alumnos para apartar su siguiente viaje ([Apartados y asientos](Apartados%20y%20asientos.md)).
 

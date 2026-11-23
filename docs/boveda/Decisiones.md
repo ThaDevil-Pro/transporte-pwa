@@ -17,6 +17,7 @@ Volver a [Inicio](Inicio.md)
 | 2026-11-19 | **Un viaje apartado a la vez** ([Apartados y asientos](negocio/Apartados%20y%20asientos.md)) | Que nadie acapare lugares; liberar sí permite apartar otro; respaldo de 3 h si no se finaliza |
 | 2026-11-21 | La **administración** también edita horarios y qué unidad sale ([Viaje del chofer](negocio/Viaje%20del%20chofer.md)) | Lo pidió la administración; no depender de que cada chofer los capture |
 | 2026-11-22 | La deuda solo cuenta para **apartar (≤ $60) y subir (≤ $600)**; quien debe más de $60 puede ir de pie | La regla anterior (asiento forzado o no sube) no se había decidido y dejaba sin transporte a quien sí podía subir |
+| 2026-11-23 | El código QR se acepta **hasta 1 hora** (antes 2 min) | Que el alumno pueda tomarle captura en su casa y subir aunque no tenga señal o batería |
 | 2026-11-23 | «Pareja de viaje» pasa a llamarse **Compañero de viaje** (solo textos; el código sigue diciendo `pareja`) | Petición de la administración |
 | 2026-11-23 | **Asientos rotos**: un bloque del acomodo con `roto: true` se dibuja en gris y no se numera ni se puede apartar | Camión Rojo: la fila 8 del lado de la puerta no tiene asientos; así no se recorre la numeración |
 | 2026-11-23 | Emergencia: unidad **fuera de servicio el resto del día** y aviso solo a quien apartó o viaja en ella | Seguían apartando en la unidad descompuesta y el aviso asustaba a todos |
