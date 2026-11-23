@@ -302,8 +302,8 @@ export function initBuzon({ rpc, supabase, camion }) {
     }
     const bus = camion()
     const ok = await confirm({
-      title: '¿Avisar a todos los alumnos?',
-      message: `Todos verán que ${camionCorto(bus)} ${motivo.value === 'descompuesto' ? 'se descompuso' : 'no estará disponible'}.`,
+      title: `¿Sacar ${camionCorto(bus)} de servicio hoy?`,
+      message: `Avisaremos que ${motivo.value === 'descompuesto' ? 'se descompuso' : 'no estará disponible'} a quien apartó o suele viajar en él. Sus apartados se liberan sin cobro y hoy no se podrá apartar en él hasta que lo marques como reparado.`,
       confirmLabel: 'Avisar',
       destructive: true
     })
@@ -319,7 +319,7 @@ export function initBuzon({ rpc, supabase, camion }) {
     mensajeEmergencia.blur()
     await closeSheet('sheet-emergencia')
     haptic([10, 40, 14])
-    toast(`Se avisó a ${data.avisados} ${data.avisados === 1 ? 'alumno' : 'alumnos'}`, { type: 'success' })
+    toast(`Se avisó a ${data.avisados} ${data.avisados === 1 ? 'alumno' : 'alumnos'}${data.liberados ? ` · ${data.liberados} ${data.liberados === 1 ? 'apartado liberado' : 'apartados liberados'}` : ''}`, { type: 'success', duration: 4000 })
   })
 
   // ===================================================================

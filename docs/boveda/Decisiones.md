@@ -17,6 +17,8 @@ Volver a [Inicio](Inicio.md)
 | 2026-11-19 | **Un viaje apartado a la vez** ([Apartados y asientos](negocio/Apartados%20y%20asientos.md)) | Que nadie acapare lugares; liberar sí permite apartar otro; respaldo de 3 h si no se finaliza |
 | 2026-11-21 | La **administración** también edita horarios y qué unidad sale ([Viaje del chofer](negocio/Viaje%20del%20chofer.md)) | Lo pidió la administración; no depender de que cada chofer los capture |
 | 2026-11-22 | La deuda solo cuenta para **apartar (≤ $60) y subir (≤ $600)**; quien debe más de $60 puede ir de pie | La regla anterior (asiento forzado o no sube) no se había decidido y dejaba sin transporte a quien sí podía subir |
+| 2026-11-23 | Emergencia: unidad **fuera de servicio el resto del día** y aviso solo a quien apartó o viaja en ella | Seguían apartando en la unidad descompuesta y el aviso asustaba a todos |
+| 2026-11-23 | La tarjeta del viaje del alumno sigue a **su** camión hasta 3 h después de la hora programada | El camión sale tarde y el alumno veía el contador de la siguiente salida |
 | 2026-11-23 | La pareja puede apartar **solo** y cualquiera puede liberar el del otro o los dos; en la última hora se cobra a cada quien su boleto | Hay parejas que un día no pueden o no quieren ir juntas |
 | 2026-11-22 | **Se apaga el reacomodo de parejas**: sin filas dobles, la pareja elige separarse, otro vehículo o pedir el cambio (el otro alumno acepta o no) | Mover a alguien sin preguntar era lo más criticado por los alumnos |
 | 2026-11-22 | Registro manual muestra el asiento apartado (y el de la pareja) con su lado | Que el chofer acomode rápido a quien no trae su QR |

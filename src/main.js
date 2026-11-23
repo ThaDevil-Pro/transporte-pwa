@@ -69,6 +69,7 @@ let timerTotalMs = 5 * 60 * 1000
 let estados = {}
 let camionActual = null // el de la jornada de hoy del chofer
 let camionAlumno = null // el del próximo asiento apartado del alumno
+let salidasAlumno = [] // sus salidas (para elegir qué camión sigue la tarjeta del viaje)
 // Cupo del vehículo del chofer (nunca 0, para no dividir entre cero)
 const cupo = () => capacidad(camionActual) || 1
 
@@ -123,14 +124,31 @@ const asientos = initAsientos({
   alCobrar: () => refrescarAlumno(),
   // La tarjeta de viaje del alumno sigue al camión de su próximo asiento apartado
   alCambiarSalidas: salidas => {
-    const s = salidas.find(x => x.mi_asiento) || salidas[0]
-    const nuevo = perfilActual.abordo ?? s?.camion ?? null
-    $('#trip-bus-label').textContent = nuevo ? nombreCamion(nuevo) : 'Sin salidas'
-    if (nuevo === camionAlumno) return
-    camionAlumno = nuevo
-    if (currentRole === 'Estudiante') sincronizarViaje()
+    salidasAlumno = salidas
+    // La primera salida con su asiento es su apartado vigente (si no hay uno anterior que siga sin salir)
+    const s = salidas.find(x => x.mi_asiento)
+    const ap = apartadoVigente()
+    if (s && (!ap || new Date(s.salida_en) < new Date(ap.salida_en))) perfilActual.apartado = { camion: s.camion, salida_en: s.salida_en }
+    if (!s && ap && new Date(ap.salida_en) > Date.now()) perfilActual.apartado = null
+    elegirCamionAlumno()
   }
 })
+
+// Su apartado sigue vigente hasta 3 horas después de la hora programada: el camión a veces sale
+// tarde y el alumno debe seguir viendo SU camión, no el de la siguiente salida
+function apartadoVigente() {
+  const ap = perfilActual.apartado
+  return ap && new Date(ap.salida_en) > Date.now() - 3 * 3600 * 1000 ? ap : null
+}
+
+// Camión de la tarjeta del viaje: en el que va, si no, en el que apartó, si no, el de la próxima salida
+function elegirCamionAlumno() {
+  const nuevo = perfilActual.abordo ?? apartadoVigente()?.camion ?? salidasAlumno[0]?.camion ?? null
+  $('#trip-bus-label').textContent = nuevo ? nombreCamion(nuevo) : 'Sin salidas'
+  if (nuevo === camionAlumno) return
+  camionAlumno = nuevo
+  if (currentRole === 'Estudiante') sincronizarViaje()
+}
 const asientosChofer = initChoferAsientos({ rpc, supabase, camion: () => camionActual })
 
 // Registro manual (alumno sin código) e importación de usuarios (admin)
@@ -265,7 +283,8 @@ function cerrarSesion() {
   camionActual = null
   currentRole = ''
   perfilActual = {}
-  camionAlumno = 1
+  camionAlumno = null
+  salidasAlumno = []
   allUsersCache = []
   alumnosCache = []
   editingUser = null
@@ -555,10 +574,7 @@ async function refrescarAlumno() {
   if (perfil && currentRole === 'Estudiante') {
     perfilActual = { ...perfilActual, ...perfil }
     renderPerfilAlumno(perfil)
-    if (perfil.abordo && perfil.abordo !== camionAlumno) {
-      camionAlumno = perfil.abordo
-      $('#trip-bus-label').textContent = nombreCamion(camionAlumno)
-    }
+    elegirCamionAlumno()
     sincronizarViaje()
     if (!perfil.ubicacion) pedirUbicacion()
     if (faltanCodigosQR()) cargarCodigosQR()
@@ -1481,7 +1497,7 @@ btnTimerStop.addEventListener('click', () => accionTemporizador('cancelar', btnT
 async function cargarEstadoViaje() {
   const { data } = await supabase
     .from('estado_viaje')
-    .select('id, estado, tiempo_salida, temporizador_activo, nombre, color, tipo, cols, bloques, asientos, activo, exclusivo_chinacates')
+    .select('id, estado, tiempo_salida, temporizador_activo, nombre, color, tipo, cols, bloques, asientos, activo, exclusivo_chinacates, fuera_hasta')
   if (!data) return
   actualizarCamiones(data)
   pintarVehiculos()
@@ -1515,7 +1531,41 @@ function sincronizarViaje() {
   startLocalTimer(row.temporizador_activo ? row.tiempo_salida : null)
   renderTripCard()
   renderDriverTrip()
+  pintarFueraDeServicio()
 }
+
+const fueraDeServicio = id => {
+  const f = estados[id]?.fuera_hasta
+  return f && new Date(f) > Date.now() ? f : null
+}
+
+// Chofer: después de una emergencia su unidad queda fuera de servicio hasta que la marque reparada
+function pintarFueraDeServicio() {
+  const aviso = $('#driver-fuera')
+  if (!aviso) return
+  aviso.hidden = !(currentRole === 'Chofer' && camionActual && fueraDeServicio(camionActual))
+}
+
+async function marcarReparado(id, btn) {
+  if (btn) setLoading(btn, true)
+  const { error } = await rpc('vehiculo_reparado', { p_camion: id })
+  if (btn) setLoading(btn, false)
+  if (error) {
+    toast(error.message || 'No se pudo marcar como reparado', { type: 'error' })
+    return
+  }
+  toast(`${nombreCamion(id)} vuelve a estar disponible para apartar`, { type: 'success' })
+  await cargarEstadoViaje()
+}
+
+$('#btn-reparado').addEventListener('click', async e => {
+  const ok = await confirm({
+    title: '¿Ya está reparado?',
+    message: `${nombreCamion(camionActual)} volverá a aparecer para que los alumnos aparten.`,
+    confirmLabel: 'Sí, ya funciona'
+  })
+  if (ok) marcarReparado(camionActual, e.currentTarget)
+})
 
 // Devuelve true si cambió el estado (ESPERANDO ↔ EN_CAMINO) de ese camión
 function aplicarEstadoViaje(row) {
@@ -1553,10 +1603,10 @@ function pintarVehiculos() {
     ? `${plural(vehiculos.length, 'vehículo', 'vehículos')} · ${plural(vehiculos.reduce((s, v) => s + v.asientos.length, 0), 'asiento', 'asientos')} en total`
     : 'Aún no hay vehículos'
   patchList(lista, vehiculos, {
-    key: v => `${v.id}-${v.nombre}-${v.asientos.length}-${v.tipo}-${v.exclusivo}`,
+    key: v => `${v.id}-${v.nombre}-${v.asientos.length}-${v.tipo}-${v.exclusivo}-${!!fueraDeServicio(v.id)}`,
     render: v => `<button class="row" data-vehiculo="${esc(v.id)}">
       <span class="row-icon jornada-icon" style="--bus:${esc(v.color)}">${icon('i-bus')}</span>
-      <span class="row-text"><span class="row-title">${esc(v.nombre)}</span><span class="row-sub">${esc(TIPOS[v.tipo])} · ${plural(v.asientos.length, 'asiento', 'asientos')}${v.exclusivo ? ' · Exclusivo Chinacates' : ''}</span></span>
+      <span class="row-text"><span class="row-title">${esc(v.nombre)}</span><span class="row-sub">${esc(TIPOS[v.tipo])} · ${plural(v.asientos.length, 'asiento', 'asientos')}${v.exclusivo ? ' · Exclusivo Chinacates' : ''}${fueraDeServicio(v.id) ? ' · <b class="is-danger">Fuera de servicio hoy</b>' : ''}</span></span>
       ${icon('i-chevron-right', 'chevron')}
     </button>`,
     empty: emptyState('i-bus', 'Sin vehículos', 'Toca «Agregar vehículo» para dibujar el primero.')
@@ -1572,10 +1622,12 @@ $('#admin-vehiculos-ul').addEventListener('click', async e => {
     title: v.nombre,
     message: `${TIPOS[v.tipo]} · ${plural(v.asientos.length, 'asiento', 'asientos')}${v.exclusivo ? ' · Exclusivo para Chinacates' : ''}`,
     actions: [
+      ...(fueraDeServicio(v.id) ? [{ label: 'Marcar como reparado', value: 'reparado' }] : []),
       { label: 'Editar acomodo y nombre', value: 'editar' },
       { label: 'Dar de baja', value: 'baja', style: 'destructive' }
     ]
   })
+  if (accion === 'reparado') marcarReparado(v.id)
   if (accion === 'editar') editorVehiculo.editar(v)
   if (accion === 'baja') {
     const ok = await confirm({

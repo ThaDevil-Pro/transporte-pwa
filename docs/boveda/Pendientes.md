@@ -1,6 +1,6 @@
 ---
 tags: [camify, pendientes]
-actualizado: 2026-11-22
+actualizado: 2026-11-23
 ---
 
 # Pendientes
@@ -11,7 +11,7 @@ Volver a [Inicio](Inicio.md)
 - [ ] **Publicar**: migración `20261122000000_auditoria_lanzamiento.sql` y los commits del comprobante de contraseña, la auditoría, la consulta ligera del alumno y «Sin cobro». Orden: primero la migración, luego el código.
 - [ ] **133 de 206 alumnos nunca han entrado**: confirmar que la administración tiene el archivo de contraseñas temporales que dio la importación. Si se perdió, hay que restablecerlas una por una (Usuarios → Editar, con comprobante en PDF).
 - [ ] **135 alumnos sin ubicación**: la app se las pide al entrar; solo la administración puede corregirla después.
-- [ ] Emergencia: la unidad descompuesta **sigue apareciendo para apartar**. Si estará fuera varios días, pasar sus salidas a otra unidad en **Horarios**.
+- [x] Emergencia: la unidad descompuesta ya **no aparece para apartar** el resto del día (2026-11-23). Si estará fuera varios días, pasar sus salidas a otra unidad en **Horarios**.
 - [ ] Al publicar, el abordaje colgado del 4 de noviembre (Camión Amarillo) se quitará solo y quedará en Actividad como «Alumnos quitados de un viaje sin corte».
 - [ ] El 22 de noviembre a las 10:37 a. m. alguien escaneó la API desde muchas IPs buscando funciones de saldo, pagos y becas. Todo fue rechazado; solo leyó lo que ya es público (horarios y unidades). Sin acción, pero estar atentos.
 

@@ -4536,6 +4536,26 @@ button.row:active {
 
 .btn-danger-solid { --btn-bg: var(--red); --btn-fg: #fff; }
 
+.fuera-card {
+  margin-top: 12px;
+}
+
+.fuera-title {
+  font-weight: 600;
+  color: var(--red-text);
+}
+
+.fuera-sub {
+  margin: 4px 0 12px;
+  font-size: 14px;
+  color: var(--label-2);
+}
+
+.row-sub .is-danger {
+  font-weight: 600;
+  color: var(--red-text);
+}
+
 .emergency-btn {
   margin-top: 4px;
 }

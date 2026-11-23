@@ -370,6 +370,11 @@
         </article>
 
         <button class="btn btn-danger btn-lg btn-block emergency-btn" id="btn-emergencia" data-reveal style="--i:5"><svg class="icon"><use href="#i-alert"/></svg>Emergencia del camión</button>
+        <article class="card fuera-card" id="driver-fuera" hidden>
+          <p class="fuera-title">Tu unidad está fuera de servicio hoy</p>
+          <p class="fuera-sub">Los alumnos no pueden apartar en ella. Cuando ya funcione, avísalo aquí.</p>
+          <button class="btn btn-tinted-green btn-block" id="btn-reparado">Ya está reparado</button>
+        </article>
 
         <article class="card diesel-card" id="driver-diesel-card" data-reveal style="--i:6">
           <div class="diesel-card-head">
@@ -1464,7 +1469,7 @@
         </div>
       </div>
       <form class="sheet-body sheet-form inbox-form" id="form-emergencia" novalidate>
-        <p class="sheet-lead" id="emergencia-lead">Se avisará a todos los alumnos en su panel y la administración lo verá como falla urgente.</p>
+        <p class="sheet-lead" id="emergencia-lead">Se avisará a los alumnos que apartaron o suelen viajar en esta unidad, sus apartados se liberan sin cobro y hoy ya no se podrá apartar en ella. La administración lo verá como falla urgente.</p>
         <div class="form-group">
           <p class="form-label">¿Qué pasó?</p>
           <div class="choices choices-2" id="emergencia-motivo" role="radiogroup" aria-label="Qué pasó"></div>
@@ -1475,7 +1480,7 @@
           <span class="field-count" id="emergencia-contador">0/300</span>
         </div>
         <p class="field-hint">Por ejemplo: "Vamos en el camión Gris, sale a la misma hora".</p>
-        <button type="submit" class="btn btn-danger-solid btn-lg btn-block" id="btn-emergencia-send"><svg class="icon"><use href="#i-alert"/></svg>Avisar a todos</button>
+        <button type="submit" class="btn btn-danger-solid btn-lg btn-block" id="btn-emergencia-send"><svg class="icon"><use href="#i-alert"/></svg>Avisar y sacar de servicio</button>
       </form>
     </div>
   </div>
