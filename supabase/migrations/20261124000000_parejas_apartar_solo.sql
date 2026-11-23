@@ -1,8 +1,32 @@
 -- Parejas: cada quien puede apartar solo (2026-11-23)
 -- · alumno_apartar(p_sin_pareja): aparta solo mi asiento aunque tenga pareja; el de la pareja no cambia.
 -- · alumno_liberar_asiento(p_quien): 'yo', 'pareja' o 'ambos'. Cualquiera de la pareja puede liberar
---   el asiento del otro (se le avisa). Con menos de una hora para la salida solo el dueño puede
---   liberar el suyo, porque ahí se cobra el apartado perdido.
+--   el asiento del otro (se le avisa). Con menos de una hora para la salida, a cada quien se le cobra
+--   su propio boleto como apartado perdido.
+
+-- Devuelve el apartado perdido (no cortado) de esa salida si el alumno vuelve a tener lugar en ella
+create or replace function privado.devolver_perdido(p_matricula text, p_fecha date, p_hora time)
+returns void
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_devuelto numeric;
+begin
+  with d as (
+    delete from historial_viajes
+    where matricula = p_matricula and perdido and corte_id is null and salida_fecha = p_fecha and salida_hora = p_hora
+    returning monto
+  )
+  select sum(monto) into v_devuelto from d;
+  if v_devuelto is not null then
+    update alumnos set saldo = saldo - v_devuelto where matricula = p_matricula;
+    perform privado.log('Estudiante', p_matricula, 'apartado_recuperado', jsonb_build_object(
+      'fecha', p_fecha, 'hora', to_char(p_hora, 'HH24:MI'), 'monto', v_devuelto));
+  end if;
+end;
+$$;
+revoke all on function privado.devolver_perdido(text, date, time) from public, anon, authenticated;
 
 drop function if exists public.alumno_apartar(uuid, date, time without time zone, integer, integer, boolean);
 
@@ -110,6 +134,7 @@ begin
       v_lugar_pareja := privado.asiento_cercano(p_camion, p_fecha, p_hora, p_asiento, array[p_asiento]);
       if v_lugar_pareja is not null then
         insert into reservas (fecha, hora, tipo, camion, asiento, matricula) values (p_fecha, p_hora, v_tipo, p_camion, v_lugar_pareja, v_pareja);
+        perform privado.devolver_perdido(v_pareja, p_fecha, p_hora);
         perform _avisar(v_pareja, 'asiento_pareja',
           format('Para la salida del %s (%s), %s apartó el asiento %s para ti. Ya no quedaban lugares juntos, así que van separados (el suyo es el %s).',
                  _salida_texto(p_fecha, p_hora), _camion_nombre(p_camion), _nombre_corto(v_yo), v_lugar_pareja, p_asiento));
@@ -138,6 +163,7 @@ begin
   insert into reservas (fecha, hora, tipo, camion, asiento, matricula) values
     (p_fecha, p_hora, v_tipo, p_camion, p_asiento, v_yo),
     (p_fecha, p_hora, v_tipo, p_camion, v_vecino, v_pareja);
+  perform privado.devolver_perdido(v_pareja, p_fecha, p_hora);
 
   perform _avisar(v_pareja, 'asiento_pareja',
     format('Para la salida del %s (%s), %s apartó el asiento %s para ti, junto al suyo.',
@@ -163,6 +189,8 @@ declare
   v_camion integer;
   v_asiento integer;
   v_cobro numeric := 0;
+  v_cobro_pareja numeric := 0;
+  v_tarde boolean;
   v_liberados int := 0;
 begin
   if v_quien not in ('yo', 'pareja', 'ambos') then
@@ -184,28 +212,32 @@ begin
     if v_camion is null then
       continue;
     end if;
-    -- Con menos de una hora se cobra el apartado perdido: eso solo lo decide el dueño del asiento
-    if v_m <> v_yo and _ahora() >= v_salida - interval '1 hour' then
-      raise exception 'Falta menos de una hora para la salida: solo % puede liberar su asiento.', _nombre_corto(v_m);
-    end if;
+    v_tarde := _ahora() >= v_salida - interval '1 hour';
     delete from reservas where fecha = p_fecha and hora = p_hora and matricula = v_m;
     update privado.cambios_asiento set estado = 'cancelada', respondida_en = now()
     where estado = 'pendiente' and fecha = p_fecha and hora = p_hora and v_m in (pide, a);
     v_liberados := v_liberados + 1;
     if v_m = v_yo then
-      if _ahora() >= v_salida - interval '1 hour' then
+      if v_tarde then
         v_cobro := privado.cobrar_perdido(v_yo, v_camion, null, p_fecha, p_hora);
         perform privado.log('Estudiante', v_yo, 'apartado_cancelado_tarde', jsonb_build_object(
           'camion', v_camion, 'fecha', p_fecha, 'hora', to_char(p_hora, 'HH24:MI'), 'monto', v_cobro));
       end if;
     else
-      perform _avisar(v_m, 'pareja_libero', format('%s liberó tu asiento %s de la salida del %s (%s). Puedes volver a apartar si todavía quieres ir.',
-        _nombre_corto(v_yo), v_asiento, _salida_texto(p_fecha, p_hora), _camion_nombre(v_camion)));
+      -- Con menos de una hora, a la pareja también se le cobra su boleto como apartado perdido
+      if v_tarde then
+        v_cobro_pareja := privado.cobrar_perdido(v_m, v_camion, null, p_fecha, p_hora);
+      end if;
+      perform _avisar(v_m, 'pareja_libero', format('%s liberó tu asiento %s de la salida del %s (%s).%s',
+        _nombre_corto(v_yo), v_asiento, _salida_texto(p_fecha, p_hora), _camion_nombre(v_camion),
+        case when v_cobro_pareja > 0
+             then format(' Faltaba menos de una hora, así que se te cobró tu boleto ($%s) como apartado perdido. Si vuelves a apartar esta misma salida, se te devuelve.', to_char(v_cobro_pareja, 'FM999,990.##'))
+             else ' Puedes volver a apartar si todavía quieres ir.' end));
       perform privado.log('Estudiante', v_yo, 'asiento_pareja_liberado', jsonb_build_object(
-        'pareja', v_m, 'camion', v_camion, 'fecha', p_fecha, 'hora', to_char(p_hora, 'HH24:MI'), 'asiento', v_asiento));
+        'pareja', v_m, 'camion', v_camion, 'fecha', p_fecha, 'hora', to_char(p_hora, 'HH24:MI'), 'asiento', v_asiento, 'monto', v_cobro_pareja));
     end if;
   end loop;
-  return json_build_object('cobro', v_cobro, 'liberados', v_liberados);
+  return json_build_object('cobro', v_cobro, 'cobro_pareja', v_cobro_pareja, 'liberados', v_liberados);
 end;
 $$;
 

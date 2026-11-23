@@ -821,10 +821,13 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       })
       if (!quien) return
     } else if (suyo) quien = 'pareja'
+    // Con menos de una hora, a cada quien se le cobra su boleto como apartado perdido
+    const ultimaHora = new Date(s.salida_en) - Date.now() <= 60 * 60 * 1000
+    const avisoPareja = ultimaHora ? ` Falta menos de una hora: a ${nombre} se le cobra su boleto como apartado perdido.` : ''
     if (quien === 'pareja') {
       const ok = await confirm({
-        title: `Liberar el asiento de ${nombre}`,
-        message: `El asiento ${suyo.n} quedará libre para otros compañeros y le avisaremos a ${nombre}.`,
+        title: ultimaHora ? `Liberar con cobro a ${nombre}` : `Liberar el asiento de ${nombre}`,
+        message: `El asiento ${suyo.n} quedará libre para otros compañeros y le avisaremos a ${nombre}.${avisoPareja}`,
         confirmLabel: 'Liberar',
         destructive: true
       })
@@ -832,13 +835,13 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       return
     }
     // Con beca del 100 % no hay cobro: se libera como siempre
-    const tarde = new Date(s.salida_en) - Date.now() <= 60 * 60 * 1000 && precio() > 0
+    const tarde = ultimaHora && precio() > 0
     const ok = await confirm({
       title: tarde ? 'Liberar con cobro' : 'Liberar asiento',
       message: tarde
-        ? `Falta menos de una hora para la salida: si lo liberas se te cobra tu boleto completo (${fmtPesos(precio())}) como apartado perdido. Si vuelves a apartar esta misma salida, se te devuelve.`
+        ? `Falta menos de una hora para la salida: si lo liberas se te cobra tu boleto completo (${fmtPesos(precio())}) como apartado perdido. Si vuelves a apartar esta misma salida, se te devuelve.${quien === 'ambos' ? ` A ${nombre} también se le cobra el suyo.` : ''}`
         : quien === 'ambos'
-          ? `Tu asiento y el de ${nombre} quedarán disponibles para otros compañeros. Le avisaremos a ${nombre}.`
+          ? `Tu asiento y el de ${nombre} quedarán disponibles para otros compañeros. Le avisaremos a ${nombre}.${avisoPareja}`
           : `Tu lugar quedará disponible para otros compañeros.${suyo ? ` El asiento de ${nombre} se conserva.` : ''}`,
       confirmLabel: tarde ? `Liberar y pagar ${fmtPesos(precio())}` : 'Liberar',
       destructive: true
@@ -856,7 +859,9 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     }
     const cobro = Number(data?.cobro) || 0
     const texto = quien === 'ambos' ? 'Asientos liberados' : quien === 'pareja' ? 'Asiento de tu pareja liberado' : 'Asiento liberado'
-    toast(cobro ? `${texto} · se cobraron ${fmtPesos(cobro)}` : texto, { type: cobro ? 'warning' : 'success' })
+    const cobroPareja = Number(data?.cobro_pareja) || 0
+    const cobros = [cobro && `a ti ${fmtPesos(cobro)}`, cobroPareja && `a tu pareja ${fmtPesos(cobroPareja)}`].filter(Boolean)
+    toast(cobros.length ? `${texto} · se cobró ${cobros.join(' y ')}` : texto, { type: cobros.length ? 'warning' : 'success', duration: cobros.length ? 4500 : 2800 })
     if (cobro) alCobrar?.()
     seleccion = null
     await Promise.all([cargarMapa(), cargarSalidas()])
