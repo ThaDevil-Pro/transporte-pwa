@@ -609,8 +609,8 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     $('#bus-name').textContent = `${camionCorto(mapa.camion)}`
     $('#legend-pair').hidden = !mapa.pareja
     bus.classList.toggle('is-locked', !mapa.abierta)
-    $('#bus-lock').hidden = mapa.abierta
-    if (!mapa.abierta) {
+    $('#bus-lock').hidden = mapa.abierta || yaEsLaHora()
+    if (!mapa.abierta && !yaEsLaHora()) {
       const cuenta = $('#bus-lock-count')
       cuenta.dataset.cuenta = mapa.abre_en
       cuenta.textContent = formatCuenta(new Date(mapa.abre_en) - Date.now())
@@ -621,10 +621,14 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     renderFooter()
   }
 
+  // La salida ya llegó a su hora (el camión puede seguir esperando)
+  const yaEsLaHora = () => new Date(mapa.salida_en) <= Date.now()
+
   function renderHint() {
     const hint = $('#seat-hint')
     const nombre = esc(mapa.pareja?.nombre || '')
-    if (!mapa.abierta) hint.innerHTML = 'Así se ve el vehículo. El apartado abre <b>12 horas antes</b> de la salida.'
+    if (!mapa.abierta && yaEsLaHora()) hint.innerHTML = mapa.asientos.some(a => a.estado === 'mio') ? '<b>Tu lugar sigue apartado.</b> Ya es la hora de esta salida: sube y muestra tu código al chofer.' : 'Ya es la hora de esta salida: ya no se puede apartar.'
+    else if (!mapa.abierta) hint.innerHTML = 'Así se ve el vehículo. El apartado abre <b>12 horas antes</b> de la salida.'
     else if (mapa.restriccion) hint.innerHTML = `<b>${esc(mapa.restriccion)}</b>`
     else if (mapa.pareja && modo() === 'solo') hint.innerHTML = `Apartarás <b>solo tu asiento</b>; el de ${nombre} no cambia.${interruptor(nombre)}`
     else if (mapa.modo === 'pareja') hint.innerHTML = `Viajas con <b>${nombre}</b>: elige una fila de dos y se apartarán los dos asientos.${interruptor(nombre)}`
@@ -703,7 +707,9 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       return
     }
     if (!mapa.abierta) {
-      texto.innerHTML = '<small>Podrás elegir tu lugar en cuanto abra el apartado</small>'
+      texto.innerHTML = yaEsLaHora()
+        ? (mio ? `Tu asiento: ${mio.n}<small>Muestra tu código al chofer al subir</small>` : '<small>Esta salida ya no acepta apartados</small>')
+        : '<small>Podrás elegir tu lugar en cuanto abra el apartado</small>'
       btnConfirm.textContent = 'Apartar asiento'
       return
     }

@@ -3,6 +3,8 @@
 --   apartar ni se puede apartar en ella, hasta que el chofer o un admin la marquen como reparada.
 -- · El aviso ya no llega a todos los alumnos: solo a quien tenía apartado en ella y a quien viajó
 --   en ella en las últimas dos semanas.
+-- · alumno_salidas: la salida donde apartó sigue en su lista aunque ya pasó la hora, hasta el corte
+--   (antes desaparecía y la tarjeta decía «Ya puedes apartar tu lugar» aunque tenía asiento).
 -- · alumno_perfil.apartado: el apartado vigente del alumno aunque ya pasó la hora programada
 --   (el camión suele salir tarde); la tarjeta del viaje sigue a ese camión y no al de la siguiente salida.
 
@@ -69,7 +71,9 @@ begin
       from _salidas_programadas(v_hoy, 8) s
       join estado_viaje e on e.id = s.camion
       left join reservas m on m.fecha = s.fecha and m.hora = s.hora and m.camion = s.camion and m.matricula = v_yo
-      where _salida_ts(s.fecha, s.hora) > _ahora()
+      -- Su propia salida sigue en la lista aunque ya pasó la hora (el camión suele salir tarde), hasta el corte
+      where (_salida_ts(s.fecha, s.hora) > _ahora()
+             or (m.asiento is not null and _salida_ts(s.fecha, s.hora) > _ahora() - interval '3 hours'))
         and not privado.salida_cerrada(s.fecha, s.hora, s.camion)
         -- Unidad fuera de servicio (emergencia del chofer): no se ofrece
         and not coalesce(e.fuera_hasta > _salida_ts(s.fecha, s.hora), false)
