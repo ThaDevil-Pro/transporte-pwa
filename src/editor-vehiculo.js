@@ -40,7 +40,7 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
   let arrastre = null
 
   const cols = () => COLS[tipo] || 5
-  const conId = lista => lista.map(b => ({ id: siguiente++, r: b.r, c: b.c, w: b.w }))
+  const conId = lista => lista.map(b => ({ id: siguiente++, r: b.r, c: b.c, w: b.w, roto: b.roto === true }))
 
   // --- PASOS ---
   function mostrar(paso) {
@@ -125,7 +125,7 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
 
   // Número de cada asiento: de adelante hacia atrás y de izquierda a derecha
   function numeracion() {
-    const asientos = bloques.flatMap(b => Array.from({ length: b.w }, (_, k) => ({ r: b.r, c: b.c + k, id: b.id })))
+    const asientos = bloques.filter(b => !b.roto).flatMap(b => Array.from({ length: b.w }, (_, k) => ({ r: b.r, c: b.c + k, id: b.id })))
       .sort((a, b) => a.r - b.r || a.c - b.c)
     const mapa = new Map()
     asientos.forEach((a, i) => mapa.set(`${a.r},${a.c}`, i + 1))
@@ -149,9 +149,9 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
     }
     html += bloques.map(b => {
       const nums = Array.from({ length: b.w }, (_, k) => de(b.r, b.c + k))
-      return `<button type="button" class="veh-bloque${b.id === sel ? ' is-selected' : ''}" data-id="${b.id}" style="grid-row:${b.r + 1};grid-column:${b.c + 1} / span ${b.w}"
-        aria-label="${b.w === 2 ? `Fila de dos, asientos ${nums.join(' y ')}` : `Asiento ${nums[0]}`}${b.id === sel ? ', seleccionado' : ''}">
-        ${nums.map(n => `<span class="veh-asiento">${n}</span>`).join('')}
+      return `<button type="button" class="veh-bloque${b.id === sel ? ' is-selected' : ''}${b.roto ? ' is-roto' : ''}" data-id="${b.id}" style="grid-row:${b.r + 1};grid-column:${b.c + 1} / span ${b.w}"
+        aria-label="${b.roto ? (b.w === 2 ? 'Fila de dos rota' : 'Asiento roto') : b.w === 2 ? `Fila de dos, asientos ${nums.join(' y ')}` : `Asiento ${nums[0]}`}${b.id === sel ? ', seleccionado' : ''}">
+        ${nums.map(n => `<span class="veh-asiento">${n ?? '✕'}</span>`).join('')}
       </button>`
     }).join('')
     lienzo.innerHTML = html
@@ -163,7 +163,10 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
     $('#veh-barra-sel').hidden = !elegido
     if (elegido) {
       const nums = Array.from({ length: elegido.w }, (_, k) => de(elegido.r, elegido.c + k))
-      $('#veh-sel-texto').textContent = elegido.w === 2 ? `Fila de dos · asientos ${nums.join(' y ')}` : `Asiento ${nums[0]}`
+      $('#veh-sel-texto').textContent = elegido.roto
+        ? (elegido.w === 2 ? 'Fila de dos rota' : 'Asiento roto')
+        : elegido.w === 2 ? `Fila de dos · asientos ${nums.join(' y ')}` : `Asiento ${nums[0]}`
+      $('#btn-veh-roto').textContent = elegido.roto ? 'Ya funciona' : 'Roto'
     }
     $('#veh-ayuda').textContent = herramienta
       ? `Toca un lugar vacío del dibujo para poner ${herramienta === 2 ? 'una fila de dos' : 'un asiento'}. Toca otra vez el bloque de arriba para terminar.`
@@ -183,6 +186,15 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
     }
     return true
   }
+
+  // Asiento roto: sigue en el dibujo (en gris) pero no se numera ni se puede apartar
+  $('#btn-veh-roto').addEventListener('click', () => {
+    const b = bloques.find(x => x.id === sel)
+    if (!b) return
+    b.roto = !b.roto
+    haptic(8)
+    pintar()
+  })
 
   function quitar(idBloque) {
     bloques = bloques.filter(b => b.id !== idBloque)
@@ -406,7 +418,7 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
       p_nombre: texto,
       p_tipo: tipo,
       p_cols: cols(),
-      p_bloques: bloques.map(({ r, c, w }) => ({ r, c, w })),
+      p_bloques: bloques.map(({ r, c, w, roto }) => (roto ? { r, c, w, roto: true } : { r, c, w })),
       p_exclusivo: exclusivo.checked
     })
     setLoading(btnGuardar, false)

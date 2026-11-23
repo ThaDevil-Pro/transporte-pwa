@@ -237,7 +237,7 @@
           </article>
 
           <article class="card pair-card" id="pair-card" data-reveal style="--i:3">
-            <div class="card-label"><svg class="icon"><use href="#i-link"/></svg>Pareja de viaje</div>
+            <div class="card-label"><svg class="icon"><use href="#i-link"/></svg>Compañero de viaje</div>
             <div id="pair-card-body"><div class="skeleton" style="height:60px;margin-top:14px;border-radius:16px"></div></div>
           </article>
 
@@ -413,7 +413,7 @@
           <span><i class="legend-seat is-free"></i>Libre</span>
           <span><i class="legend-seat is-taken"></i>Apartado</span>
           <span><i class="legend-seat is-boarded"></i>A bordo</span>
-          <span><i class="legend-seat is-pair"></i>En pareja</span>
+          <span><i class="legend-seat is-pair"></i>Compañeros de viaje</span>
           <span><i class="legend-ubic ubic-nuevo_ideal">NI</i>Nuevo Ideal</span>
           <span><i class="legend-ubic ubic-chinacates">CH</i>Chinacates</span>
         </div>
@@ -1056,6 +1056,7 @@
       <div class="sheet-footer veh-footer" id="veh-footer" hidden>
         <div class="veh-barra-sel" id="veh-barra-sel" hidden>
           <span id="veh-sel-texto"></span>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-veh-roto">Roto</button>
           <button type="button" class="btn btn-danger btn-sm" id="btn-veh-quitar"><svg class="icon"><use href="#i-trash"/></svg>Quitar</button>
         </div>
         <div class="veh-footer-fila">
@@ -1273,7 +1274,7 @@
           <span><i class="legend-seat is-free"></i>Libre</span>
           <span><i class="legend-seat is-taken"></i>Ocupado</span>
           <span><i class="legend-seat is-mine"></i>Tú</span>
-          <span id="legend-pair" hidden><i class="legend-seat is-pair"></i>Tu pareja</span>
+          <span id="legend-pair" hidden><i class="legend-seat is-pair"></i>Tu compañero de viaje</span>
         </div>
       </div>
       <div class="sheet-footer seat-footer">
@@ -1293,7 +1294,7 @@
       <div class="sheet-drag">
         <div class="sheet-grabber"></div>
         <div class="sheet-header">
-          <h2 class="sheet-title" id="sheet-invite-title">Pareja de viaje</h2>
+          <h2 class="sheet-title" id="sheet-invite-title">Compañero de viaje</h2>
           <button class="icon-btn" data-close aria-label="Cerrar"><svg class="icon"><use href="#i-x"/></svg></button>
         </div>
       </div>

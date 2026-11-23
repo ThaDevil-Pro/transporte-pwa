@@ -3,7 +3,7 @@
 // (Nuevo Ideal o Chinacates) y si ya subió. Al tocar un asiento se abre la
 // ficha del alumno con su foto. Solo lectura; el apartado lo hacen los alumnos.
 // =====================================================================
-import { camionCorto, capacidad, plantillaColumnas, posicion, retrasoOla, UBICACIONES, ubicacionNombre } from './camiones.js'
+import { camionCorto, htmlRotos, capacidad, plantillaColumnas, posicion, retrasoOla, UBICACIONES, ubicacionNombre } from './camiones.js'
 import { $, $$, esc, icon, initials, avatar, haptic, openSheet } from './ui.js'
 import { TZ, claveSalida, splitHora, etiquetaDia } from './asientos.js'
 
@@ -109,7 +109,7 @@ export function initChoferAsientos({ rpc, camion }) {
 
   function render(anterior) {
     seats.style.gridTemplateColumns = plantillaColumnas(mapa.camion)
-    seats.innerHTML = mapa.asientos.map(htmlAsiento).join('')
+    seats.innerHTML = mapa.asientos.map(htmlAsiento).join('') + htmlRotos(mapa.camion)
 
     $$('.seat', seats).forEach(el => {
       const n = Number(el.dataset.n)

@@ -23,7 +23,8 @@ Función principal: `public.alumno_apartar`. Mapa: `public.alumno_mapa`. Tabla: 
 - Candados: por salida y por alumno (y su pareja), para que dos teléfonos no cuelen dos viajes.
 - Consecuencia: quien aparta la ida no puede apartar el regreso hasta llegar.
 
-## Parejas de viaje
+## Compañeros de viaje (antes «parejas»)
+- Desde 2026-11-23 la función se llama **Compañero de viaje** en todos los textos que ve el usuario. En el código y la base de datos sigue llamándose `pareja` (tabla `parejas`, `_pareja_de`, modo `'pareja'`, tipos de aviso).
 - Tablas/funciones: `parejas`, `pareja_invitar`, `pareja_responder`, `pareja_terminar`.
 - Al apartar con pareja se reservan **dos asientos de la misma fila**.
 - **Solo o con la pareja** (desde 2026-11-23): al abrir el mapa sin asiento, se pregunta «¿Apartarás solo o con tu pareja?». Con «Solo yo» se aparta únicamente su asiento y el de la pareja no cambia (`alumno_apartar` con `p_sin_pareja`). Se puede cambiar con el botón bajo la pista del mapa.

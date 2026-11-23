@@ -67,11 +67,20 @@ export function esVentana(id, n) {
 }
 export const filaDe = (id, n) => (asiento(id, n)?.r ?? 0) + 1
 
+// Lugares con el asiento roto: se dibujan en gris, sin número, y no se pueden elegir
+export const rotosDe = id => (buscar(id)?.bloques || [])
+  .filter(b => b.roto)
+  .flatMap(b => Array.from({ length: b.w }, (_, k) => ({ r: b.r, c: b.c + k })))
+export const htmlRotos = id => rotosDe(id)
+  .map(x => `<span class="seat-roto" style="grid-row:${x.r + 1};grid-column:${x.c + 1}" role="img" aria-label="Asiento roto, fuera de servicio" title="Asiento roto"></span>`)
+  .join('')
+
 // Columnas de la cuadrícula: las que nunca tienen asiento (pasillo) van angostas
 export function plantillaColumnas(id) {
   const v = buscar(id)
   if (!v) return ''
-  return Array.from({ length: v.cols }, (_, c) => (v.asientos.some(a => a.c === c) ? 'minmax(0, 1fr)' : '18px')).join(' ')
+  const rotos = rotosDe(id)
+  return Array.from({ length: v.cols }, (_, c) => (v.asientos.some(a => a.c === c) || rotos.some(a => a.c === c) ? 'minmax(0, 1fr)' : '18px')).join(' ')
 }
 
 // Ubicación de un asiento dentro de la cuadrícula del mapa

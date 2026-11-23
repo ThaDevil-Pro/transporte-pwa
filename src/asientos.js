@@ -1,10 +1,10 @@
 // =====================================================================
 // Asientos y parejas (vista del alumno)
-// · Tarjetas "Tu asiento" y "Pareja de viaje" y mensajes del panel.
+// · Tarjetas "Tu asiento" y "Compañero de viaje" y mensajes del panel.
 // · Mapa interactivo del vehículo con el acomodo que dibujó la administración.
 // Toda la lógica de reglas vive en Supabase; aquí solo se presenta.
 // =====================================================================
-import { camionCorto, vecino as vecinoDe, esVentana as ventanaDe, filaDe, capacidad, plantillaColumnas, posicion, retrasoOla } from './camiones.js'
+import { camionCorto, htmlRotos, vecino as vecinoDe, esVentana as ventanaDe, filaDe, capacidad, plantillaColumnas, posicion, retrasoOla } from './camiones.js'
 import {
   $, $$, esc, icon, avatar, haptic, openSheet, closeSheet, confirm, dialog, actionSheet, toast, setLoading, shake, patchList
 } from './ui.js'
@@ -16,10 +16,10 @@ const ESQUELETO = '<div class="skeleton" style="height:72px;margin-top:14px;bord
 
 const AVISO_UI = {
   asiento_movido: { titulo: 'Cambiamos tu asiento', icono: 'i-swap', tint: 'orange' },
-  asiento_pareja: { titulo: 'Tu pareja apartó tu lugar', icono: 'i-seat', tint: 'indigo' },
-  pareja_aceptada: { titulo: '¡Ya tienes pareja de viaje!', icono: 'i-link', tint: 'green' },
+  asiento_pareja: { titulo: 'Tu compañero de viaje apartó tu lugar', icono: 'i-seat', tint: 'indigo' },
+  pareja_aceptada: { titulo: '¡Ya tienes compañero de viaje!', icono: 'i-link', tint: 'green' },
   pareja_rechazada: { titulo: 'Invitación no aceptada', icono: 'i-link', tint: 'gray' },
-  pareja_terminada: { titulo: 'Pareja de viaje terminada', icono: 'i-link', tint: 'gray' },
+  pareja_terminada: { titulo: 'Compañero de viaje terminado', icono: 'i-link', tint: 'gray' },
   queja_respondida: { titulo: 'Respondieron tu queja', icono: 'i-inbox', tint: 'blue' },
   queja_atendida: { titulo: 'Tu queja fue atendida', icono: 'i-inbox', tint: 'green' },
   emergencia: { titulo: 'Aviso de emergencia del camión', icono: 'i-alert', tint: 'red' },
@@ -29,7 +29,7 @@ const AVISO_UI = {
   salida_cambiada: { titulo: 'Cambió tu salida', icono: 'i-calendar', tint: 'orange' },
   cambio_aceptado: { titulo: '¡Ya van juntos!', icono: 'i-seat', tint: 'green' },
   cambio_rechazado: { titulo: 'Respuesta a tu solicitud', icono: 'i-seat', tint: 'gray' },
-  pareja_libero: { titulo: 'Tu pareja liberó tu asiento', icono: 'i-seat', tint: 'orange' }
+  pareja_libero: { titulo: 'Tu compañero de viaje liberó tu asiento', icono: 'i-seat', tint: 'orange' }
 }
 
 // --- FORMATO ---
@@ -209,7 +209,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     return `<article class="alert-card">
       ${avatar(inv.nombre)}
       <div class="alert-text">
-        <p class="alert-title">${esc(inv.nombre)} quiere ser tu pareja de viaje</p>
+        <p class="alert-title">${esc(inv.nombre)} quiere ser tu compañero de viaje</p>
         <p class="alert-msg">Durante un mes se sentarán juntos cuando cualquiera de los dos aparte asiento.</p>
         <div class="button-row">
           <button class="btn btn-secondary" data-invitacion="${esc(inv.id)}" data-aceptar="0">Rechazar</button>
@@ -220,7 +220,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
   }
 
   // Texto amable para quien recibe la solicitud de cambio
-  const textoCambio = c => `${c.nombre} quiere viajar junto a su pareja en la salida del ${c.salida} (${c.camion}). ¿Te cambiarías del asiento ${c.actual} al ${c.nuevo} (${c.lugar})? Tu lugar sigue apartado; solo cambia el número. Si prefieres quedarte, no pasa nada.`
+  const textoCambio = c => `${c.nombre} quiere viajar junto a su compañero de viaje en la salida del ${c.salida} (${c.camion}). ¿Te cambiarías del asiento ${c.actual} al ${c.nuevo} (${c.lugar})? Tu lugar sigue apartado; solo cambia el número. Si prefieres quedarte, no pasa nada.`
 
   function htmlCambio(c) {
     return `<article class="alert-card">
@@ -321,7 +321,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
           <div>
             <p class="seat-when">${esc(etiquetaDia(s.fecha))} · ${esc(horaTexto(s.hora))}</p>
             <p class="seat-sub">${camionCorto(s.camion)} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'} · ${ventanaDe(s.camion, s.mi_asiento) ? 'Ventana' : 'Pasillo'} · Fila ${filaDe(s.camion, s.mi_asiento)}</p>
-            ${junto ? `<p class="seat-sub"><b>Junto a ${esc(pareja.activa?.nombre || 'tu pareja')}</b> · asiento ${s.asiento_pareja}</p>` : ''}
+            ${junto ? `<p class="seat-sub"><b>Junto a ${esc(pareja.activa?.nombre || 'tu compañero de viaje')}</b> · asiento ${s.asiento_pareja}</p>` : ''}
           </div>
         </div>
         <button class="btn btn-secondary btn-block" data-abrir-asientos="${esc(claveSalida(s))}">Ver o cambiar asiento</button>`
@@ -359,7 +359,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
           </div>
         </div>
         <div class="progress pair-progress" style="--p:${Math.max(0, Math.min(1, resta / total)).toFixed(3)}"><span></span></div>
-        <div class="pair-actions"><button class="btn btn-plain" data-pareja="terminar">Terminar pareja</button></div>`
+        <div class="pair-actions"><button class="btn btn-plain" data-pareja="terminar">Dejar de ser compañeros</button></div>`
     } else if (enviada) {
       pairBody.innerHTML = `<div class="pair-row">
           ${avatar(enviada.nombre)}
@@ -399,7 +399,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
 
     if (accion === 'terminar') {
       const ok = await confirm({
-        title: '¿Terminar pareja?',
+        title: '¿Dejar de ser compañeros de viaje?',
         message: `Ya no se apartarán asientos juntos con ${pareja.activa.nombre}. Los asientos que ya apartaron se conservan.`,
         confirmLabel: 'Terminar',
         destructive: true
@@ -407,7 +407,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       if (!ok) return
       const { error } = await rpc('pareja_terminar')
       if (error) toast(error.message, { type: 'error' })
-      else toast('Pareja terminada', { type: 'success' })
+      else toast('Ya no son compañeros de viaje', { type: 'success' })
       cargarPareja()
       cargarSalidas()
     }
@@ -527,7 +527,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     }
     conPareja = true
     const r = await dialog({
-      title: '¿Apartarás solo o con tu pareja?',
+      title: '¿Apartarás solo o con tu compañero de viaje?',
       message: `Con ${mapa.pareja.nombre} se apartan dos asientos juntos. Si eliges solo tú, su lugar no cambia.`,
       cancelValue: 'pareja',
       actions: [
@@ -555,14 +555,14 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
   }
 
   function etiquetaAsiento(a) {
-    const estados = { libre: 'libre', ocupado: 'ocupado', mio: 'tu asiento', pareja: 'asiento de tu pareja' }
+    const estados = { libre: 'libre', ocupado: 'ocupado', mio: 'tu asiento', pareja: 'asiento de tu compañero de viaje' }
     return `Asiento ${a.n}, ${ventanaDe(mapa.camion, a.n) ? 'ventana' : 'pasillo'}, ${estados[a.estado]}`
   }
 
   // Sin filas dobles libres, lo que se puede tocar depende de la opción que eligió la pareja
   function elegible(a) {
     if (!a) return false
-    // Solo yo: cualquier asiento libre (el de su pareja no se toca)
+    // Solo yo: cualquier asiento libre (el de su compañero de viaje no se toca)
     if (modo() === 'solo' && mapa.pareja) return !mapa.restriccion && a.estado === 'libre'
     if (!a.sel) return false
     if (mapa.modo !== 'pareja_llena') return true
@@ -576,7 +576,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
 
   function construirAsientos() {
     busSeats.style.gridTemplateColumns = plantillaColumnas(mapa.camion)
-    busSeats.innerHTML = mapa.asientos.map(htmlAsiento).join('')
+    busSeats.innerHTML = mapa.asientos.map(htmlAsiento).join('') + htmlRotos(mapa.camion)
     // Ola de entrada desde el frente del vehículo
     $$('.seat', busSeats).forEach(el => {
       el.animate(
@@ -796,15 +796,15 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     await Promise.all([cargarMapa(), cargarSalidas()])
     alCobrar?.()
     toast(data.separados
-      ? `Asiento ${n} para ti y ${data.asiento_pareja} para tu pareja`
+      ? `Asiento ${n} para ti y ${data.asiento_pareja} para tu compañero de viaje`
       : data.asiento_pareja
       ? `Asientos ${Math.min(n, data.asiento_pareja)} y ${Math.max(n, data.asiento_pareja)} apartados`
       : data.pareja_debe
-        ? `Asiento ${n} apartado solo para ti: tu pareja no está al corriente`
+        ? `Asiento ${n} apartado solo para ti: tu compañero de viaje no está al corriente`
         : data.pareja_fuera
-          ? `Asiento ${n} apartado solo para ti: tu pareja no puede viajar en este vehículo`
+          ? `Asiento ${n} apartado solo para ti: tu compañero de viaje no puede viajar en este vehículo`
           : data.pareja_con_viaje
-            ? `Asiento ${n} apartado solo para ti: tu pareja ya tiene otro viaje apartado`
+            ? `Asiento ${n} apartado solo para ti: tu compañero de viaje ya tiene otro viaje apartado`
             : `Asiento ${n} apartado`, { type: data.pareja_debe || data.pareja_fuera || data.pareja_con_viaje ? 'warning' : 'success', duration: data.pareja_debe || data.pareja_fuera || data.pareja_con_viaje ? 4500 : 2800 })
     setTimeout(() => closeSheet('sheet-seats'), 1200)
   })
@@ -814,7 +814,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     if (!s || !mapa) return
     const mio = mapa.asientos.find(a => a.estado === 'mio')
     const suyo = mapa.asientos.find(a => a.estado === 'pareja')
-    const nombre = mapa.pareja?.nombre || 'tu pareja'
+    const nombre = mapa.pareja?.nombre || 'tu compañero de viaje'
     let quien = 'yo'
     if (suyo && mio) {
       quien = await actionSheet({
@@ -864,9 +864,9 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       return
     }
     const cobro = Number(data?.cobro) || 0
-    const texto = quien === 'ambos' ? 'Asientos liberados' : quien === 'pareja' ? 'Asiento de tu pareja liberado' : 'Asiento liberado'
+    const texto = quien === 'ambos' ? 'Asientos liberados' : quien === 'pareja' ? 'Asiento de tu compañero de viaje liberado' : 'Asiento liberado'
     const cobroPareja = Number(data?.cobro_pareja) || 0
-    const cobros = [cobro && `a ti ${fmtPesos(cobro)}`, cobroPareja && `a tu pareja ${fmtPesos(cobroPareja)}`].filter(Boolean)
+    const cobros = [cobro && `a ti ${fmtPesos(cobro)}`, cobroPareja && `a tu compañero de viaje ${fmtPesos(cobroPareja)}`].filter(Boolean)
     toast(cobros.length ? `${texto} · se cobró ${cobros.join(' y ')}` : texto, { type: cobros.length ? 'warning' : 'success', duration: cobros.length ? 4500 : 2800 })
     if (cobro) alCobrar?.()
     seleccion = null
