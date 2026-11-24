@@ -1,6 +1,6 @@
 ---
 tags: [camify, negocio, asientos]
-actualizado: 2026-11-23
+actualizado: 2026-11-24
 ---
 
 # Apartados y asientos
@@ -22,6 +22,10 @@ Función principal: `public.alumno_apartar`. Mapa: `public.alumno_mapa`. Tabla: 
 - Respaldo: si nunca se finaliza, deja de bloquear **3 horas después** de la hora de salida.
 - Candados: por salida y por alumno (y su pareja), para que dos teléfonos no cuelen dos viajes.
 - Consecuencia: quien aparta la ida no puede apartar el regreso hasta llegar.
+
+## Numeración de asientos
+- Por defecto cada fila se numera de izquierda (chofer) a derecha (puerta). Un vehículo puede usar `estado_viaje.numeracion = 'puerta'`: cada fila empieza por el lado de la puerta (Camión Gris: fila 1 = 1-2 puerta, 3-4 chofer).
+- Un bloque con `extra: true` se numera al final aunque esté adelante (Gris: plegable de la escalera = 40, se puede apartar). El editor conserva `roto` y `extra` al guardar.
 
 ## Vans
 - Una salida de van solo se puede apartar si el chofer la activó (`privado.salida_activa`, `privado.motivo_salida`); sin activar no aparece en `alumno_salidas` y `alumno_apartar` lo rechaza. La van exclusiva de Chinacates solo obliga a apartar ahí si su viaje está activado (`privado.exclusiva_con_lugar`).

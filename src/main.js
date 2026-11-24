@@ -1537,7 +1537,7 @@ btnTimerStop.addEventListener('click', () => accionTemporizador('cancelar', btnT
 async function cargarEstadoViaje() {
   const { data } = await supabase
     .from('estado_viaje')
-    .select('id, estado, tiempo_salida, temporizador_activo, nombre, color, tipo, cols, bloques, asientos, activo, exclusivo_chinacates, fuera_hasta')
+    .select('id, estado, tiempo_salida, temporizador_activo, nombre, color, tipo, cols, bloques, asientos, activo, exclusivo_chinacates, fuera_hasta, numeracion')
   if (!data) return
   actualizarCamiones(data)
   pintarVehiculos()

@@ -106,7 +106,8 @@ function normalizar(f) {
     bloques: Array.isArray(f.bloques) ? f.bloques : [],
     asientos: Array.isArray(f.asientos) ? f.asientos : [],
     activo: f.activo !== false,
-    exclusivo: f.exclusivo_chinacates === true
+    exclusivo: f.exclusivo_chinacates === true,
+    numeracion: f.numeracion === 'puerta' ? 'puerta' : 'chofer'
   }
 }
 

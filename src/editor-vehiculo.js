@@ -40,7 +40,8 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
   let arrastre = null
 
   const cols = () => COLS[tipo] || 5
-  const conId = lista => lista.map(b => ({ id: siguiente++, r: b.r, c: b.c, w: b.w, roto: b.roto === true }))
+  const conId = lista => lista.map(b => ({ id: siguiente++, r: b.r, c: b.c, w: b.w, roto: b.roto === true, extra: b.extra === true }))
+  let numeracionVeh = 'chofer' // 'puerta': cada fila empieza por el lado de la puerta
 
   // --- PASOS ---
   function mostrar(paso) {
@@ -53,6 +54,7 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
   function nuevo() {
     id = null
     tipo = null
+    numeracionVeh = 'chofer'
     bloques = []
     sel = null
     herramienta = null
@@ -67,6 +69,7 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
   function editar(v) {
     id = v.id
     tipo = v.tipo
+    numeracionVeh = v.numeracion || 'chofer'
     bloques = conId(v.bloques)
     sel = null
     herramienta = null
@@ -125,8 +128,10 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
 
   // Número de cada asiento: de adelante hacia atrás y de izquierda a derecha
   function numeracion() {
-    const asientos = bloques.filter(b => !b.roto).flatMap(b => Array.from({ length: b.w }, (_, k) => ({ r: b.r, c: b.c + k, id: b.id })))
-      .sort((a, b) => a.r - b.r || a.c - b.c)
+    // Igual que privado.armar_asientos: extras al final y, con «puerta», el lado de la puerta primero
+    const lado = c => (numeracionVeh === 'puerta' && c * 2 >= cols() ? 0 : 1)
+    const asientos = bloques.filter(b => !b.roto).flatMap(b => Array.from({ length: b.w }, (_, k) => ({ r: b.r, c: b.c + k, id: b.id, extra: b.extra ? 1 : 0 })))
+      .sort((a, b) => a.extra - b.extra || a.r - b.r || lado(a.c) - lado(b.c) || a.c - b.c)
     const mapa = new Map()
     asientos.forEach((a, i) => mapa.set(`${a.r},${a.c}`, i + 1))
     return { total: asientos.length, de: (r, c) => mapa.get(`${r},${c}`) }
@@ -418,7 +423,7 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
       p_nombre: texto,
       p_tipo: tipo,
       p_cols: cols(),
-      p_bloques: bloques.map(({ r, c, w, roto }) => (roto ? { r, c, w, roto: true } : { r, c, w })),
+      p_bloques: bloques.map(({ r, c, w, roto, extra }) => ({ r, c, w, ...(roto ? { roto: true } : {}), ...(extra ? { extra: true } : {}) })),
       p_exclusivo: exclusivo.checked
     })
     setLoading(btnGuardar, false)
