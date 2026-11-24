@@ -5238,6 +5238,74 @@ button.row:active {
 }
 
 /* Código QR */
+/* Palomita al subir (estilo Apple Pay) */
+.qr-ok {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  background: var(--surface);
+  animation: qr-ok-entra 0.25s var(--ease) both;
+}
+
+.qr-ok[hidden] {
+  display: none;
+}
+
+.qr-ok-icono {
+  width: 112px;
+  height: 112px;
+  margin-bottom: 10px;
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: qr-ok-latido 0.5s 0.75s var(--ease) both;
+}
+
+.qr-ok-icono circle {
+  stroke-dasharray: 151;
+  stroke-dashoffset: 151;
+  animation: qr-ok-traza 0.5s 0.05s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.qr-ok-icono path {
+  stroke-width: 4;
+  stroke-dasharray: 36;
+  stroke-dashoffset: 36;
+  animation: qr-ok-traza 0.3s 0.5s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.qr-ok-titulo {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.qr-ok-sub {
+  font-size: 15px;
+  color: var(--label-2);
+}
+
+@keyframes qr-ok-traza {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes qr-ok-latido {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes qr-ok-entra {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .qr-card {
   width: min(100%, 320px);
   margin: 6px auto 0;

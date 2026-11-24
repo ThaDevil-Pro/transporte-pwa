@@ -666,6 +666,7 @@ const QR_KEY = 'camify.qr'
 let qrDatos = null
 let qrTimer = null
 let qrMostrado = null
+let qrSondeo = null // pregunta si ya subió mientras el código está abierto
 let qrFijo = null // el código que se está mostrando: no cambia mientras siga vigente
 let qrCargando = false
 let qrBloqueo = null // mensaje del servidor cuando el adeudo pasa del máximo
@@ -760,7 +761,18 @@ $('#btn-show-qr').addEventListener('click', async () => {
   qrMostrado = null
   qrFijo = null
   if (!qrDatos || qrDatos.token !== sessionToken) qrDatos = qrGuardado()
-  openSheet('sheet-qr', { onClose: () => { clearInterval(qrTimer); qrTimer = null } })
+  // Mientras el código está abierto se pregunta si el chofer ya lo escaneó, para mostrar la palomita
+  const abordoAntes = perfilActual.abordo ?? null
+  $('#qr-ok').hidden = true
+  clearInterval(qrSondeo)
+  qrSondeo = setInterval(async () => {
+    const { data } = await rpc('alumno_perfil')
+    if (!qrSondeo || !data?.abordo || data.abordo === abordoAntes) return
+    clearInterval(qrSondeo)
+    qrSondeo = null
+    mostrarAbordo(data)
+  }, 2500)
+  openSheet('sheet-qr', { onClose: () => { clearInterval(qrTimer); qrTimer = null; clearInterval(qrSondeo); qrSondeo = null } })
   pintarQR({ cargando: true })
   clearInterval(qrTimer)
   qrTimer = setInterval(pintarQR, 500)
@@ -768,6 +780,17 @@ $('#btn-show-qr').addEventListener('click', async () => {
   await cargarCodigosQR()
   pintarQR()
 })
+
+// El chofer escaneó el código: palomita como Apple Pay, vibración suave y se cierra sola
+function mostrarAbordo(perfil) {
+  $('#qr-ok-sub').textContent = `Ya estás a bordo de ${nombreCamion(perfil.abordo)}`
+  $('#qr-ok').hidden = false
+  haptic([18, 90, 18])
+  setTimeout(() => {
+    closeSheet('sheet-qr')
+    refrescarAlumno()
+  }, 2600)
+}
 
 // Tarjeta de estado del viaje del alumno
 const TRIP_COPY = {
