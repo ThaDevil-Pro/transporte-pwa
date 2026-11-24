@@ -32,8 +32,8 @@ export function initChoferViajes({ rpc, camion }) {
     card.hidden = !salidas.length
     lista.innerHTML = salidas.slice(0, 4).map(s => {
       const estado = s.activa
-        ? s.ocupados ? `Activado · ${s.ocupados} ${s.ocupados === 1 ? 'apartado' : 'apartados'}` : 'Activado · los alumnos ya pueden apartar'
-        : 'Sin activar · los alumnos no lo ven'
+        ? s.ocupados ? `Activado · ${s.ocupados} ${s.ocupados === 1 ? 'apartado' : 'apartados'}` : 'Activado · ya se puede apartar'
+        : 'Sin activar · no aparece para apartar'
       // Con apartados ya no se desactiva: si no sale, se usa Emergencia (avisa y libera)
       const boton = !s.activa
         ? `<button type="button" class="btn btn-sm btn-primary" data-activar="1" data-k="${esc(claveSalida(s))}">Activar viaje</button>`
@@ -41,8 +41,8 @@ export function initChoferViajes({ rpc, camion }) {
           ? `<button type="button" class="btn btn-sm btn-secondary" data-activar="0" data-k="${esc(claveSalida(s))}">Desactivar</button>`
           : ''
       return `<div class="row viaje-row${s.activa ? ' is-activo' : ''}">
-        <span class="row-text"><span class="row-title">${esc(etiquetaDia(s.fecha))} · ${esc(horaTexto(s.hora))} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'}</span>
-        <span class="row-sub">${estado}</span></span>
+        <span class="row-text"><span class="row-title">${esc(etiquetaDia(s.fecha))} · ${esc(horaTexto(s.hora))}</span>
+        <span class="row-sub">${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'} · ${estado}</span></span>
         ${boton}
       </div>`
     }).join('')

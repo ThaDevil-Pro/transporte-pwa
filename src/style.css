@@ -4569,6 +4569,16 @@ button.row:active {
   padding-right: 0;
 }
 
+.viajes-list .row-title,
+.viajes-list .row-sub {
+  white-space: normal;
+  overflow: visible;
+}
+
+.viajes-list .viaje-row .btn {
+  flex: none;
+}
+
 .viajes-list .viaje-row.is-activo .row-sub {
   color: var(--green-text);
 }
