@@ -452,7 +452,10 @@ export async function runIntro({ alSalir, alTerminar }) {
   const glow = $('.splash-glow', splash)
   const frase = $('.splash-tagline', splash)
   const fondo = $('.splash-bg', splash)
-  const reducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  // Con sesión guardada la app abre directo: la animación completa queda para el inicio de sesión
+  let conSesion = false
+  try { conSesion = !!localStorage.getItem('camify.sesion') } catch { /* modo privado */ }
+  const reducido = conSesion || window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const velocidad = reducido ? 1 : velocidadIntro()
   const ms = x => x / velocidad
 
@@ -546,7 +549,7 @@ export async function runIntro({ alSalir, alTerminar }) {
     giros.forEach(a => a.pause())
     halos.forEach(h => { h.style.opacity = '0.6' })
     frase.style.opacity = '1'
-    timer = setTimeout(salir, 900)
+    timer = setTimeout(salir, conSesion ? 150 : 900)
     return
   }
 

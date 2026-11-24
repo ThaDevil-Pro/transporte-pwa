@@ -1,7 +1,7 @@
 import QRCode from 'qrcode'
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { supabase } from './supabase.js'
 import { runIntro } from './intro.js'
+import { initDetector } from './detector.js'
 import { initAsientos } from './asientos.js'
 import { initChoferAsientos } from './chofer-asientos.js'
 import { initChoferManual } from './chofer-manual.js'
@@ -223,8 +223,17 @@ function errorDeRed(error) {
 }
 
 // Llama una función RPC con el token de la sesión activa
+const rpcEnCurso = new Map() // para el detector de congelamientos
+let rpcId = 0
 async function rpc(nombre, params = {}) {
-  const res = await supabase.rpc(nombre, { p_token: sessionToken, ...params })
+  const id = ++rpcId
+  rpcEnCurso.set(id, { nombre, desde: performance.now() })
+  let res
+  try {
+    res = await supabase.rpc(nombre, { p_token: sessionToken, ...params })
+  } finally {
+    rpcEnCurso.delete(id)
+  }
   errorDeRed(res.error)
   if (res.error?.code === '28000' && !sesionExpirada) {
     sesionExpirada = true
@@ -1369,7 +1378,14 @@ $('#btn-open-scanner').addEventListener('click', async () => {
   await openSheet('sheet-scanner', { onClose: stopScanner })
 
   if (!html5QrcodeScanner) {
-    html5QrcodeScanner = new Html5Qrcode('reader', { verbose: false, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] })
+    // El lector pesa mucho y solo lo usa el chofer: se descarga al abrir el escáner
+    try {
+      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode')
+      html5QrcodeScanner ??= new Html5Qrcode('reader', { verbose: false, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] })
+    } catch {
+      setScanFeedback('No se pudo cargar el lector. Revisa tu conexión.', 'error')
+      return
+    }
   }
   try {
     await html5QrcodeScanner.start({ facingMode: 'environment' }, { fps: 12, aspectRatio: 1, disableFlip: true }, onScanSuccess, () => {})
@@ -2375,6 +2391,28 @@ function arrancar() {
 }
 
 runIntro({ alSalir: arrancar, alTerminar: actualizarThemeColor })
+
+// Detector de congelamientos: sin datos personales (rol, pantalla, consultas en curso y navegador)
+initDetector({
+  enviar: async lote => {
+    if (!sessionToken) return true
+    const { data, error } = await supabase.rpc('app_diagnostico', { p_token: sessionToken, p_datos: lote })
+    return !error && data !== false
+  },
+  contexto: () => {
+    const pantalla = document.querySelector('.screen.is-active')
+    return {
+      rol: currentRole || null,
+      pantalla: pantalla?.id || null,
+      panel: pantalla?.querySelector('.tab-panel.is-active')?.id || null,
+      hoja: document.querySelector('.sheet.is-open')?.id || null,
+      consultas: [...rpcEnCurso.values()].map(c => `${c.nombre} ${Math.round(performance.now() - c.desde)}ms`),
+      instalada: matchMedia('(display-mode: standalone)').matches,
+      nodos: document.getElementsByTagName('*').length,
+      navegador: navigator.userAgent.slice(0, 160)
+    }
+  }
+})
 
 cargarEstadoViaje()
 fetchScheduleMatrix()

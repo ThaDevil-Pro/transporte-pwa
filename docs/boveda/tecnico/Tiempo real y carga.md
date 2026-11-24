@@ -1,6 +1,6 @@
 ---
 tags: [camify, tecnico, rendimiento]
-actualizado: 2026-11-22
+actualizado: 2026-11-23
 ---
 
 # Tiempo real y carga
@@ -28,3 +28,11 @@ Prueba con 150 alumnos apartando a la vez (Postgres real, ver [Pruebas locales](
 Por qué: el plan gratis permite **100 mensajes en vivo por segundo y 200 conexiones**. Cada cambio se manda a cada teléfono conectado: con 150 alumnos, iniciar un conteo eran 150 mensajes de golpe y Supabase desconecta a todos al pasarse.
 
 **No volver** a conectar en vivo a los alumnos.
+
+## Velocidad en iPhone (2026-11-23)
+- Reportes de congelamientos en iPhone. En Chrome y en WebKit de escritorio no se reproducen (pestañas < 0.15 s, sin tareas largas, servidor con p95 < 0.4 s), así que se sospecha del dibujo en el propio iPhone.
+- **Detector de congelamientos** (`src/detector.js`, `app_diagnostico`, tabla `privado.diagnosticos`): anota pausas del hilo principal (> 1.5 s), pantalla que no se redibuja (> 1 s) y toques en pestañas que no cambian, con rol, pantalla, panel, hoja abierta, consultas en curso, si está instalada y navegador. Sin nombre ni matrícula. Máx. 200 por sesión al día. Consultar: `select creado_en, rol, datos from privado.diagnosticos order by creado_en desc`.
+- Apertura con sesión guardada sin la animación larga (≈1 s en vez de ≈4.7 s).
+- Barras de arriba y de abajo sin `backdrop-filter` (fondo sólido `--barra`).
+- El lector de QR (`html5-qrcode`) se descarga solo al abrir el escáner: el paquete principal bajó de 828 KB a 467 KB.
+

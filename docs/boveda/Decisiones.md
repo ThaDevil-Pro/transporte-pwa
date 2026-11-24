@@ -17,6 +17,7 @@ Volver a [Inicio](Inicio.md)
 | 2026-11-19 | **Un viaje apartado a la vez** ([Apartados y asientos](negocio/Apartados%20y%20asientos.md)) | Que nadie acapare lugares; liberar sí permite apartar otro; respaldo de 3 h si no se finaliza |
 | 2026-11-21 | La **administración** también edita horarios y qué unidad sale ([Viaje del chofer](negocio/Viaje%20del%20chofer.md)) | Lo pidió la administración; no depender de que cada chofer los capture |
 | 2026-11-22 | La deuda solo cuenta para **apartar (≤ $60) y subir (≤ $600)**; quien debe más de $60 puede ir de pie | La regla anterior (asiento forzado o no sube) no se había decidido y dejaba sin transporte a quien sí podía subir |
+| 2026-11-23 | Detector de congelamientos en la app y mejoras de velocidad (apertura rápida, barras sin desenfoque, lector QR bajo demanda) | Todos reportan congelamientos en iPhone que no se reproducen fuera del teléfono |
 | 2026-11-23 | **v1.1**: QR válido **12 horas** y fijo mientras está abierto | Que la captura sirva todo el día y no haya rechazos en la parada |
 | 2026-11-23 | Sesión de **chofer y admin sin vencimiento** | Se cerraba en pleno trabajo; es urgente que no pase |
 | 2026-11-23 | **Vans**: sin pasajeros de pie y cada viaje se aparta solo si el chofer lo activa | No caben de pie y no salen todos los días; tenerlas siempre abiertas dejaba apartados en viajes que no salían |

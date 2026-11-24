@@ -14,6 +14,7 @@
   --fill: rgba(120, 120, 128, 0.12);
   --fill-2: rgba(120, 120, 128, 0.2);
   --glass: rgba(250, 250, 252, 0.72);
+  --barra: rgba(250, 250, 252, 0.97);
   --glass-strong: rgba(255, 255, 255, 0.88);
   --seg-thumb: #ffffff;
 
@@ -74,6 +75,7 @@
     --fill: rgba(120, 120, 128, 0.24);
     --fill-2: rgba(120, 120, 128, 0.36);
     --glass: rgba(28, 28, 30, 0.7);
+    --barra: rgba(28, 28, 30, 0.97);
     --glass-strong: rgba(40, 40, 42, 0.86);
     --seg-thumb: #636366;
 
@@ -396,9 +398,8 @@ button {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: var(--glass);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  /* Sin desenfoque: en iPhone se recalcula en cada cuadro y traba la pantalla */
+  background: var(--barra);
   border-bottom: 0.5px solid var(--separator);
   opacity: 0;
   transition: opacity 0.3s var(--ease);
@@ -1400,6 +1401,7 @@ button.row:active {
   --fill: rgba(120, 120, 128, 0.24);
   --fill-2: rgba(120, 120, 128, 0.36);
   --glass: rgba(28, 28, 30, 0.62);
+  --barra: rgba(28, 28, 30, 0.97);
   --glass-strong: rgba(30, 30, 34, 0.58);
   --seg-thumb: #636366;
   --label: #f5f5f7;
@@ -5027,9 +5029,8 @@ button.row:active {
   grid-auto-columns: 1fr;
   padding: 5px;
   border-radius: var(--r-pill);
-  background: var(--glass);
-  -webkit-backdrop-filter: saturate(180%) blur(24px);
-  backdrop-filter: saturate(180%) blur(24px);
+  /* Sin desenfoque: en iPhone se recalcula en cada cuadro y traba la pantalla */
+  background: var(--barra);
   box-shadow: var(--shadow-3);
   isolation: isolate;
 }
