@@ -5,6 +5,7 @@ import { runIntro } from './intro.js'
 import { initAsientos } from './asientos.js'
 import { initChoferAsientos } from './chofer-asientos.js'
 import { initChoferManual } from './chofer-manual.js'
+import { initChoferViajes } from './chofer-viajes.js'
 import { initImportar } from './importar.js'
 import { initReportes } from './reportes.js'
 import { initAmbiente } from './ambiente.js'
@@ -150,6 +151,7 @@ function elegirCamionAlumno() {
   if (currentRole === 'Estudiante') sincronizarViaje()
 }
 const asientosChofer = initChoferAsientos({ rpc, supabase, camion: () => camionActual })
+const viajesChofer = initChoferViajes({ rpc, camion: () => camionActual })
 
 // Registro manual (alumno sin código) e importación de usuarios (admin)
 const manualChofer = initChoferManual({ rpc, camion: () => camionActual, alRegistrar: () => fetchPassengers() })
@@ -264,6 +266,7 @@ function pintarCuentaLateral(rol, perfil = {}) {
 
 function cerrarSesion() {
   qrDatos = null
+  qrFijo = null
   clearInterval(qrTimer)
   try { localStorage.removeItem(QR_KEY) } catch { /* modo privado */ }
   // supabase-js solo envía la petición al consumir la promesa.
@@ -276,6 +279,7 @@ function cerrarSesion() {
   closeAllSheets({ force: true })
   asientos.limpiar()
   asientosChofer.limpiar()
+  viajesChofer.limpiar()
   buzon.limpiar()
   diesel.limpiar()
   passengers = []
@@ -645,12 +649,15 @@ async function cargarHistorialAlumno() {
   })
 }
 
-// QR dinámico: el servidor firma un código nuevo cada 30 s y entrega los
-// de los próximos 5 minutos, para aguantar una caída breve de señal.
+// QR: el servidor firma un código por cada ventana de 30 s y entrega los de las
+// próximas 2 horas (para usarlos sin señal). Cada código vale 12 horas: al abrir
+// «Mostrar mi código» se toma el más reciente y se queda fijo, con su hora de vencimiento.
+const QR_VIGENCIA = 12 * 3600 * 1000
 const QR_KEY = 'camify.qr'
 let qrDatos = null
 let qrTimer = null
 let qrMostrado = null
+let qrFijo = null // el código que se está mostrando: no cambia mientras siga vigente
 let qrCargando = false
 let qrBloqueo = null // mensaje del servidor cuando el adeudo pasa del máximo
 
@@ -694,9 +701,18 @@ function codigoActual() {
   if (!qrDatos) return null
   const ahora = Date.now() + qrDatos.offset
   const v = Math.floor(ahora / qrDatos.periodo)
-  const c = qrDatos.codigos.find(x => Number(x.v) === v)
+  const quedan = qrDatos.codigos.filter(x => Number(x.v) > v).length
+  const vence = c => Number(c.v) * qrDatos.periodo + QR_VIGENCIA
+  // Se conserva el que ya se mostró mientras le quede al menos media hora
+  if (qrFijo && qrFijo.token === qrDatos.token && vence(qrFijo) - ahora > 30 * 60 * 1000) {
+    return { codigo: qrFijo.codigo, vence: vence(qrFijo), restante: vence(qrFijo) - ahora, quedan }
+  }
+  // El de este momento; sin señal por mucho rato, el más reciente que siga vigente
+  const c = qrDatos.codigos.find(x => Number(x.v) === v) ||
+    qrDatos.codigos.filter(x => Number(x.v) <= v && vence(x) > ahora).sort((a, b) => b.v - a.v)[0]
   if (!c) return null
-  return { codigo: c.codigo, restante: (v + 1) * qrDatos.periodo - ahora, quedan: qrDatos.codigos.filter(x => Number(x.v) > v).length }
+  qrFijo = { ...c, token: qrDatos.token }
+  return { codigo: c.codigo, vence: vence(c), restante: vence(c) - ahora, quedan }
 }
 
 function pintarQR({ cargando = false } = {}) {
@@ -721,15 +737,19 @@ function pintarQR({ cargando = false } = {}) {
       haptic(6)
     }
   }
-  // La imagen cambia cada 30 s, pero el chofer acepta cada código hasta 1 hora (sirve una captura)
-  $('#qr-countdown').textContent = `Cambia en ${Math.max(1, Math.ceil(c.restante / 1000))} s · sirve 1 hora, puedes tomarle captura`
-  $('#qr-progress').style.setProperty('--p', (c.restante / qrDatos.periodo).toFixed(3))
+  // Cada código vale 12 horas: se puede tomar captura y mostrarla sin señal
+  const fin = new Date(c.vence - qrDatos.offset)
+  const dia = d => d.toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City' })
+  const hora = fin.toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City', hour: 'numeric', minute: '2-digit', hour12: true })
+  $('#qr-countdown').textContent = `Vale 12 horas: hasta ${dia(fin) === dia(new Date()) ? 'hoy' : 'mañana'} a las ${hora} · puedes tomarle captura`
+  $('#qr-progress').style.setProperty('--p', Math.min(1, c.restante / QR_VIGENCIA).toFixed(3))
   if (c.quedan < 60 && !qrCargando) cargarCodigosQR()
 }
 
 $('#btn-show-qr').addEventListener('click', async () => {
   haptic(8)
   qrMostrado = null
+  qrFijo = null
   if (!qrDatos || qrDatos.token !== sessionToken) qrDatos = qrGuardado()
   openSheet('sheet-qr', { onClose: () => { clearInterval(qrTimer); qrTimer = null } })
   pintarQR({ cargando: true })
@@ -1034,11 +1054,13 @@ function aplicarCamion() {
     $('#students-ul').replaceChildren()
     renderPassengersUI()
     asientosChofer.limpiar()
+    viajesChofer.limpiar()
     return
   }
   $('#students-ul').innerHTML = skeletonRows(3)
   fetchPassengers()
   asientosChofer.cargar()
+  viajesChofer.cargar()
   diesel.chofer()
 }
 
@@ -2304,6 +2326,7 @@ document.addEventListener('visibilitychange', () => {
     if (camionActual) {
       fetchPassengers()
       asientosChofer.cargar()
+      viajesChofer.cargar()
     }
   }
   if (currentRole === 'Financiero') cargarSaldosFinanzas()

@@ -1,6 +1,6 @@
 ---
 tags: [camify, negocio, seguridad]
-actualizado: 2026-11-22
+actualizado: 2026-11-23
 ---
 
 # Roles y cuentas
@@ -10,9 +10,11 @@ Volver a [Inicio](../Inicio.md)
 | Rol | Tabla | Identificador (`usuario_ref`) | Sesión dura |
 |---|---|---|---|
 | Estudiante | `alumnos` | matrícula | 7 días |
-| Chofer | `choferes` | licencia | 7 días |
-| Admin | `admins` | usuario | 24 h |
+| Chofer | `choferes` | licencia | **no vence** (desde v1.1) |
+| Admin | `admins` | usuario | **no vence** (desde v1.1) |
 | Financiero | `financieros` | usuario | 24 h |
+
+La sesión de chofer y admin (`privado.duracion_sesion`, `expira_en = infinity`) solo termina si salen o si se les cambia la contraseña.
 
 - `login(p_rol, p_identificador, p_password, p_dispositivo)` crea una fila en `sesiones` y devuelve un **token**. Todas las funciones reciben ese token.
 - Contraseñas con bcrypt (`crypt`): **no se pueden recuperar**, solo restablecer. Contraseña temporal → `debe_cambiar_password`.

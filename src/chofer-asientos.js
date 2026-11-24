@@ -56,6 +56,8 @@ export function initChoferAsientos({ rpc, camion }) {
       const { t, p } = splitHora(s.hora)
       const estado = new Date(s.salida_en) <= Date.now()
         ? 'Ya salió'
+        : s.van && !s.activa
+          ? 'Sin activar'
         : s.abierta
           ? `${s.ocupados} apartados`
           : `${icon('i-lock')}${esc(new Date(s.abre_en).toLocaleTimeString('es-MX', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true }))}`

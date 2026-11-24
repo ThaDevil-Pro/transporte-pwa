@@ -197,6 +197,8 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
       const parN = apartado != null && mapa.asientos.find(x => x.n === apartado)?.con_pareja ? vecino(bus, apartado) : null
       const libres = mapa.asientos.filter(x => !x.nombre).length
       const dePie = !libres && elegido == null
+      // En una van no se puede ir de pie
+      const sinLugar = dePie && vehiculo(bus)?.tipo === 'minivan'
       const seat = x => {
         const mio = x.matricula === a.matricula
         const estado = mio ? 'mio' : x.n === parN ? 'pareja' : x.nombre ? 'ocupado' : 'libre'
@@ -218,11 +220,13 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
       }
       $('#manual-seat-lead').textContent = apartado != null
         ? `${a.nombre} ya apartó para la salida de las ${mapa.hora} (${mapa.tipo === 'REGRESO' ? 'regreso' : 'ida'}).`
-        : dePie
+        : sinLugar
+          ? `${a.nombre} · La van va llena: no queda ningún asiento libre y en una van no se puede ir de pie.`
+          : dePie
           ? `${a.nombre} · El vehículo va lleno: no queda ningún asiento libre, irá de pie.`
           : `${a.nombre} · Salida de las ${mapa.hora} (${mapa.tipo === 'REGRESO' ? 'regreso' : 'ida'}). Toca un asiento libre.`
-      btnOk.textContent = dePie ? 'Subir de pie' : elegido ? `Subir · Asiento ${elegido}` : 'Subir'
-      btnOk.disabled = !dePie && elegido == null
+      btnOk.textContent = sinLugar ? 'Sin lugar' : dePie ? 'Subir de pie' : elegido ? `Subir · Asiento ${elegido}` : 'Subir'
+      btnOk.disabled = sinLugar || (!dePie && elegido == null)
 
       let listo = false
       const terminar = v => {

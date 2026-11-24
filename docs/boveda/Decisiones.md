@@ -17,6 +17,9 @@ Volver a [Inicio](Inicio.md)
 | 2026-11-19 | **Un viaje apartado a la vez** ([Apartados y asientos](negocio/Apartados%20y%20asientos.md)) | Que nadie acapare lugares; liberar sí permite apartar otro; respaldo de 3 h si no se finaliza |
 | 2026-11-21 | La **administración** también edita horarios y qué unidad sale ([Viaje del chofer](negocio/Viaje%20del%20chofer.md)) | Lo pidió la administración; no depender de que cada chofer los capture |
 | 2026-11-22 | La deuda solo cuenta para **apartar (≤ $60) y subir (≤ $600)**; quien debe más de $60 puede ir de pie | La regla anterior (asiento forzado o no sube) no se había decidido y dejaba sin transporte a quien sí podía subir |
+| 2026-11-23 | **v1.1**: QR válido **12 horas** y fijo mientras está abierto | Que la captura sirva todo el día y no haya rechazos en la parada |
+| 2026-11-23 | Sesión de **chofer y admin sin vencimiento** | Se cerraba en pleno trabajo; es urgente que no pase |
+| 2026-11-23 | **Vans**: sin pasajeros de pie y cada viaje se aparta solo si el chofer lo activa | No caben de pie y no salen todos los días; tenerlas siempre abiertas dejaba apartados en viajes que no salían |
 | 2026-11-23 | En pantalla el saldo se muestra con signo de banco: **debe en negativo, a favor en positivo** (la base no cambia) | Lo pidió la administración: era confuso ver la deuda en positivo |
 | 2026-11-23 | El código QR se acepta **hasta 1 hora** (antes 2 min) | Que el alumno pueda tomarle captura en su casa y subir aunque no tenga señal o batería |
 | 2026-11-23 | «Pareja de viaje» pasa a llamarse **Compañero de viaje** (solo textos; el código sigue diciendo `pareja`) | Petición de la administración |

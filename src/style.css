@@ -4557,6 +4557,22 @@ button.row:active {
 
 .btn-danger-solid { --btn-bg: var(--red); --btn-fg: #fff; }
 
+.viajes-lead {
+  margin: 4px 0 8px;
+  font-size: 14px;
+  color: var(--label-2);
+}
+
+.viajes-list .viaje-row {
+  gap: 10px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.viajes-list .viaje-row.is-activo .row-sub {
+  color: var(--green-text);
+}
+
 .fuera-card {
   margin-top: 12px;
 }

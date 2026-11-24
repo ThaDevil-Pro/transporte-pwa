@@ -23,6 +23,9 @@ Función principal: `public.alumno_apartar`. Mapa: `public.alumno_mapa`. Tabla: 
 - Candados: por salida y por alumno (y su pareja), para que dos teléfonos no cuelen dos viajes.
 - Consecuencia: quien aparta la ida no puede apartar el regreso hasta llegar.
 
+## Vans
+- Una salida de van solo se puede apartar si el chofer la activó (`privado.salida_activa`, `privado.motivo_salida`); sin activar no aparece en `alumno_salidas` y `alumno_apartar` lo rechaza. La van exclusiva de Chinacates solo obliga a apartar ahí si su viaje está activado (`privado.exclusiva_con_lugar`).
+
 ## Compañeros de viaje (antes «parejas»)
 - Desde 2026-11-23 la función se llama **Compañero de viaje** en todos los textos que ve el usuario. En el código y la base de datos sigue llamándose `pareja` (tabla `parejas`, `_pareja_de`, modo `'pareja'`, tipos de aviso).
 - Tablas/funciones: `parejas`, `pareja_invitar`, `pareja_responder`, `pareja_terminar`.
