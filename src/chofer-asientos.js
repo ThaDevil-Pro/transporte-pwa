@@ -3,7 +3,7 @@
 // (Nuevo Ideal o Chinacates) y si ya subió. Al tocar un asiento se abre la
 // ficha del alumno con su foto. Solo lectura; el apartado lo hacen los alumnos.
 // =====================================================================
-import { camionCorto, htmlRotos, capacidad, plantillaColumnas, posicion, retrasoOla, UBICACIONES, ubicacionNombre } from './camiones.js'
+import { camionCorto, htmlRotos, rotulo, capacidad, plantillaColumnas, posicion, retrasoOla, UBICACIONES, ubicacionNombre } from './camiones.js'
 import { $, $$, esc, icon, initials, avatar, haptic, openSheet } from './ui.js'
 import { TZ, claveSalida, splitHora, etiquetaDia } from './asientos.js'
 
@@ -100,12 +100,13 @@ export function initChoferAsientos({ rpc, camion }) {
   function htmlAsiento(a) {
     const estado = estadoAsiento(a)
     const ubic = UBICACIONES[a.ubicacion]
+    const num = rotulo(mapa.camion, a.n)
     const etiqueta = estado === 'libre'
-      ? `Asiento ${a.n}, libre`
-      : `Asiento ${a.n}, ${a.nombre}, de ${ubicacionNombre(a.ubicacion)}, ${estado === 'abordo' ? 'a bordo' : 'aún no sube'}`
+      ? `Asiento ${num}, libre`
+      : `Asiento ${num}, ${a.nombre}, de ${ubicacionNombre(a.ubicacion)}, ${estado === 'abordo' ? 'a bordo' : 'aún no sube'}`
     const contenido = estado === 'libre'
-      ? a.n
-      : `<span class="seat-ini">${esc(initials(a.nombre))}</span><span class="seat-ubic">${ubic ? ubic.corto : '?'}</span><span class="seat-num">${a.n}</span>${estado === 'abordo' ? `<span class="seat-check">${icon('i-check')}</span>` : ''}`
+      ? num
+      : `<span class="seat-ini">${esc(initials(a.nombre))}</span><span class="seat-ubic">${ubic ? ubic.corto : '?'}</span><span class="seat-num">${num}</span>${estado === 'abordo' ? `<span class="seat-check">${icon('i-check')}</span>` : ''}`
     return `<button type="button" class="seat${a.con_pareja ? ' is-paired' : ''}${ubic ? ` ubic-${a.ubicacion}` : ''}" style="${posicion(mapa.camion, a.n)}" data-n="${a.n}" data-estado="${estado}" aria-label="${esc(etiqueta)}">${contenido}</button>`
   }
 

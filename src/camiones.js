@@ -66,6 +66,8 @@ export function esVentana(id, n) {
   return !!a && (a.c === 0 || a.c === cols - 1)
 }
 export const filaDe = (id, n) => (asiento(id, n)?.r ?? 0) + 1
+// Texto del asiento: su número, o «S/N» si en el camión no tiene número (se aparta igual)
+export const rotulo = (id, n) => (n == null ? n : asiento(id, n)?.sn ? 'S/N' : n)
 
 // Lugares con el asiento roto: se dibujan en gris, sin número, y no se pueden elegir
 export const rotosDe = id => (buscar(id)?.bloques || [])

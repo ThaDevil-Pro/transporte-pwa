@@ -4,7 +4,7 @@
 // · Mapa interactivo del vehículo con el acomodo que dibujó la administración.
 // Toda la lógica de reglas vive en Supabase; aquí solo se presenta.
 // =====================================================================
-import { camionCorto, htmlRotos, vecino as vecinoDe, esVentana as ventanaDe, filaDe, capacidad, plantillaColumnas, posicion, retrasoOla } from './camiones.js'
+import { camionCorto, htmlRotos, rotulo, vecino as vecinoDe, esVentana as ventanaDe, filaDe, capacidad, plantillaColumnas, posicion, retrasoOla } from './camiones.js'
 import {
   $, $$, esc, icon, avatar, haptic, openSheet, closeSheet, confirm, dialog, actionSheet, toast, setLoading, shake, patchList
 } from './ui.js'
@@ -317,11 +317,11 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       const s = conAsiento
       const junto = s.asiento_pareja && vecinoDe(s.camion, s.mi_asiento) === s.asiento_pareja
       seatBody.innerHTML = `<div class="seat-summary">
-          <span class="seat-badge"><small>Asiento</small><strong>${s.mi_asiento}</strong></span>
+          <span class="seat-badge"><small>Asiento</small><strong>${rotulo(s.camion, s.mi_asiento)}</strong></span>
           <div>
             <p class="seat-when">${esc(etiquetaDia(s.fecha))} · ${esc(horaTexto(s.hora))}</p>
             <p class="seat-sub">${camionCorto(s.camion)} · ${s.tipo === 'REGRESO' ? 'Regreso' : 'Ida'} · ${ventanaDe(s.camion, s.mi_asiento) ? 'Ventana' : 'Pasillo'} · Fila ${filaDe(s.camion, s.mi_asiento)}</p>
-            ${junto ? `<p class="seat-sub"><b>Junto a ${esc(pareja.activa?.nombre || 'tu compañero de viaje')}</b> · asiento ${s.asiento_pareja}</p>` : ''}
+            ${junto ? `<p class="seat-sub"><b>Junto a ${esc(pareja.activa?.nombre || 'tu compañero de viaje')}</b> · asiento ${rotulo(s.camion, s.asiento_pareja)}</p>` : ''}
           </div>
         </div>
         <button class="btn btn-secondary btn-block" data-abrir-asientos="${esc(claveSalida(s))}">Ver o cambiar asiento</button>`
@@ -469,7 +469,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       const k = claveSalida(s)
       const { t, p } = splitHora(s.hora)
       const estado = s.mi_asiento
-        ? `${icon('i-check')}Asiento ${s.mi_asiento}`
+        ? `${icon('i-check')}Asiento ${rotulo(s.camion, s.mi_asiento)}`
         : s.abierta
           ? `${Math.max(0, capacidad(s.camion) - s.ocupados)} libres`
           : `${icon('i-lock')}${esc(new Date(s.abre_en).toLocaleTimeString('es-MX', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true }))}`
@@ -556,7 +556,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
 
   function etiquetaAsiento(a) {
     const estados = { libre: 'libre', ocupado: 'ocupado', mio: 'tu asiento', pareja: 'asiento de tu compañero de viaje' }
-    return `Asiento ${a.n}, ${ventanaDe(mapa.camion, a.n) ? 'ventana' : 'pasillo'}, ${estados[a.estado]}`
+    return `Asiento ${rotulo(mapa.camion, a.n)}, ${ventanaDe(mapa.camion, a.n) ? 'ventana' : 'pasillo'}, ${estados[a.estado]}`
   }
 
   // Sin filas dobles libres, lo que se puede tocar depende de la opción que eligió la pareja
@@ -571,7 +571,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
 
   function htmlAsiento(a) {
     const bloqueado = !mapa.abierta || !elegible(a)
-    return `<button type="button" class="seat${clasesAsiento(a)}" style="${posicion(mapa.camion, a.n)}" data-n="${a.n}" data-estado="${a.estado}" aria-label="${esc(etiquetaAsiento(a))}" aria-pressed="${seleccion === a.n}" aria-disabled="${bloqueado}">${a.n}</button>`
+    return `<button type="button" class="seat${clasesAsiento(a)}" style="${posicion(mapa.camion, a.n)}" data-n="${a.n}" data-estado="${a.estado}" aria-label="${esc(etiquetaAsiento(a))}" aria-pressed="${seleccion === a.n}" aria-disabled="${bloqueado}">${rotulo(mapa.camion, a.n)}</button>`
   }
 
   function construirAsientos() {
@@ -644,7 +644,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     const otras = salidas.filter(x => x !== s && x.abierta && !x.mi_asiento && x.dobles > 0)
     const hayPedibles = mapa.asientos.some(a => a.pedible)
     const boton = (v, texto) => `<button type="button" class="btn btn-sm ${opcion === v ? 'btn-primary' : 'btn-secondary'}" data-opcion="${v}">${texto}</button>`
-    const espera = mapa.solicitud ? `<span class="pair-wait">Esperando a que <b>${esc(mapa.solicitud.nombre)}</b> responda. Tu asiento ${mapa.solicitud.asiento} ya está apartado.</span>` : ''
+    const espera = mapa.solicitud ? `<span class="pair-wait">Esperando a que <b>${esc(mapa.solicitud.nombre)}</b> responda. Tu asiento ${rotulo(mapa.camion, mapa.solicitud.asiento)} ya está apartado.</span>` : ''
     const detalle = opcion === 'separar'
       ? `Elige tu asiento: a <b>${nombre}</b> le apartamos el libre más cercano.`
       : opcion === 'pedir'
@@ -708,7 +708,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     }
     if (!mapa.abierta) {
       texto.innerHTML = yaEsLaHora()
-        ? (mio ? `Tu asiento: ${mio.n}<small>Muestra tu código al chofer al subir</small>` : '<small>Esta salida ya no acepta apartados</small>')
+        ? (mio ? `Tu asiento: ${rotulo(mapa.camion, mio.n)}<small>Muestra tu código al chofer al subir</small>` : '<small>Esta salida ya no acepta apartados</small>')
         : '<small>Podrás elegir tu lugar en cuanto abra el apartado</small>'
       btnConfirm.textContent = 'Apartar asiento'
       return
@@ -717,22 +717,22 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       const a = mapa.asientos[seleccion - 1]
       if (enPareja) {
         const otro = vecinoDe(mapa.camion, seleccion)
-        texto.innerHTML = `Asientos ${Math.min(seleccion, otro)} y ${Math.max(seleccion, otro)}
-          <small>Tú en el ${seleccion} · ${esc(mapa.pareja.nombre)} en el ${otro}</small>`
+        texto.innerHTML = `Asientos ${rotulo(mapa.camion, Math.min(seleccion, otro))} y ${rotulo(mapa.camion, Math.max(seleccion, otro))}
+          <small>Tú en el ${rotulo(mapa.camion, seleccion)} · ${esc(mapa.pareja.nombre)} en el ${rotulo(mapa.camion, otro)}</small>`
         btnConfirm.textContent = mio ? 'Cambiar a esta banca' : 'Apartar para los dos'
       } else if (llena && opcion === 'pedir') {
-        texto.innerHTML = `Asiento ${seleccion}<small>Le preguntaremos a quien va en el ${vecinoDe(mapa.camion, seleccion)} si se cambia</small>`
+        texto.innerHTML = `Asiento ${rotulo(mapa.camion, seleccion)}<small>Le preguntaremos a quien va en el ${rotulo(mapa.camion, vecinoDe(mapa.camion, seleccion))} si se cambia</small>`
         btnConfirm.textContent = 'Apartar y preguntar'
       } else if (llena) {
-        texto.innerHTML = `Asiento ${seleccion}<small>${esc(mapa.pareja.nombre)} irá en el libre más cercano</small>`
+        texto.innerHTML = `Asiento ${rotulo(mapa.camion, seleccion)}<small>${esc(mapa.pareja.nombre)} irá en el libre más cercano</small>`
         btnConfirm.textContent = 'Apartar separados'
       } else {
-        texto.innerHTML = `Asiento ${seleccion}<small>${ventanaDe(mapa.camion, seleccion) ? 'Ventana' : 'Pasillo'} · Fila ${filaDe(mapa.camion, seleccion)}</small>`
+        texto.innerHTML = `Asiento ${rotulo(mapa.camion, seleccion)}<small>${ventanaDe(mapa.camion, seleccion) ? 'Ventana' : 'Pasillo'} · Fila ${filaDe(mapa.camion, seleccion)}</small>`
         btnConfirm.textContent = mio ? 'Cambiar a este asiento' : 'Apartar asiento'
       }
       btnConfirm.disabled = false
     } else if (mio) {
-      texto.innerHTML = `Tu asiento: ${mio.n}<small>Toca otro asiento si quieres cambiarte</small>`
+      texto.innerHTML = `Tu asiento: ${rotulo(mapa.camion, mio.n)}<small>Toca otro asiento si quieres cambiarte</small>`
       btnConfirm.textContent = 'Apartar asiento'
     } else {
       texto.innerHTML = `<small>${enPareja ? 'Elige una banca para los dos' : llena ? (opcion === 'pedir' || opcion === 'separar' ? 'Elige un asiento' : 'Elige una de las opciones') : 'Elige un asiento libre'}</small>`
@@ -772,7 +772,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
         return
       }
       haptic([12, 50, 18])
-      toast(`Te apartamos el asiento ${n} y le preguntamos a ${data.nombre}. Te avisamos cuando responda.`, { type: 'success', duration: 4500 })
+      toast(`Te apartamos el asiento ${rotulo(s.camion, n)} y le preguntamos a ${data.nombre}. Te avisamos cuando responda.`, { type: 'success', duration: 4500 })
       await Promise.all([cargarMapa(), cargarSalidas()])
       return
     }
@@ -796,16 +796,16 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     await Promise.all([cargarMapa(), cargarSalidas()])
     alCobrar?.()
     toast(data.separados
-      ? `Asiento ${n} para ti y ${data.asiento_pareja} para tu compañero de viaje`
+      ? `Asiento ${rotulo(s.camion, n)} para ti y ${rotulo(s.camion, data.asiento_pareja)} para tu compañero de viaje`
       : data.asiento_pareja
-      ? `Asientos ${Math.min(n, data.asiento_pareja)} y ${Math.max(n, data.asiento_pareja)} apartados`
+      ? `Asientos ${rotulo(s.camion, Math.min(n, data.asiento_pareja))} y ${rotulo(s.camion, Math.max(n, data.asiento_pareja))} apartados`
       : data.pareja_debe
-        ? `Asiento ${n} apartado solo para ti: tu compañero de viaje no está al corriente`
+        ? `Asiento ${rotulo(s.camion, n)} apartado solo para ti: tu compañero de viaje no está al corriente`
         : data.pareja_fuera
-          ? `Asiento ${n} apartado solo para ti: tu compañero de viaje no puede viajar en este vehículo`
+          ? `Asiento ${rotulo(s.camion, n)} apartado solo para ti: tu compañero de viaje no puede viajar en este vehículo`
           : data.pareja_con_viaje
-            ? `Asiento ${n} apartado solo para ti: tu compañero de viaje ya tiene otro viaje apartado`
-            : `Asiento ${n} apartado`, { type: data.pareja_debe || data.pareja_fuera || data.pareja_con_viaje ? 'warning' : 'success', duration: data.pareja_debe || data.pareja_fuera || data.pareja_con_viaje ? 4500 : 2800 })
+            ? `Asiento ${rotulo(s.camion, n)} apartado solo para ti: tu compañero de viaje ya tiene otro viaje apartado`
+            : `Asiento ${rotulo(s.camion, n)} apartado`, { type: data.pareja_debe || data.pareja_fuera || data.pareja_con_viaje ? 'warning' : 'success', duration: data.pareja_debe || data.pareja_fuera || data.pareja_con_viaje ? 4500 : 2800 })
     setTimeout(() => closeSheet('sheet-seats'), 1200)
   })
 
@@ -820,9 +820,9 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
       quien = await actionSheet({
         title: '¿Qué asiento quieres liberar?',
         actions: [
-          { label: `Solo el mío (${mio.n})`, value: 'yo' },
-          { label: `Solo el de ${nombre} (${suyo.n})`, value: 'pareja' },
-          { label: `Los dos (${mio.n} y ${suyo.n})`, value: 'ambos', style: 'destructive' }
+          { label: `Solo el mío (${rotulo(mapa.camion, mio.n)})`, value: 'yo' },
+          { label: `Solo el de ${nombre} (${rotulo(mapa.camion, suyo.n)})`, value: 'pareja' },
+          { label: `Los dos (${rotulo(mapa.camion, mio.n)} y ${rotulo(mapa.camion, suyo.n)})`, value: 'ambos', style: 'destructive' }
         ]
       })
       if (!quien) return
@@ -833,7 +833,7 @@ export function initAsientos({ rpc, alCambiarSalidas, precio = () => 60, alCobra
     if (quien === 'pareja') {
       const ok = await confirm({
         title: ultimaHora ? `Liberar con cobro a ${nombre}` : `Liberar el asiento de ${nombre}`,
-        message: `El asiento ${suyo.n} quedará libre para otros compañeros y le avisaremos a ${nombre}.${avisoPareja}`,
+        message: `El asiento ${rotulo(mapa.camion, suyo.n)} quedará libre para otros compañeros y le avisaremos a ${nombre}.${avisoPareja}`,
         confirmLabel: 'Liberar',
         destructive: true
       })

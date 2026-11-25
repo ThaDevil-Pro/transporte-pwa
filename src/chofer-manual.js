@@ -3,7 +3,7 @@
 // control y lo sube a la lista sin QR (para quien no trae su código).
 // El servidor marca el abordaje como manual y lo anota en la bitácora.
 // =====================================================================
-import { camionCorto, htmlRotos, plantillaColumnas, posicion, asiento as asientoDe, vecino, vehiculo, UBICACIONES } from './camiones.js'
+import { camionCorto, htmlRotos, rotulo, plantillaColumnas, posicion, asiento as asientoDe, vecino, vehiculo, UBICACIONES } from './camiones.js'
 import { $, $$, esc, icon, avatar, initials, haptic, toast, confirm, openSheet, closeSheet } from './ui.js'
 
 const MINIMO = 2
@@ -177,7 +177,7 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
     haptic(30)
     toast(data.de_pie
       ? `Vehículo lleno: ${primerNombre(data.nombre)} irá de pie`
-      : `${primerNombre(data.nombre)} está a bordo${data.asiento ? ` · Asiento ${data.asiento}` : ''}`, { type: data.de_pie ? 'warning' : 'success' })
+      : `${primerNombre(data.nombre)} está a bordo${data.asiento ? ` · Asiento ${rotulo(bus, data.asiento)}` : ''}`, { type: data.de_pie ? 'warning' : 'success' })
     // Lista lista para el siguiente alumno sin código
     limpiar()
     input.focus({ preventScroll: true })
@@ -203,7 +203,7 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
         const mio = x.matricula === a.matricula
         const estado = mio ? 'mio' : x.n === parN ? 'pareja' : x.nombre ? 'ocupado' : 'libre'
         const bloqueado = estado === 'ocupado' || estado === 'pareja'
-        return `<button type="button" class="seat${mio ? ' is-selected' : ''}" style="${posicion(bus, x.n)}" data-n="${x.n}" data-estado="${estado}"${bloqueado ? ' disabled' : ''} aria-label="Asiento ${x.n}${estado === 'pareja' ? `, de su compañero de viaje ${esc(x.nombre)}` : estado === 'ocupado' ? `, ocupado por ${esc(x.nombre)}` : ''}">${estado === 'ocupado' ? esc(initials(x.nombre)) : x.n}</button>`
+        return `<button type="button" class="seat${mio ? ' is-selected' : ''}" style="${posicion(bus, x.n)}" data-n="${x.n}" data-estado="${estado}"${bloqueado ? ' disabled' : ''} aria-label="Asiento ${rotulo(bus, x.n)}${estado === 'pareja' ? `, de su compañero de viaje ${esc(x.nombre)}` : estado === 'ocupado' ? `, ocupado por ${esc(x.nombre)}` : ''}">${estado === 'ocupado' ? esc(initials(x.nombre)) : rotulo(bus, x.n)}</button>`
       }
       grid.style.gridTemplateColumns = plantillaColumnas(bus)
       grid.innerHTML = mapa.asientos.map(seat).join('') + htmlRotos(bus)
@@ -215,8 +215,8 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
         // El volante está a la izquierda y la puerta a la derecha (como en el dibujo del mapa)
         const lado = asientoDe(bus, apartado)?.c < (vehiculo(bus)?.cols || 5) / 2 ? 'lado del chofer' : 'lado de la puerta'
         leyenda.innerHTML = parN
-          ? `<b>Asientos ${Math.min(apartado, parN)}-${Math.max(apartado, parN)}</b><span>con su compañero de viaje · ${lado}</span>`
-          : `<b>Asiento ${apartado}</b><span>${lado}</span>`
+          ? `<b>Asientos ${rotulo(bus, Math.min(apartado, parN))}-${rotulo(bus, Math.max(apartado, parN))}</b><span>con su compañero de viaje · ${lado}</span>`
+          : `<b>Asiento ${rotulo(bus, apartado)}</b><span>${lado}</span>`
       }
       $('#manual-seat-lead').textContent = apartado != null
         ? `${a.nombre} ya apartó para la salida de las ${mapa.hora} (${mapa.tipo === 'REGRESO' ? 'regreso' : 'ida'}).`
@@ -225,7 +225,7 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
           : dePie
           ? `${a.nombre} · El vehículo va lleno: no queda ningún asiento libre, irá de pie.`
           : `${a.nombre} · Salida de las ${mapa.hora} (${mapa.tipo === 'REGRESO' ? 'regreso' : 'ida'}). Toca un asiento libre.`
-      btnOk.textContent = sinLugar ? 'Sin lugar' : dePie ? 'Subir de pie' : elegido ? `Subir · Asiento ${elegido}` : 'Subir'
+      btnOk.textContent = sinLugar ? 'Sin lugar' : dePie ? 'Subir de pie' : elegido ? `Subir · Asiento ${rotulo(bus, elegido)}` : 'Subir'
       btnOk.disabled = sinLugar || (!dePie && elegido == null)
 
       let listo = false
@@ -242,7 +242,7 @@ export function initChoferManual({ rpc, camion, alRegistrar }) {
         haptic(6)
         elegido = Number(b.dataset.n)
         $$('.seat', grid).forEach(x => x.classList.toggle('is-selected', x === b))
-        btnOk.textContent = `Subir · Asiento ${elegido}`
+        btnOk.textContent = `Subir · Asiento ${rotulo(bus, elegido)}`
         btnOk.disabled = false
       }
       btnOk.onclick = () => {

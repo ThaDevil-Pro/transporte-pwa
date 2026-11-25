@@ -40,7 +40,7 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
   let arrastre = null
 
   const cols = () => COLS[tipo] || 5
-  const conId = lista => lista.map(b => ({ id: siguiente++, r: b.r, c: b.c, w: b.w, roto: b.roto === true, extra: b.extra === true }))
+  const conId = lista => lista.map(b => ({ id: siguiente++, r: b.r, c: b.c, w: b.w, roto: b.roto === true, extra: b.extra === true, sn: b.sn === true }))
   let numeracionVeh = 'chofer' // 'puerta': cada fila empieza por el lado de la puerta
 
   // --- PASOS ---
@@ -128,12 +128,12 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
 
   // Número de cada asiento: de adelante hacia atrás y de izquierda a derecha
   function numeracion() {
-    // Igual que privado.armar_asientos: extras al final y, con «puerta», el lado de la puerta primero
+    // Igual que privado.armar_asientos: sin número y extras al final y, con «puerta», el lado de la puerta primero
     const lado = c => (numeracionVeh === 'puerta' && c * 2 >= cols() ? 0 : 1)
-    const asientos = bloques.filter(b => !b.roto).flatMap(b => Array.from({ length: b.w }, (_, k) => ({ r: b.r, c: b.c + k, id: b.id, extra: b.extra ? 1 : 0 })))
-      .sort((a, b) => a.extra - b.extra || a.r - b.r || lado(a.c) - lado(b.c) || a.c - b.c)
+    const asientos = bloques.filter(b => !b.roto).flatMap(b => Array.from({ length: b.w }, (_, k) => ({ r: b.r, c: b.c + k, id: b.id, extra: b.extra ? 1 : 0, sn: b.sn ? 1 : 0 })))
+      .sort((a, b) => a.sn - b.sn || a.extra - b.extra || a.r - b.r || lado(a.c) - lado(b.c) || a.c - b.c)
     const mapa = new Map()
-    asientos.forEach((a, i) => mapa.set(`${a.r},${a.c}`, i + 1))
+    asientos.forEach((a, i) => mapa.set(`${a.r},${a.c}`, a.sn ? 'S/N' : i + 1))
     return { total: asientos.length, de: (r, c) => mapa.get(`${r},${c}`) }
   }
 
@@ -423,7 +423,7 @@ export function initEditorVehiculo({ rpc, alGuardar }) {
       p_nombre: texto,
       p_tipo: tipo,
       p_cols: cols(),
-      p_bloques: bloques.map(({ r, c, w, roto, extra }) => ({ r, c, w, ...(roto ? { roto: true } : {}), ...(extra ? { extra: true } : {}) })),
+      p_bloques: bloques.map(({ r, c, w, roto, extra, sn }) => ({ r, c, w, ...(roto ? { roto: true } : {}), ...(extra ? { extra: true } : {}), ...(sn ? { sn: true } : {}) })),
       p_exclusivo: exclusivo.checked
     })
     setLoading(btnGuardar, false)

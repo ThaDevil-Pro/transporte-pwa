@@ -1,6 +1,6 @@
 ---
 tags: [camify, negocio, asientos]
-actualizado: 2026-11-24
+actualizado: 2026-11-25
 ---
 
 # Apartados y asientos
@@ -24,8 +24,10 @@ Función principal: `public.alumno_apartar`. Mapa: `public.alumno_mapa`. Tabla: 
 - Consecuencia: quien aparta la ida no puede apartar el regreso hasta llegar.
 
 ## Numeración de asientos
-- Por defecto cada fila se numera de izquierda (chofer) a derecha (puerta). Un vehículo puede usar `estado_viaje.numeracion = 'puerta'`: cada fila empieza por el lado de la puerta (Camión Gris: fila 1 = 1-2 puerta, 3-4 chofer).
-- Un bloque con `extra: true` se numera al final aunque esté adelante (Gris: plegable de la escalera = 40, se puede apartar). El editor conserva `roto` y `extra` al guardar.
+- Por defecto cada fila se numera de izquierda (chofer) a derecha (puerta). Un vehículo puede usar `estado_viaje.numeracion = 'puerta'`: cada fila empieza por el lado de la puerta (Camión Gris: fila 1 = 1-2 chofer porque los de la puerta no tienen número; fila 2 = 3-4 puerta, 5-6 chofer… fondo 35-36-37).
+- Un bloque con `extra: true` se numera al final aunque esté adelante.
+- Un bloque con `sn: true` es un asiento que en el camión **no tiene número**: se aparta igual, por dentro va después de todos (Gris: 38-40) y en pantalla y avisos dice **«S/N»** (`privado.etiqueta_asiento`, `rotulo()` en `src/camiones.js`). Gris: el plegable de la escalera y los dos de la primera fila del lado de la puerta.
+- El editor conserva `roto`, `extra` y `sn` al guardar (todavía no tiene botón para marcar S/N; se marca en la base).
 
 ## Vans
 - Una salida de van solo se puede apartar si el chofer la activó (`privado.salida_activa`, `privado.motivo_salida`); sin activar no aparece en `alumno_salidas` y `alumno_apartar` lo rechaza. La van exclusiva de Chinacates solo obliga a apartar ahí si su viaje está activado (`privado.exclusiva_con_lugar`).

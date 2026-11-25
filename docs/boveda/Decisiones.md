@@ -1,6 +1,6 @@
 ---
 tags: [camify, decisiones]
-actualizado: 2026-11-24
+actualizado: 2026-11-25
 ---
 
 # Decisiones
@@ -17,6 +17,7 @@ Volver a [Inicio](Inicio.md)
 | 2026-11-19 | **Un viaje apartado a la vez** ([Apartados y asientos](negocio/Apartados%20y%20asientos.md)) | Que nadie acapare lugares; liberar sí permite apartar otro; respaldo de 3 h si no se finaliza |
 | 2026-11-21 | La **administración** también edita horarios y qué unidad sale ([Viaje del chofer](negocio/Viaje%20del%20chofer.md)) | Lo pidió la administración; no depender de que cada chofer los capture |
 | 2026-11-22 | La deuda solo cuenta para **apartar (≤ $60) y subir (≤ $600)**; quien debe más de $60 puede ir de pie | La regla anterior (asiento forzado o no sube) no se había decidido y dejaba sin transporte a quien sí podía subir |
+| 2026-11-25 | Camión Gris: el plegable y los 2 de la primera fila de la puerta son **S/N** (se apartan, sin número); se cuenta 1-2 tras el chofer, 3-4 puerta… fondo 35-36-37 | Así están en el camión; los 39 apartados de ese día se movieron al mismo lugar con aviso |
 | 2026-11-24 | Camión Gris: numeración **puerta primero** y asiento plegable 40 en la escalera | Así están numerados los asientos en el camión; los apartados se movieron al mismo lugar físico con aviso |
 | 2026-11-23 | Detector de congelamientos en la app y mejoras de velocidad (apertura rápida, barras sin desenfoque, lector QR bajo demanda) | Todos reportan congelamientos en iPhone que no se reproducen fuera del teléfono |
 | 2026-11-23 | **v1.1**: QR válido **12 horas** y fijo mientras está abierto | Que la captura sirva todo el día y no haya rechazos en la parada |

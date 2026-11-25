@@ -11,7 +11,7 @@ import { initReportes } from './reportes.js'
 import { initAmbiente } from './ambiente.js'
 import { initBuzon } from './buzon.js'
 import { initDiesel, fmtLitros, ESTADO_CARGA } from './diesel.js'
-import { actualizarCamiones, actualizarCamion, camionCorto, nombreCamion, puntoCamion, capacidad, etiquetaVehiculo, listaCamiones, vehiculo, selectorCamion, TIPOS, UBICACIONES, ubicacionNombre, siFaltaVehiculo, alCambiarVehiculos } from './camiones.js'
+import { actualizarCamiones, actualizarCamion, camionCorto, nombreCamion, puntoCamion, capacidad, etiquetaVehiculo, listaCamiones, vehiculo, selectorCamion, TIPOS, UBICACIONES, ubicacionNombre, siFaltaVehiculo, alCambiarVehiculos, rotulo } from './camiones.js'
 import { initEditorVehiculo } from './editor-vehiculo.js'
 import { initFotos, selectorFoto, urlFoto, comprimirFoto } from './fotos.js'
 import { initInstalar, initPush } from './push.js'
@@ -1481,7 +1481,7 @@ async function onScanSuccess(decodedText) {
     flash('success')
     haptic(30)
     // Si apartó lugar para esta salida, el chofer ve a qué asiento va
-    const asiento = data.asiento ? ` · Asiento ${data.asiento}` : ''
+    const asiento = data.asiento ? ` · Asiento ${rotulo(camionActual, data.asiento)}` : ''
     setScanFeedback(`${primerNombre(data.nombre)} está a bordo${asiento}`, 'success', { volver: 2200 })
   }
   await fetchPassengers()
@@ -2225,7 +2225,7 @@ const fmtDetalle = {
   emergencia: ['Emergencia del camión', 'i-alert', 'is-alert', d => `${camionCorto(d.camion)} · ${d.motivo === 'descompuesto' ? 'Se descompuso' : 'No estará disponible'} · avisó a ${plural(d.avisados || 0, 'alumno', 'alumnos')}${d.liberados ? ` · ${plural(d.liberados, 'asiento liberado', 'asientos liberados')}` : ''}`],
   viaje_finalizado_auto: ['Viaje finalizado solo', 'i-flag', '', d => `${camionCorto(d.camion)} · el chofer no tocó «Finalizar» 6 h después del corte`],
   abordajes_descartados: ['Alumnos quitados de un viaje sin corte', 'i-alert', 'is-alert', d => `${camionCorto(d.camion)} · ${plural((d.alumnos || []).length, 'alumno', 'alumnos')} sin cobrar: ${(d.alumnos || []).map(a => `${a.nombre || a.matricula} (${a.matricula})`).join(', ')}`],
-  abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `${camionCorto(d.camion)} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}${d.asiento ? ` · Asiento ${d.asiento}` : ''}${d.de_pie ? ' · De pie' : ''}`],
+  abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `${camionCorto(d.camion)} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}${d.asiento ? ` · Asiento ${rotulo(d.camion, d.asiento)}` : ''}${d.de_pie ? ' · De pie' : ''}`],
   usuarios_importados: ['Usuarios importados', 'i-sheet', '', d => [
     d.alumnos && plural(d.alumnos, 'alumno', 'alumnos'),
     d.choferes && plural(d.choferes, 'chofer', 'choferes'),
