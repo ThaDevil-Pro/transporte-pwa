@@ -798,12 +798,17 @@ const TRIP_COPY = {
   countdown: { label: 'Abordando', headline: '', sub: 'Muestra tu código al chofer antes de que termine el tiempo.' },
   departing: { label: 'Saliendo', headline: '¡Es hora de salir!', sub: 'El camión está por partir.' },
   enroute: { label: 'En camino', headline: 'Viaje en curso', sub: 'Buen viaje. Tu saldo ya incluye este recorrido.' },
-  gone: { label: 'Ya salió', headline: 'Este viaje ya salió', sub: 'No vas a bordo. Revisa tu próxima salida en «Tu asiento».' }
+  gone: { label: 'Ya salió', headline: 'Este viaje ya salió', sub: 'No vas a bordo. Revisa tu próxima salida en «Tu asiento».' },
+  chinacates: { label: 'En camino', headline: 'Va hacia Chinacates', sub: 'Muestra tu código al chofer cuando subas.' }
 }
 
 function estadoTarjeta() {
   const ahora = Date.now()
-  if (estadoViaje === 'EN_CAMINO') return currentRole === 'Estudiante' && perfilActual.abordo !== camionAlumno ? 'gone' : 'enroute'
+  if (estadoViaje === 'EN_CAMINO') {
+    if (currentRole !== 'Estudiante' || perfilActual.abordo === camionAlumno) return 'enroute'
+    // Los de Chinacates suben en el camino, con el corte ya hecho
+    return perfilActual.ubicacion === 'chinacates' && !perfilActual.abordo ? 'chinacates' : 'gone'
+  }
   if (targetEndTime && targetEndTime > ahora) return 'countdown'
   if (targetEndTime && ahora - targetEndTime < 10 * 60 * 1000) return 'departing'
   return 'waiting'
@@ -1243,7 +1248,7 @@ function renderDriverTrip() {
   $('#driver-trip-status').textContent = isTripActive ? 'En camino' : 'Abordando'
   $('#driver-trip-headline').textContent = isTripActive ? 'Viaje en curso' : n >= cupo() ? 'Unidad llena' : 'Lista abierta'
   $('#driver-trip-sub').textContent = isTripActive
-    ? 'Corte realizado. Finaliza el viaje al llegar.'
+    ? 'Corte realizado. Los de Chinacates pueden subir en el camino. Finaliza el viaje al llegar.'
     : dePie ? `${plural(dePie, 'alumno va', 'alumnos van')} de pie.`
       : n ? `Quedan ${Math.max(0, cupo() - n)} lugares disponibles.` : 'Escanea el código de cada alumno al subir.'
 
@@ -1359,7 +1364,7 @@ $('#btn-cerrar-comprobante').addEventListener('click', async e => {
   const { error } = await rpc('chofer_finalizar_viaje', { p_camion: camionActual })
   setLoading(btn, false)
   if (error) {
-    toast('No se pudo finalizar el viaje', { type: 'error' })
+    toast(error.message || 'No se pudo finalizar el viaje', { type: 'error' })
     return
   }
   passengers = []

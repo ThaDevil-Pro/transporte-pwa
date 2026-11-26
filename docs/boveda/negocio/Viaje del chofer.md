@@ -1,6 +1,6 @@
 ---
 tags: [camify, negocio, chofer]
-actualizado: 2026-11-23
+actualizado: 2026-11-26
 ---
 
 # Viaje del chofer
@@ -13,7 +13,8 @@ Estado de cada vehículo en `estado_viaje` (`estado`: ESPERANDO / EN_CAMINO, `te
 2. **Conteo**: inicia el temporizador de salida (`chofer_temporizador`). Al iniciarlo, se manda push "Tu camión ya está abordando" a quien apartó esa salida.
 3. **Abordaje**: escanea el QR del alumno (`chofer_registrar_abordaje`; cada código se acepta **hasta 12 horas**; el alumno ve «Vale 12 horas: hasta…» y puede usar una captura de pantalla) o lo registra a mano (`chofer_abordar_manual`). Lista en `abordajes`.
 4. **Corte** (`chofer_hacer_corte`): cobra a todos los de la lista ([Cobros y adeudos](Cobros%20y%20adeudos.md)), marca perdidos y pasa a **EN_CAMINO**. Queda en `privado.cortes`.
-5. **Finalizar** (`chofer_finalizar_viaje`): vacía la lista y vuelve a ESPERANDO. **Importante**: libera a los alumnos para apartar su siguiente viaje ([Apartados y asientos](Apartados%20y%20asientos.md)).
+   - **Chinacates después del corte** (2026-11-26): el camión pasa por Chinacates ya con el corte hecho. Con el viaje EN_CAMINO **solo** pueden subir alumnos de ubicación Chinacates (QR o a mano); se les cobra en ese momento dentro del mismo corte (el corte suma alumno, monto, manual y de pie). A los de Chinacates que apartaron y no han subido el corte no los marca perdidos: eso pasa al finalizar (`privado.cobrar_perdidos_chinacates`, también en el finalizado automático), con la misma regla de los 20 minutos.
+5. **Finalizar** (`chofer_finalizar_viaje`): **no antes de 40 minutos después del corte** (el servidor lo rechaza y dice a qué hora se podrá). Vacía la lista y vuelve a ESPERANDO. **Importante**: libera a los alumnos para apartar su siguiente viaje ([Apartados y asientos](Apartados%20y%20asientos.md)).
 
 Otras acciones del chofer: reportar falla, botón de emergencia ([Buzón y fallas](Buzón%20y%20fallas.md)), registrar diesel, editar horarios de su vehículo (`chofer_horario_agregar/actualizar/eliminar`).
 
