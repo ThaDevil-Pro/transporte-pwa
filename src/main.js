@@ -1261,8 +1261,10 @@ function renderDriverTrip() {
   $('#corte-total').textContent = fmtMoney(totalCorte(passengers))
   $('#corte-detail').textContent = n ? detalleCobro(passengers) : `0 × ${fmtMoney(PRECIO_VIAJE)}`
   if (!btnIniciarViaje.classList.contains('is-loading')) {
-    btnIniciarViaje.textContent = isTripActive ? 'Finalizar viaje' : 'Hacer corte'
-    btnIniciarViaje.disabled = !isTripActive && n === 0 && !camionActual
+    // Con el conteo encendido el corte lo hace el servidor al llegar a 0
+    const automatico = !isTripActive && !!targetEndTime && targetEndTime > Date.now() - 10 * 60 * 1000
+    btnIniciarViaje.textContent = isTripActive ? 'Finalizar viaje' : automatico ? 'El corte se hace solo al llegar a 0' : 'Hacer corte'
+    btnIniciarViaje.disabled = automatico || (!isTripActive && n === 0 && !camionActual)
   }
 }
 
@@ -1532,10 +1534,14 @@ function tickTimer() {
 
   // Chofer
   const card = $('#driver-timer-card')
-  card.dataset.state = contando ? 'counting' : terminado ? 'done' : 'idle'
+  const estado = contando ? 'counting' : terminado ? 'done' : 'idle'
+  const cambio = card.dataset.state !== estado
+  card.dataset.state = estado
   setDigits($('#driver-timer-display'), texto)
   $('#driver-timer-progress').style.setProperty('--p', progreso)
-  $('#driver-timer-caption').textContent = contando ? 'Restante para la salida' : terminado ? '¡Hora de salir!' : 'Listo para iniciar el conteo'
+  $('#driver-timer-caption').textContent = contando ? 'Restante para la salida · al llegar a 0 se hace el corte solo'
+    : terminado ? (isTripActive ? '¡Hora de salir!' : 'Haciendo el corte…') : 'Listo para iniciar el conteo'
+  if (cambio && currentRole === 'Chofer') renderDriverTrip()
   btnTimerStart.hidden = contando
   btnTimerStart.textContent = terminado ? 'Reiniciar 5 min' : 'Iniciar 5 min'
   btnTimerAdd.hidden = !contando
@@ -2216,7 +2222,8 @@ const salidaLog = f => DIAS.filter(d => f?.[d]?.hora).map(d => `${DIAS_CORTO[d]}
 const fmtDetalle = {
   pago_registrado: ['Pago registrado', 'i-wallet', 'is-money', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${fmtMoney(d.monto)}${d.nota ? ` · ${d.nota}` : ''}`],
   saldo_ajustado: ['Saldo corregido', 'i-receipt', '', d => `${d.nombre ? `${d.nombre} · ` : ''}${d.matricula} · ${fmtSaldo(d.antes)} → ${fmtSaldo(d.despues)}${d.motivo ? ` · ${d.motivo}` : ''}`],
-  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `${camionCorto(d.camion)}${d.salida ? ` ${d.salida}` : ''} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${d.monto_perdidos ? `${fmtMoney(d.total - d.monto_perdidos)} + ${fmtMoney(d.monto_perdidos)} de perdidos` : fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}${d.de_pie ? ` · ${d.de_pie} de pie` : ''}${d.perdidos ? ` · ${plural(d.perdidos, 'apartado perdido', 'apartados perdidos')}` : ''}`],
+  corte: ['Corte de viaje', 'i-bus', 'is-money', d => `${camionCorto(d.camion)}${d.salida ? ` ${d.salida}` : ''} · ${plural(d.alumnos, 'alumno', 'alumnos')} · ${d.monto_perdidos ? `${fmtMoney(d.total - d.monto_perdidos)} + ${fmtMoney(d.monto_perdidos)} de perdidos` : fmtMoney(d.total)}${d.manuales ? ` · ${d.manuales} a mano` : ''}${d.de_pie ? ` · ${d.de_pie} de pie` : ''}${d.perdidos ? ` · ${plural(d.perdidos, 'apartado perdido', 'apartados perdidos')}` : ''}${d.automatico ? ' · automático' : ''}`],
+  corte_auto_fallido: ['Corte automático sin hacer', 'i-alert', 'is-alert', d => `${camionCorto(d.camion)} · ${d.motivo || 'no se pudo'} · se apagó el conteo`],
   apartado_recuperado: ['Apartado recuperado tras cancelar', 'i-receipt', 'is-money', d => `salida de las ${d.hora} · se devolvieron ${fmtMoney(d.monto)}`],
   apartado_cancelado_tarde: ['Apartado cancelado en la última hora', 'i-alert', 'is-money', d => `${camionCorto(d.camion)} · salida de las ${d.hora} · se cobró ${fmtMoney(d.monto)}`],
   ubicacion_elegida: ['Ubicación elegida por el alumno', 'i-pin', '', d => ubicacionNombre(d.ubicacion)],
