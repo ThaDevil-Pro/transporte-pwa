@@ -2235,7 +2235,7 @@ const fmtDetalle = {
   fotos_cargadas: ['Fotos de alumnos cargadas', 'i-camera', '', d => plural(d.fotos || 0, 'foto', 'fotos')],
   foto_borrada: ['Foto de alumno quitada', 'i-camera', '', d => d.matricula || ''],
   emergencia: ['Emergencia del camión', 'i-alert', 'is-alert', d => `${camionCorto(d.camion)} · ${d.motivo === 'descompuesto' ? 'Se descompuso' : 'No estará disponible'} · avisó a ${plural(d.avisados || 0, 'alumno', 'alumnos')}${d.liberados ? ` · ${plural(d.liberados, 'asiento liberado', 'asientos liberados')}` : ''}`],
-  viaje_finalizado_auto: ['Viaje finalizado solo', 'i-flag', '', d => `${camionCorto(d.camion)} · el chofer no tocó «Finalizar» 6 h después del corte`],
+  viaje_finalizado_auto: ['Viaje finalizado solo', 'i-flag', '', d => `${camionCorto(d.camion)} · el chofer no tocó «Finalizar» 60 min después del corte`],
   abordajes_descartados: ['Alumnos quitados de un viaje sin corte', 'i-alert', 'is-alert', d => `${camionCorto(d.camion)} · ${plural((d.alumnos || []).length, 'alumno', 'alumnos')} sin cobrar: ${(d.alumnos || []).map(a => `${a.nombre || a.matricula} (${a.matricula})`).join(', ')}`],
   abordaje_manual: ['Abordaje registrado a mano', 'i-hand', 'is-alert', d => `${camionCorto(d.camion)} · ${d.nombre ? `${d.nombre} · ` : ''}${d.matricula}${d.asiento ? ` · Asiento ${rotulo(d.camion, d.asiento)}` : ''}${d.de_pie ? ' · De pie' : ''}`],
   usuarios_importados: ['Usuarios importados', 'i-sheet', '', d => [

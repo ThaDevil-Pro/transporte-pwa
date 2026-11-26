@@ -31,7 +31,7 @@ Otras acciones del chofer: reportar falla, botón de emergencia ([Buzón y falla
 
 **Viajes olvidados** (desde 2026-11-22, `privado.limpiar_viajes_viejos`, corre al escanear, hacer corte, abrir la lista o la jornada):
 - Alumnos escaneados hace **más de 4 h en un viaje sin corte** se quitan de la lista **sin cobro** y quedan en la bitácora (`abordajes_descartados`) con nombre y matrícula, por si la administración quiere cobrarlos a mano. Antes se quedaban "a bordo" para siempre: no podían subir a otra unidad y se les cobraba en el siguiente corte de ese camión (pasó en producción: uno del 4 de noviembre).
-- Corte hecho y nadie tocó **Finalizar**: se finaliza solo **6 h después del corte** (`viaje_finalizado_auto`).
+- Corte hecho y nadie tocó **Finalizar**: se finaliza solo **60 minutos después del corte** (`viaje_finalizado_auto`; desde 2026-11-26, antes 6 h; lo revisa pg_cron cada 10 s junto con el corte automático), con el cobro de perdidos de Chinacates.
 - Conteo de salida encendido hace más de 2 h: se apaga.
 
 **Salida actual** (`_salida_actual`): la salida programada del vehículo más cercana a la hora actual (de 3 h antes a 1 h después) sin corte.
